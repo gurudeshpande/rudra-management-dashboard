@@ -121,10 +121,19 @@ const InvoiceManagement = () => {
     fetchInvoices();
   }, [searchTerm, statusFilter]);
 
+  const statusFilterOptions = [
+    { value: "ALL", label: "All Statuses" },
+    { value: "PAID", label: "Paid" },
+    { value: "UNPAID", label: "Unpaid" },
+    { value: "ADVANCE", label: "Advance" }, // DRAFT represents Advance status
+  ];
+
+  // Handle invoice deletion
   // Handle invoice deletion
   const handleDelete = async (id: number) => {
     try {
-      const response = await fetch(`/api/allinvoices/deleteinvoice?id=${id}`, {
+      const response = await fetch(`/api/allinvoices/${id}`, {
+        // ✅ Use dynamic route
         method: "DELETE",
       });
 
@@ -178,15 +187,38 @@ const InvoiceManagement = () => {
   ): "default" | "secondary" | "destructive" | "outline" | undefined => {
     switch (status) {
       case "PAID":
-        return "default";
-      case "PENDING":
-        return "outline";
-      case "DRAFT":
-        return "secondary";
-      case "OVERDUE":
-        return "destructive";
+        return "default"; // Green
+      case "UNPAID":
+        return "destructive"; // Red
+      case "ADVANCE": // DRAFT represents Advance status
+        return "secondary"; // Orange/Yellow
       default:
         return "secondary";
+    }
+  };
+
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case "PAID":
+        return (
+          <Badge className="bg-green-600 text-white hover:bg-green-700">
+            PAID
+          </Badge>
+        );
+      case "UNPAID":
+        return (
+          <Badge className="bg-red-600 text-white hover:bg-red-700">
+            UNPAID
+          </Badge>
+        );
+      case "ADVANCE": // DRAFT represents Advance status
+        return (
+          <Badge className="bg-amber-500 text-white hover:bg-amber-600">
+            ADVANCE
+          </Badge>
+        );
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
@@ -211,14 +243,14 @@ const InvoiceManagement = () => {
       let overallBalanceDue = 0;
 
       filteredInvoices.forEach((invoice) => {
-        let balanceDue = invoice.total - invoice.advancePaid;
+        let balanceDue = invoice.subtotal - invoice.advancePaid;
 
         if (invoice.advancePaid <= 0) {
           balanceDue = 0;
         }
 
         // Add to overall totals
-        overallTotal += invoice.total;
+        overallTotal += invoice.subtotal;
         overallAdvancePaid += invoice.advancePaid;
         overallBalanceDue += balanceDue;
 
@@ -228,7 +260,7 @@ const InvoiceManagement = () => {
           `"${invoice.customer.number}"`,
           `"${formatDate(invoice.invoiceDate)}"`,
           `"${formatDate(invoice.dueDate)}"`,
-          `"${invoice.total}"`,
+          `"${invoice.subtotal}"`,
           `"${invoice.advancePaid}"`,
           `"${balanceDue}"`,
           `"${invoice.status}"`,
@@ -312,10 +344,11 @@ const InvoiceManagement = () => {
                     <SelectValue placeholder="Filter status" />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    <SelectItem value="ALL">All Statuses</SelectItem>
-                    <SelectItem value="DRAFT">Draft</SelectItem>
-                    <SelectItem value="FINAL">Final</SelectItem>
-                    <SelectItem value="PAID">Paid</SelectItem>
+                    {statusFilterOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -404,78 +437,80 @@ const InvoiceManagement = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredInvoices.map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell className="font-medium">
-                        {invoice.invoiceNumber}
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">
-                          {invoice.customer.name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {invoice.customer.number}
-                        </div>
-                      </TableCell>
-                      <TableCell>{formatDate(invoice.invoiceDate)}</TableCell>
-                      <TableCell>{formatDate(invoice.dueDate)}</TableCell>
-                      <TableCell>
-                        <div className="font-medium">
-                          {formatCurrency(invoice.total)}
-                        </div>
-                        {invoice.advancePaid > 0 && (
-                          <div className="text-xs text-gray-500">
-                            Advance: {formatCurrency(invoice.advancePaid)}
+                  {filteredInvoices.map((invoice) => {
+                    const remainingAmount =
+                      invoice.subtotal - invoice.advancePaid;
+
+                    return (
+                      <TableRow key={invoice.id}>
+                        <TableCell className="font-medium">
+                          {invoice.invoiceNumber}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">
+                            {invoice.customer.name}
                           </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {invoice.status === "PAID" ? (
-                          <Badge className="bg-green-600 text-white hover:bg-green-700">
-                            {invoice.status}
-                          </Badge>
-                        ) : (
-                          <Badge variant={getStatusVariant(invoice.status)}>
-                            {invoice.status}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => {
-                              setSelectedInvoice(invoice);
-                              setMode("view");
-                            }}
-                            title="View Invoice"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => {
-                              setSelectedInvoice(invoice);
-                              setMode("edit");
-                            }}
-                            title="Edit Invoice"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => setDeleteConfirm(invoice.id)}
-                            title="Delete Invoice"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                          <div className="text-sm text-gray-500">
+                            {invoice.customer.number}
+                          </div>
+                        </TableCell>
+                        <TableCell>{formatDate(invoice.invoiceDate)}</TableCell>
+                        <TableCell>{formatDate(invoice.dueDate)}</TableCell>
+                        <TableCell>
+                          <div className="font-medium">
+                            {formatCurrency(invoice.subtotal)}
+                          </div>
+                          {invoice.advancePaid > 0 && (
+                            <div className="text-xs space-y-1">
+                              <div className="text-green-600">
+                                Advance: {formatCurrency(invoice.advancePaid)}
+                              </div>
+                              <div className="text-blue-600 font-medium">
+                                Remaining: {formatCurrency(remainingAmount)}
+                              </div>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {getStatusDisplay(invoice.status)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end space-x-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => {
+                                setSelectedInvoice(invoice);
+                                setMode("view");
+                              }}
+                              title="View Invoice"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => {
+                                setSelectedInvoice(invoice);
+                                setMode("edit");
+                              }}
+                              title="Edit Invoice"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setDeleteConfirm(invoice.id)}
+                              title="Delete Invoice"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
@@ -534,7 +569,7 @@ const InvoiceManagement = () => {
 
                 <div>
                   <h4 className="font-medium mb-1">Amount</h4>
-                  <p>{formatCurrency(selectedInvoice.total)}</p>
+                  <p>{formatCurrency(selectedInvoice.subtotal)}</p>
                   {selectedInvoice.advancePaid > 0 && (
                     <p className="text-sm text-gray-500">
                       Advance: {formatCurrency(selectedInvoice.advancePaid)}
@@ -593,16 +628,34 @@ const InvoiceManagement = () => {
                 onSubmit={async (e) => {
                   e.preventDefault();
                   const formData = new FormData(e.currentTarget);
+                  const remainingAmount = Number(formData.get("remaining"));
+
+                  // Calculate new advance paid amount
+                  const totalAmount = selectedInvoice.subtotal;
+                  const newAdvancePaid = totalAmount - remainingAmount;
+
+                  // Determine new status based on payment
+                  let newStatus = selectedInvoice.status;
+                  if (remainingAmount === 0) {
+                    newStatus = "PAID";
+                  } else if (newAdvancePaid > 0 && remainingAmount > 0) {
+                    newStatus = "ADVANCE";
+                  } else if (newAdvancePaid === 0) {
+                    newStatus = "UNPAID";
+                  }
+
                   const body = {
                     customer: {
                       name: formData.get("customerName"),
                       number: formData.get("customerNumber"),
                     },
-                    remaining: Number(formData.get("remaining")),
+                    remaining: remainingAmount,
+                    advancePaid: newAdvancePaid,
+                    status: newStatus,
                   };
 
                   const updatePromise = fetch(
-                    `/api/allinvoices/updateinvoice?id=${selectedInvoice.id}`,
+                    `/api/allinvoices/${selectedInvoice.id}`,
                     {
                       method: "PUT",
                       headers: { "Content-Type": "application/json" },
@@ -658,18 +711,90 @@ const InvoiceManagement = () => {
                   </div>
                 </div>
 
+                {/* Payment Summary */}
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-medium text-blue-800 mb-2">
+                    Payment Summary
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600">Total Amount:</span>
+                      <p className="font-medium">
+                        {formatCurrency(selectedInvoice.subtotal)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Current Advance:</span>
+                      <p className="font-medium text-green-600">
+                        {formatCurrency(selectedInvoice.advancePaid)}
+                      </p>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-gray-600">
+                        Current Balance Due:
+                      </span>
+                      <p className="font-medium text-blue-700">
+                        {formatCurrency(
+                          selectedInvoice.subtotal - selectedInvoice.advancePaid
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Remaining Amount Field */}
                 <div className="space-y-2">
                   <label htmlFor="remaining" className="text-sm font-medium">
-                    Remaining Amount
+                    Remaining Amount (Balance Due)
                   </label>
                   <Input
                     id="remaining"
                     name="remaining"
                     type="number"
+                    min="0"
+                    max={selectedInvoice.subtotal}
                     defaultValue={
-                      selectedInvoice.total - selectedInvoice.advancePaid
+                      selectedInvoice.subtotal - selectedInvoice.advancePaid
                     }
+                    placeholder="Enter remaining amount"
                   />
+                  <p className="text-xs text-gray-500">
+                    Enter the remaining balance amount. Setting this to 0 will
+                    mark the invoice as PAID.
+                  </p>
+                </div>
+
+                {/* New Payment Summary Preview */}
+                <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                  <h4 className="font-medium text-amber-800 mb-2">
+                    Update Preview
+                  </h4>
+                  <div className="text-sm space-y-1">
+                    <div className="flex justify-between">
+                      <span>Total Amount:</span>
+                      <span className="font-medium">
+                        {formatCurrency(selectedInvoice.subtotal)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>New Advance Paid:</span>
+                      <span className="font-medium text-green-600">
+                        {formatCurrency(
+                          selectedInvoice.subtotal -
+                            (selectedInvoice.subtotal -
+                              selectedInvoice.advancePaid)
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-t border-amber-200 pt-1">
+                      <span>New Balance Due:</span>
+                      <span className="font-medium text-blue-700">
+                        {formatCurrency(
+                          selectedInvoice.subtotal - selectedInvoice.advancePaid
+                        )}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 <DialogFooter className="gap-2 sm:gap-0">
@@ -682,7 +807,12 @@ const InvoiceManagement = () => {
                           method: "PUT",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({
+                            customer: {
+                              name: selectedInvoice.customer.name,
+                              number: selectedInvoice.customer.number,
+                            },
                             remaining: 0,
+                            advancePaid: selectedInvoice.subtotal,
                             status: "PAID",
                           }),
                         }
@@ -707,7 +837,7 @@ const InvoiceManagement = () => {
                     }}
                     className="bg-green-600 hover:bg-green-700"
                   >
-                    Mark as Paid
+                    Mark as Fully Paid
                   </Button>
                   <Button type="submit">Save Changes</Button>
                 </DialogFooter>
