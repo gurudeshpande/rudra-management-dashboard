@@ -23,6 +23,9 @@ import {
   PackageIcon,
   List,
   ReceiptIndianRupee,
+  Edit,
+  Check,
+  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,12 +52,15 @@ interface InvoiceItem {
   price: number;
   originalPrice: number;
   total: number;
+  subtotal: number;
   discount?: number;
   discountedPrice?: number;
   hsn?: string;
   unit?: string;
   description?: string;
   notes?: string;
+  isEditing?: boolean;
+  tempDiscount?: number;
 }
 
 interface CustomerInfo {
@@ -85,8 +91,12 @@ const Invoices = () => {
 
   // State for advance payment
   const [advancePayment, setAdvancePayment] = useState<number>(0);
-  const [applyDiscount, setApplyDiscount] = useState<boolean>(false);
-  const [discountPercentage, setDiscountPercentage] = useState<number>(0);
+
+  // State for overall discount
+  const [applyOverallDiscount, setApplyOverallDiscount] =
+    useState<boolean>(false);
+  const [overallDiscountPercentage, setOverallDiscountPercentage] =
+    useState<number>(0);
 
   // State for GST
   const [includeGst, setIncludeGst] = useState<boolean>(true);
@@ -106,50 +116,127 @@ const Invoices = () => {
   const [productStock, setProductStock] = useState<{ [key: number]: number }>(
     {}
   );
+  const [invoiceStatus, setInvoiceStatus] = useState<
+    "PAID" | "UNPAID" | "ADVANCE"
+  >("UNPAID");
 
-  // Fetch next invoice number from API
-  // const fetchNextInvoiceNumber = async () => {
-  //   try {
-  //     setIsLoadingInvoiceNumber(true);
-  //     const res = await fetch("/api/invoices/next-number");
-  //     if (!res.ok) throw new Error("Failed to fetch next invoice number");
+  // Apply overall discount to all items
+  const applyOverallDiscountToItems = (percentage: number) => {
+    if (percentage < 0 || percentage > 100) return;
 
-  //     const data = await res.json();
-  //     setInvoiceNumber(data.nextInvoiceNumber);
-  //   } catch (error: any) {
-  //     console.error("Failed to fetch next invoice number:", error);
-  //     // Fallback to generating a temporary number
-  //     // setInvoiceNumber(
-  //     //   `INV-${new Date().getFullYear()}-${Math.floor(
-  //     //     1000 + Math.random() * 9000
-  //     //   )}`
-  //     // );
-  //   } finally {
-  //     setIsLoadingInvoiceNumber(false);
-  //   }
-  // };
+    const updatedItems = items.map((item) => {
+      const discountAmount = (item.originalPrice * percentage) / 100;
+      const finalPrice = item.originalPrice - discountAmount;
 
-  // const fetchProductStock = async (productId: number) => {
-  //   try {
-  //     const response = await fetch(`/api/products/${productId}`);
-  //     if (!response.ok) throw new Error("Failed to fetch product");
+      return {
+        ...item,
+        discount: percentage,
+        price: finalPrice,
+        total: finalPrice * item.quantity,
+        discountedPrice: discountAmount * item.quantity,
+      };
+    });
 
-  //     const product = await response.json();
-  //     console.log(product, "product stock");
-  //     setProductStock((prev) => ({
-  //       ...prev,
-  //       [productId]: product.quantity,
-  //     }));
+    setItems(updatedItems);
+  };
 
-  //     return product.quantity;
-  //   } catch (error) {
-  //     console.error("Error fetching product stock:", error);
-  //     return 0;
-  //   }
-  // };
+  // Handle overall discount checkbox change
+  const handleOverallDiscountChange = (checked: boolean) => {
+    setApplyOverallDiscount(checked);
+    if (!checked) {
+      // Remove discount from all items
+      const updatedItems = items.map((item) => ({
+        ...item,
+        discount: 0,
+        price: item.originalPrice,
+        total: item.originalPrice * item.quantity,
+        discountedPrice: 0,
+      }));
+      setItems(updatedItems);
+      setOverallDiscountPercentage(0);
+    }
+  };
+
+  // Apply overall discount when percentage changes
+  useEffect(() => {
+    if (applyOverallDiscount && overallDiscountPercentage > 0) {
+      applyOverallDiscountToItems(overallDiscountPercentage);
+    }
+  }, [overallDiscountPercentage, applyOverallDiscount]);
+
+  // Start editing individual item discount
+  const startEditingDiscount = (index: number) => {
+    const updatedItems = items.map((item, i) => ({
+      ...item,
+      isEditing: i === index,
+      tempDiscount: i === index ? item.discount || 0 : item.tempDiscount,
+    }));
+    setItems(updatedItems);
+  };
+
+  // Cancel editing individual item discount
+  const cancelEditingDiscount = (index: number) => {
+    const updatedItems = items.map((item, i) => ({
+      ...item,
+      isEditing: i === index ? false : item.isEditing,
+      tempDiscount: undefined,
+    }));
+    setItems(updatedItems);
+  };
+
+  // Save individual item discount
+  const saveIndividualDiscount = (index: number) => {
+    const item = items[index];
+    if (
+      item.tempDiscount === undefined ||
+      item.tempDiscount < 0 ||
+      item.tempDiscount > 100
+    )
+      return;
+
+    const discountAmount = (item.originalPrice * item.tempDiscount) / 100;
+    const finalPrice = item.originalPrice - discountAmount;
+
+    const updatedItems = items.map((currentItem, i) =>
+      i === index
+        ? {
+            ...currentItem,
+            discount: item.tempDiscount,
+            price: finalPrice,
+            total: finalPrice * currentItem.quantity,
+            discountedPrice: discountAmount * currentItem.quantity,
+            isEditing: false,
+            tempDiscount: undefined,
+          }
+        : currentItem
+    );
+
+    setItems(updatedItems);
+  };
+
+  // Update temp discount while editing
+  const updateTempDiscount = (index: number, value: number) => {
+    const updatedItems = items.map((item, i) =>
+      i === index ? { ...item, tempDiscount: value } : item
+    );
+    setItems(updatedItems);
+  };
+
+  // Calculate totals
+  const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+  const totalDiscount = items.reduce(
+    (sum, item) => sum + (item.discountedPrice || 0),
+    0
+  );
+  const cgst = includeGst ? subtotal * 0.06 : 0;
+  const sgst = includeGst ? subtotal * 0.06 : 0;
+  const gstTotal = cgst + sgst;
+  const total = subtotal + gstTotal;
+  const advanceAmount = subtotal - advancePayment;
+  const balance = total - advanceAmount;
 
   // Save Invoice to API
-  const saveInvoice = async (status: "DRAFT" | "FINAL" | "PAID") => {
+  const saveInvoice = async (status: "PAID" | "ADVANCE" | "UNPAID") => {
     try {
       const invoiceData = {
         invoiceNumber, // Include the invoice number from state
@@ -162,7 +249,7 @@ const Invoices = () => {
           name: item.name,
           quantity: item.quantity,
           price: item.price,
-          total: item.total,
+          total: item.subtotal,
           description: item.description || "",
           notes: item.notes || "",
         })),
@@ -204,9 +291,6 @@ const Invoices = () => {
           },
         }
       );
-
-      // Fetch the next invoice number for future use
-      // fetchNextInvoiceNumber();
 
       return result;
     } catch (error: any) {
@@ -333,9 +417,6 @@ const Invoices = () => {
       }
     };
     fetchProducts();
-
-    // Fetch the next invoice number
-    // fetchNextInvoiceNumber();
   }, []);
 
   // Filter products based on search query
@@ -352,18 +433,19 @@ const Invoices = () => {
     }
   }, [searchQuery]);
 
-  // Calculate totals
-  const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-  const cgst = includeGst ? subtotal * 0.06 : 0;
-  const sgst = includeGst ? subtotal * 0.06 : 0;
-  const gstTotal = cgst + sgst;
-  const total = subtotal + gstTotal;
-  const advanceAmount = total - advancePayment;
-  const balance = total - advanceAmount;
-
   // Determine invoice status based on advance payment
-  const getInvoiceStatus = (): "DRAFT" | "PAID" => {
-    return advancePayment > 0 ? "DRAFT" : "PAID";
+  const getInvoiceStatus = (): "DRAFT" | "PAID" | "UNPAID" => {
+    if (invoiceStatus === "PAID") return "PAID";
+    if (invoiceStatus === "ADVANCE") return "DRAFT";
+    return "UNPAID";
+  };
+
+  // Handle status change
+  const handleStatusChange = (status: "PAID" | "UNPAID" | "ADVANCE") => {
+    setInvoiceStatus(status);
+    if (status === "ADVANCE") {
+      setAdvancePayment(advanceAmount);
+    }
   };
 
   // Handle customer info change
@@ -421,8 +503,9 @@ const Invoices = () => {
     let finalPrice = originalPrice;
     let discountAmount = 0;
 
-    if (applyDiscount && discountPercentage > 0) {
-      discountAmount = (originalPrice * discountPercentage) / 100;
+    // Apply overall discount if set
+    if (applyOverallDiscount && overallDiscountPercentage > 0) {
+      discountAmount = (originalPrice * overallDiscountPercentage) / 100;
       finalPrice = originalPrice - discountAmount;
     }
 
@@ -433,16 +516,21 @@ const Invoices = () => {
       price: finalPrice,
       originalPrice: originalPrice,
       total: finalPrice * quantity,
-      discount: applyDiscount ? discountPercentage : 0,
-      discountedPrice: applyDiscount ? discountAmount * quantity : 0,
+      subtotal,
+      discount:
+        applyOverallDiscount && overallDiscountPercentage > 0
+          ? overallDiscountPercentage
+          : 0,
+      discountedPrice:
+        applyOverallDiscount && overallDiscountPercentage > 0
+          ? discountAmount * quantity
+          : 0,
     };
 
     setItems([...items, newItem]);
     setSelectedProduct(null);
     setQuantity(1);
     setSearchQuery("");
-    setApplyDiscount(false);
-    setDiscountPercentage(0);
   };
 
   // Remove item from invoice
@@ -450,11 +538,6 @@ const Invoices = () => {
     const newItems = [...items];
     newItems.splice(index, 1);
     setItems(newItems);
-  };
-
-  // Handle print (for demo purposes)
-  const handlePrint = () => {
-    window.print();
   };
 
   // Get current date
@@ -473,8 +556,6 @@ const Invoices = () => {
     phone: "9595221296",
     email: "rudraarts30@gmail.com",
   };
-
-  console.log(invoiceNumber, "invoiceNumber");
 
   // Handle final invoice generation
   const handleGenerateInvoice = async () => {
@@ -506,7 +587,7 @@ const Invoices = () => {
 
       // Proceed with invoice generation
       const status = getInvoiceStatus();
-      const result = await saveInvoice(status);
+      const result = await saveInvoice(invoiceStatus);
 
       // Map your items to the expected InvoiceItem format
       const mappedItems = items.map((item) => ({
@@ -603,18 +684,46 @@ const Invoices = () => {
       URL.revokeObjectURL(url);
 
       // Show status-specific message
-      if (status === "DRAFT") {
+      // if (status === "DRAFT") {
+      //   alert.info(
+      //     "Invoice saved as DRAFT",
+      //     "Advance payment received. Invoice marked as DRAFT until full payment.",
+      //     {
+      //       duration: 8000,
+      //     }
+      //   );
+      // } else {
+      //   alert.success(
+      //     "Invoice marked as PAID",
+      //     "Full payment received. Invoice is now complete.",
+      //     {
+      //       duration: 6000,
+      //     }
+      //   );
+      // }
+
+      if (invoiceStatus === "ADVANCE") {
         alert.info(
-          "Invoice saved as DRAFT",
-          "Advance payment received. Invoice marked as DRAFT until full payment.",
+          "Invoice saved as ADVANCE",
+          `Advance payment of ₹${advancePayment} received. Balance due: ₹${
+            subtotal - advancePayment
+          }`,
           {
             duration: 8000,
           }
         );
-      } else {
+      } else if (invoiceStatus === "PAID") {
         alert.success(
           "Invoice marked as PAID",
           "Full payment received. Invoice is now complete.",
+          {
+            duration: 6000,
+          }
+        );
+      } else {
+        alert.info(
+          "Invoice saved as UNPAID",
+          "No payment received. Invoice will be marked as pending.",
           {
             duration: 6000,
           }
@@ -624,6 +733,8 @@ const Invoices = () => {
       // Clear the form after successful invoice generation
       setItems([]);
       setAdvancePayment(0);
+      setApplyOverallDiscount(false);
+      setOverallDiscountPercentage(0);
     } catch (error) {
       console.error("Failed to generate invoice:", error);
     }
@@ -658,7 +769,7 @@ const Invoices = () => {
             <Button
               variant="outline"
               className="border-[#954C2E] text-[#954C2E] hover:bg-blue-50 font-open-sans"
-              onClick={() => saveInvoice("DRAFT")}
+              onClick={() => saveInvoice(invoiceStatus)}
             >
               <Save className="mr-2 h-4 w-4" />
               Save Draft
@@ -679,23 +790,26 @@ const Invoices = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold text-blue-800">
-                  Invoice Status: {getInvoiceStatus()}
+                  Invoice Status: {invoiceStatus}
                 </h3>
                 <p className="text-sm text-blue-600">
-                  {advancePayment > 0
-                    ? "Advance payment received. Invoice will be marked as DRAFT."
-                    : "Full payment received. Invoice will be marked as PAID."}
+                  {invoiceStatus === "PAID"
+                    ? "Full payment received. Invoice will be marked as PAID."
+                    : invoiceStatus === "ADVANCE"
+                    ? "Advance payment received. Invoice will be marked as ADVANCE."
+                    : "No payment received. Invoice will be marked as UNPAID."}
                 </p>
               </div>
               <Badge
-                variant={advancePayment > 0 ? "secondary" : "default"}
                 className={
-                  advancePayment > 0
+                  invoiceStatus === "PAID"
+                    ? "bg-green-100 text-green-800"
+                    : invoiceStatus === "ADVANCE"
                     ? "bg-amber-100 text-amber-800"
-                    : "bg-green-100 text-green-800"
+                    : "bg-red-100 text-red-800"
                 }
               >
-                {advancePayment > 0 ? "DRAFT" : "PAID"}
+                {invoiceStatus}
               </Badge>
             </div>
           </div>
@@ -851,23 +965,24 @@ const Invoices = () => {
                               })}
                             </span>
                           </div>
-                          {applyDiscount && discountPercentage > 0 && (
-                            <div className="flex justify-between text-sm mt-1">
-                              <span className="text-green-600">
-                                After {discountPercentage}% discount:
-                              </span>
-                              <span className="text-green-600 font-medium">
-                                ₹
-                                {calculateDiscountedPrice(
-                                  selectedProduct.price,
-                                  discountPercentage,
-                                  quantity
-                                ).toLocaleString("en-IN", {
-                                  minimumFractionDigits: 2,
-                                })}
-                              </span>
-                            </div>
-                          )}
+                          {applyOverallDiscount &&
+                            overallDiscountPercentage > 0 && (
+                              <div className="flex justify-between text-sm mt-1">
+                                <span className="text-green-600">
+                                  After {overallDiscountPercentage}% discount:
+                                </span>
+                                <span className="text-green-600 font-medium">
+                                  ₹
+                                  {calculateDiscountedPrice(
+                                    selectedProduct.price,
+                                    overallDiscountPercentage,
+                                    quantity
+                                  ).toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </span>
+                              </div>
+                            )}
                         </div>
                       ) : (
                         <span className="text-gray-400">
@@ -877,49 +992,7 @@ const Invoices = () => {
                     </div>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="applyDiscount"
-                      checked={applyDiscount}
-                      onCheckedChange={(checked) =>
-                        setApplyDiscount(checked === true)
-                      }
-                      className="data-[state=checked]:bg-[#954C2E] text-white border-amber-600"
-                    />
-                    <Label
-                      htmlFor="applyDiscount"
-                      className="text-gray-700 cursor-pointer"
-                    >
-                      Apply Discount
-                    </Label>
-                  </div>
 
-                  {applyDiscount && (
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="discountPercentage"
-                        className="text-gray-700"
-                      >
-                        Discount Percentage (0-100%)
-                      </Label>
-                      <Input
-                        id="discountPercentage"
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={discountPercentage}
-                        onChange={(e) => {
-                          let value = parseInt(e.target.value) || 0;
-                          if (value > 100) value = 100;
-                          if (value < 0) value = 0;
-                          setDiscountPercentage(value);
-                        }}
-                        className="border-gray-300 focus:border-blue-400"
-                      />
-                    </div>
-                  )}
-                </div>
                 <Button
                   onClick={() => {
                     if (selectedProduct === null) {
@@ -972,11 +1045,16 @@ const Invoices = () => {
                           </p>
                           <p className="text-sm text-gray-500">
                             {item.quantity} x ₹{item.price}
+                            {item.discount && item.discount > 0 && (
+                              <span className="text-green-600 ml-2">
+                                ({item.discount}% off)
+                              </span>
+                            )}
                           </p>
                         </div>
                         <div className="flex items-center space-x-4">
                           <p className="font-medium text-[#954C2E]">
-                            ₹{item.total.toFixed(2)}
+                            ₹{item.subtotal.toFixed(2)}
                           </p>
                           <Button
                             variant="ghost"
@@ -1079,6 +1157,9 @@ const Invoices = () => {
                           Rate (₹)
                         </th>
                         <th className="text-right py-3 text-[#954C2E] font-semibold text-sm">
+                          Discount (%)
+                        </th>
+                        <th className="text-right py-3 text-[#954C2E] font-semibold text-sm">
                           CGST (6%)
                         </th>
                         <th className="text-right py-3 text-[#954C2E] font-semibold text-sm">
@@ -1093,7 +1174,6 @@ const Invoices = () => {
                       {items.map((item, index) => {
                         const itemCgst = includeGst ? item.total * 0.06 : 0;
                         const itemSgst = includeGst ? item.total * 0.06 : 0;
-                        const itemTotal = item.total + itemCgst + itemSgst;
 
                         return (
                           <tr key={index} className="border-b border-blue-50">
@@ -1105,11 +1185,56 @@ const Invoices = () => {
                             </td>
                             <td className="text-right py-3 text-gray-600 text-sm">
                               ₹
-                              {(item.price * item.quantity).toLocaleString(
-                                "en-IN",
-                                {
-                                  minimumFractionDigits: 2,
-                                }
+                              {item.originalPrice.toLocaleString("en-IN", {
+                                minimumFractionDigits: 2,
+                              })}
+                            </td>
+                            <td className="text-right py-3 text-gray-600 text-sm">
+                              {item.isEditing ? (
+                                <div className="flex items-center justify-end gap-1">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={item.tempDiscount || 0}
+                                    onChange={(e) =>
+                                      updateTempDiscount(
+                                        index,
+                                        parseInt(e.target.value) || 0
+                                      )
+                                    }
+                                    className="w-16 h-8 text-sm"
+                                  />
+                                  <Button
+                                    size="sm"
+                                    onClick={() =>
+                                      saveIndividualDiscount(index)
+                                    }
+                                    className="h-6 w-6 bg-green-600 hover:bg-green-700"
+                                  >
+                                    <Check className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => cancelEditingDiscount(index)}
+                                    className="h-6 w-6"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-end gap-1">
+                                  <span>{item.discount || 0}%</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => startEditingDiscount(index)}
+                                    className="h-6 w-6 p-0 hover:bg-gray-100"
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                </div>
                               )}
                             </td>
                             <td className="text-right py-3 text-gray-600 text-sm">
@@ -1126,21 +1251,67 @@ const Invoices = () => {
                             </td>
                             <td className="text-right py-3 text-[#954C2E] font-semibold text-sm">
                               ₹
-                              {/* {itemTotal.toLocaleString("en-IN", {
+                              {item.subtotal.toLocaleString("en-IN", {
                                 minimumFractionDigits: 2,
-                              })} */}
-                              {(item.price * item.quantity).toLocaleString(
-                                "en-IN",
-                                {
-                                  minimumFractionDigits: 2,
-                                }
-                              )}
+                              })}
                             </td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Overall Discount Section */}
+                <div className="p-6 border-b border-blue-100 bg-amber-50/30">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <Checkbox
+                      id="applyOverallDiscount"
+                      checked={applyOverallDiscount}
+                      onCheckedChange={handleOverallDiscountChange}
+                      className="data-[state=checked]:bg-[#954C2E] text-white border-amber-600"
+                    />
+                    <Label
+                      htmlFor="applyOverallDiscount"
+                      className="text-gray-700 cursor-pointer font-semibold"
+                    >
+                      Apply Overall Discount
+                    </Label>
+                  </div>
+
+                  {applyOverallDiscount && (
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="overallDiscountPercentage"
+                        className="text-gray-700"
+                      >
+                        Discount Percentage (0-100%)
+                      </Label>
+                      <Input
+                        id="overallDiscountPercentage"
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={overallDiscountPercentage}
+                        onChange={(e) => {
+                          let value = parseInt(e.target.value) || 0;
+                          if (value > 100) value = 100;
+                          if (value < 0) value = 0;
+                          setOverallDiscountPercentage(value);
+                        }}
+                        className="border-gray-300 focus:border-amber-400"
+                        placeholder="0"
+                      />
+                      {overallDiscountPercentage > 0 && (
+                        <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                          <p className="text-sm text-green-700">
+                            ✅ {overallDiscountPercentage}% discount applied to
+                            all {items.length} product(s)
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Invoice Totals */}
@@ -1155,20 +1326,14 @@ const Invoices = () => {
                     </span>
                   </div>
 
-                  {items.some((item) => item.discount && item.discount > 0) && (
+                  {totalDiscount > 0 && (
                     <div className="flex justify-between text-green-600">
-                      <span>Total Discounts:</span>
+                      <span>Total Discount:</span>
                       <span>
                         -₹
-                        {items
-                          .filter((item) => item.discount && item.discount > 0)
-                          .reduce(
-                            (sum, item) => sum + (item.discountedPrice || 0),
-                            0
-                          )
-                          .toLocaleString("en-IN", {
-                            minimumFractionDigits: 2,
-                          })}
+                        {totalDiscount.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}
                       </span>
                     </div>
                   )}
@@ -1211,7 +1376,7 @@ const Invoices = () => {
                         </span>
                         <span className="text-gray-800 font-medium">
                           ₹
-                          {subtotal.toLocaleString("en-IN", {
+                          {gstTotal.toLocaleString("en-IN", {
                             minimumFractionDigits: 2,
                           })}
                         </span>
@@ -1229,49 +1394,143 @@ const Invoices = () => {
                     </span>
                   </div>
 
-                  {/* Advance Payment */}
+                  {/* Invoice Status Section */}
                   <div className="pt-4 mt-4 border-t border-blue-100">
-                    <div className="space-y-2">
-                      <Label htmlFor="advance" className="text-gray-700">
-                        Advance Payment (%)
-                      </Label>
-                      <Input
-                        id="advance"
-                        type="number"
-                        min="0"
-                        max={total}
-                        value={advancePayment}
-                        onChange={(e) =>
-                          setAdvancePayment(parseInt(e.target.value) || 0)
-                        }
-                        placeholder="0"
-                        className="border-gray-300 focus:border-blue-400"
-                      />
-                    </div>
-                    {advancePayment > 0 && (
-                      <div className="mt-4 space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Advance Amount:</span>
-                          <span className="text-gray-800">
-                            ₹{balance.toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between font-bold pt-2 border-t border-blue-100">
-                          <span className="text-green-700">Balance Due:</span>
-                          <span className="text-green-700">
-                            ₹{advanceAmount.toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
-                          <p className="text-xs text-amber-700">
-                            ⓘ Invoice will be marked as <strong>DRAFT</strong>
-                            since advance payment is received. Status will
-                            change to <strong>PAID</strong> when full payment is
-                            made.
-                          </p>
+                    <div className="space-y-4">
+                      {/* Status Selection */}
+                      <div className="space-y-3">
+                        <Label className="text-gray-700 font-semibold">
+                          Invoice Status *
+                        </Label>
+                        <div className="flex flex-col space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="radio"
+                              id="status-paid"
+                              name="invoiceStatus"
+                              checked={invoiceStatus === "PAID"}
+                              onChange={() => handleStatusChange("PAID")}
+                              className="h-4 w-4 text-[#954C2E] focus:ring-[#954C2E] border-gray-300"
+                            />
+                            <Label
+                              htmlFor="status-paid"
+                              className="text-gray-700 cursor-pointer"
+                            >
+                              Paid (Full Payment Received)
+                            </Label>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="radio"
+                              id="status-unpaid"
+                              name="invoiceStatus"
+                              checked={invoiceStatus === "UNPAID"}
+                              onChange={() => handleStatusChange("UNPAID")}
+                              className="h-4 w-4 text-[#954C2E] focus:ring-[#954C2E] border-gray-300"
+                            />
+                            <Label
+                              htmlFor="status-unpaid"
+                              className="text-gray-700 cursor-pointer"
+                            >
+                              Unpaid (No Payment Received)
+                            </Label>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="radio"
+                              id="status-advance"
+                              name="invoiceStatus"
+                              checked={invoiceStatus === "ADVANCE"}
+                              onChange={() => handleStatusChange("ADVANCE")}
+                              className="h-4 w-4 text-[#954C2E] focus:ring-[#954C2E] border-gray-300"
+                            />
+                            <Label
+                              htmlFor="status-advance"
+                              className="text-gray-700 cursor-pointer"
+                            >
+                              Advance (Partial Payment Received)
+                            </Label>
+                          </div>
                         </div>
                       </div>
-                    )}
+
+                      {/* Advance Payment Input - Only show for ADVANCE status */}
+                      {invoiceStatus === "ADVANCE" && (
+                        <div className="space-y-2">
+                          <Label htmlFor="advance" className="text-gray-700">
+                            Advance Payment Amount (₹)
+                          </Label>
+                          <Input
+                            id="advance"
+                            type="number"
+                            min="0"
+                            max={subtotal}
+                            value={advancePayment}
+                            onChange={(e) =>
+                              setAdvancePayment(parseFloat(e.target.value) || 0)
+                            }
+                            placeholder="Enter advance amount"
+                            className="border-gray-300 focus:border-blue-400"
+                          />
+                        </div>
+                      )}
+
+                      {/* Payment Summary */}
+                      {invoiceStatus !== "UNPAID" && (
+                        <div className="mt-4 space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Total Amount:</span>
+                            <span className="text-gray-800 font-medium">
+                              ₹
+                              {subtotal.toLocaleString("en-IN", {
+                                minimumFractionDigits: 2,
+                              })}
+                            </span>
+                          </div>
+
+                          {invoiceStatus === "ADVANCE" && (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">
+                                  Advance Paid:
+                                </span>
+                                <span className="text-green-600 font-medium">
+                                  ₹
+                                  {advancePayment.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </span>
+                              </div>
+                              <div className="flex justify-between font-bold pt-2 border-t border-blue-200">
+                                <span className="text-blue-700">
+                                  Balance Due:
+                                </span>
+                                <span className="text-blue-700">
+                                  ₹
+                                  {(subtotal - advancePayment).toLocaleString(
+                                    "en-IN",
+                                    {
+                                      minimumFractionDigits: 2,
+                                    }
+                                  )}
+                                </span>
+                              </div>
+                            </>
+                          )}
+
+                          {invoiceStatus === "PAID" && (
+                            <div className="flex justify-between font-bold">
+                              <span className="text-green-700">
+                                Payment Status:
+                              </span>
+                              <span className="text-green-700">Fully Paid</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -1288,6 +1547,9 @@ const Invoices = () => {
                   setItems([]);
                   setAdvancePayment(0);
                   setIncludeGst(true);
+                  setApplyOverallDiscount(false);
+                  setOverallDiscountPercentage(0);
+                  setInvoiceStatus("UNPAID");
                 }}
               >
                 Clear All

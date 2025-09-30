@@ -60,6 +60,14 @@ export default function DashboardPage() {
       badge: "All Access",
     },
     {
+      title: "Analysis",
+      description: "Generate and view detailed reports",
+      icon: <TrendingUp className="h-8 w-8" />,
+      href: "/super-admin/analysis",
+      role: ["SUPER_ADMIN", "ADMIN"],
+      badge: "Analysis",
+    },
+    {
       title: "User Management",
       description: "Manage system users, roles and permissions",
       icon: <Users className="h-8 w-8" />,
@@ -99,14 +107,7 @@ export default function DashboardPage() {
       role: ["USER"],
       badge: "Shopping",
     },
-    {
-      title: "Reports",
-      description: "Generate and view detailed reports",
-      icon: <TrendingUp className="h-8 w-8" />,
-      href: "/admin/reports",
-      role: ["SUPER_ADMIN", "ADMIN"],
-      badge: "Analytics",
-    },
+
     {
       title: "Profile Management",
       description: "Update your personal information and preferences",
@@ -154,7 +155,7 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCards.map((card, index) => {
-            const isDisabled = index !== 0; // only first card is enabled
+            const isDisabled = index !== 0 && index !== 1; // only first and second cards are enabled
             return (
               <Card
                 key={index}
