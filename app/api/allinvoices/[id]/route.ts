@@ -5,10 +5,11 @@ const prisma = new PrismaClient();
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> } // params is now a Promise
 ) {
   try {
-    const { id } = await params;
+    const params = await context.params; // Await the params
+    const { id } = params;
 
     if (!id) {
       return NextResponse.json(
@@ -46,6 +47,15 @@ export async function PUT(
     return NextResponse.json({ success: true, invoice: updatedInvoice });
   } catch (error: any) {
     console.error("❌ Error updating invoice:", error);
+
+    // Handle Prisma specific errors
+    if (error.code === "P2025") {
+      return NextResponse.json(
+        { success: false, error: "Invoice not found" },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
@@ -55,10 +65,11 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> } // params is now a Promise
 ) {
   try {
-    const { id } = await params;
+    const params = await context.params; // Await the params
+    const { id } = params;
 
     if (!id) {
       return NextResponse.json(
@@ -110,7 +121,7 @@ export async function DELETE(
   } catch (error: any) {
     console.error("❌ Error deleting invoice:", error);
 
-    if (error.message === "Invoice not found") {
+    if (error.message === "Invoice not found" || error.code === "P2025") {
       return NextResponse.json(
         { success: false, error: "Invoice not found" },
         { status: 404 }
