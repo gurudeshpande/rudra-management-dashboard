@@ -23,6 +23,8 @@ model User {
   role      UserRole @default(USER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  RawMaterialTransfer RawMaterialTransfer[]
 }
 
 // ====================== CUSTOMER ======================
@@ -58,6 +60,8 @@ model Product {
   items     InvoiceItem[]
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
+
+  ProductStructure ProductStructure[]
 }
 
 // ====================== INVOICE ======================
@@ -88,9 +92,9 @@ model Invoice {
 // ====================== INVOICE ITEM ======================
 model InvoiceItem {
   id          Int      @id @default(autoincrement())
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   invoiceId   Int
-  product     Product  @relation(fields: [productId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId   Int
   name        String
   quantity    Int
@@ -98,4 +102,52 @@ model InvoiceItem {
   total       Float
   notes       String?
   description String?
+}
+
+
+model RawMaterial {
+  id        Int       @id @default(autoincrement())
+  name      String
+  quantity  Float     @default(0)
+  unit      String?   @default("pcs")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  // Relations
+  productStructures ProductStructure[]
+  transfers        RawMaterialTransfer[]
+}
+
+model ProductStructure {
+  id              Int          @id @default(autoincrement())
+  product         Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId       Int
+  rawMaterial     RawMaterial  @relation(fields: [rawMaterialId], references: [id], onDelete: Cascade)
+  rawMaterialId   Int
+  quantityRequired Float
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, rawMaterialId])
+}
+
+model RawMaterialTransfer {
+  id             Int           @id @default(autoincrement())
+  user           User          @relation(fields: [userId], references: [id])
+  userId         String
+  rawMaterial    RawMaterial   @relation(fields: [rawMaterialId], references: [id])
+  rawMaterialId  Int
+  quantityIssued Float
+  status         TransferStatus @default(SENT)
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+enum TransferStatus {
+  SENT
+  USED
+  RETURNED
+  CANCELLED
 }

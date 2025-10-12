@@ -60,6 +60,14 @@ export default function DashboardPage() {
       badge: "All Access",
     },
     {
+      title: "User Management",
+      description: "Create, view and manage Users",
+      icon: <FileText className="h-8 w-8" />,
+      href: "/super-admin/users",
+      role: ["SUPER_ADMIN"],
+      badge: "All Access",
+    },
+    {
       title: "Analysis",
       description: "Generate and view detailed reports",
       icon: <TrendingUp className="h-8 w-8" />,
@@ -68,20 +76,28 @@ export default function DashboardPage() {
       badge: "Analysis",
     },
     {
+      title: "Inventory",
+      description: "Track and manage product inventory",
+      icon: <Package className="h-8 w-8" />,
+      href: "/super-admin/inventory/inventory-management",
+      role: ["SUPER_ADMIN"],
+      badge: "Management",
+    },
+    {
+      title: "Manifacturing",
+      description: "Track and manage Raw Material product inventory",
+      icon: <Package className="h-8 w-8" />,
+      href: "/super-admin/manufacturing",
+      role: ["SUPER_ADMIN", "ADMIN"],
+      badge: "Management",
+    },
+    {
       title: "User Management",
       description: "Manage system users, roles and permissions",
       icon: <Users className="h-8 w-8" />,
       href: "/super-admin/users",
       role: ["SUPER_ADMIN"],
       badge: "Admin Only",
-    },
-    {
-      title: "Inventory",
-      description: "Track and manage product inventory",
-      icon: <Package className="h-8 w-8" />,
-      href: "/inventory",
-      role: ["SUPER_ADMIN", "ADMIN"],
-      badge: "Management",
     },
     {
       title: "Expense Tracking",
@@ -155,7 +171,12 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCards.map((card, index) => {
-            const isDisabled = index !== 0 && index !== 1; // only first and second cards are enabled
+            const isDisabled =
+              index !== 0 &&
+              index !== 1 &&
+              index !== 2 &&
+              index !== 3 &&
+              index !== 4; // only first and second cards are enabled
             return (
               <Card
                 key={index}

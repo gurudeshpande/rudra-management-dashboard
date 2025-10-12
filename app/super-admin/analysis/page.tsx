@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -43,9 +43,11 @@ import {
   FileText,
   IndianRupee,
   RefreshCw,
+  Search,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { Input } from "@/components/ui/input";
 
 // Types for analytics data based on your schema
 interface AnalyticsData {
@@ -67,7 +69,7 @@ interface ProductData {
   product: string;
   quantity: number;
   revenue: number;
-  [key: string]: string | number; // Add index signature for recharts compatibility
+  [key: string]: string | number;
 }
 
 interface CustomerData {
@@ -85,8 +87,8 @@ interface AnnualData {
 interface QuarterlyInvoiceData {
   quarter: string;
   paid: number;
-  pending: number;
-  overdue: number;
+  advance: number;
+  unpaid: number;
 }
 
 interface SummaryData {
@@ -104,6 +106,11 @@ const InvoiceAnalytics: React.FC = () => {
   const [timeFilter, setTimeFilter] = useState<string>("current_year");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
+  // Customer-specific filters
+  const [customerCountFilter, setCustomerCountFilter] = useState<string>("5");
+  const [customerSearchTerm, setCustomerSearchTerm] = useState<string>("");
+  const [searchInput, setSearchInput] = useState<string>(""); // Separate state for input
+
   // Theme colors
   const themeColors = {
     primary: "#954C2E",
@@ -111,13 +118,43 @@ const InvoiceAnalytics: React.FC = () => {
     chart: ["#954C2E", "#D4A76A", "#8B7355", "#4A2C2A", "#BF8B67", "#7D5D3B"],
   };
 
+  // Your actual product categories
+  const productCategories = [
+    "All",
+    "Mavala",
+    "Maharaj",
+    "Shastra (Weapons)",
+    "Miniature Weapons",
+    "Miniatures",
+    "Spiritual Statues",
+    "Car Dashboard",
+    "Frame Collection",
+    "Shilekhana (Weapon Vault)",
+    "Symbolic & Cultural Artefacts",
+    "Sanch",
+    "Keychains",
+    "Jewellery",
+    "Historical Legends",
+    "Badges",
+    "Taxidermy",
+  ];
+
   // Fetch analytics data
-  const fetchAnalyticsData = async () => {
+  const fetchAnalyticsData = useCallback(async () => {
     try {
       setLoading(true);
       const queryParams = new URLSearchParams({
         timeFilter,
-        productFilter: categoryFilter,
+        category: categoryFilter,
+        customerLimit: customerCountFilter,
+        customerSearch: customerSearchTerm,
+      });
+
+      console.log("API Call with params:", {
+        timeFilter,
+        categoryFilter,
+        customerCountFilter,
+        customerSearchTerm,
       });
 
       const response = await fetch(
@@ -136,11 +173,21 @@ const InvoiceAnalytics: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeFilter, categoryFilter, customerCountFilter, customerSearchTerm]);
 
+  // Effect for all filters except search (immediate execution)
   useEffect(() => {
     fetchAnalyticsData();
-  }, [timeFilter, categoryFilter]);
+  }, [timeFilter, categoryFilter, customerCountFilter, fetchAnalyticsData]);
+
+  // Effect for search term with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCustomerSearchTerm(searchInput);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   // Format currency for display
   const formatCurrency = (amount: number) => {
@@ -152,94 +199,112 @@ const InvoiceAnalytics: React.FC = () => {
     }).format(amount);
   };
 
-  // Custom tooltip formatter
-  const customTooltipFormatter = (value: any, name: string) => {
-    if (name === "revenue" || name === "totalSpent" || name === "price") {
-      return [
-        formatCurrency(Number(value)),
-        name === "revenue" ? "Revenue" : "Amount",
-      ];
-    }
-    return [value, name];
+  // Handle search input change
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchInput(e.target.value);
   };
+
+  // Handle count filter change
+  const handleCountFilterChange = (value: string) => {
+    setCustomerCountFilter(value);
+  };
+
+  // Enhanced customer filtering logic
+  const getFilteredCustomers = () => {
+    if (
+      !analyticsData?.topCustomers ||
+      !Array.isArray(analyticsData.topCustomers)
+    ) {
+      return [];
+    }
+
+    // The API now handles the main filtering, so we just return all customers from API
+    return analyticsData.topCustomers;
+  };
+
+  const filteredCustomers = getFilteredCustomers();
 
   // Loading skeleton
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              Invoice Analytics
-            </h1>
-            <p className="text-gray-600">
-              Detailed insights into your invoice data
-            </p>
+      <DashboardLayout>
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                Invoice Analytics
+              </h1>
+              <p className="text-gray-600">
+                Detailed insights into your invoice data
+              </p>
+            </div>
+            <Skeleton className="h-10 w-32" />
           </div>
-          <Skeleton className="h-10 w-32" />
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <Skeleton className="h-4 w-[100px]" />
-                <Skeleton className="h-4 w-4" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-[120px] mb-2" />
-                <Skeleton className="h-3 w-[80px]" />
-              </CardContent>
-            </Card>
-          ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <Skeleton className="h-4 w-[100px]" />
+                  <Skeleton className="h-4 w-4" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-[120px] mb-2" />
+                  <Skeleton className="h-3 w-[80px]" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-6 w-[200px]" />
+                  <Skeleton className="h-4 w-[150px]" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-[300px] w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-[200px]" />
-                <Skeleton className="h-4 w-[150px]" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-[300px] w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (!analyticsData) {
     return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              Invoice Analytics
-            </h1>
-            <p className="text-gray-600">
-              Detailed insights into your invoice data
-            </p>
+      <DashboardLayout>
+        <div className="container mx-auto px-4 py-8 text-center">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                Invoice Analytics
+              </h1>
+              <p className="text-gray-600">
+                Detailed insights into your invoice data
+              </p>
+            </div>
+            <Button onClick={fetchAnalyticsData}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
           </div>
-          <Button onClick={fetchAnalyticsData}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Retry
-          </Button>
+          <Card>
+            <CardContent className="py-12">
+              <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No data available
+              </h3>
+              <p className="text-gray-500 mb-4">
+                Unable to load analytics data. Please try again.
+              </p>
+              <Button onClick={fetchAnalyticsData}>Retry Loading Data</Button>
+            </CardContent>
+          </Card>
         </div>
-        <Card>
-          <CardContent className="py-12">
-            <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              No data available
-            </h3>
-            <p className="text-gray-500 mb-4">
-              Unable to load analytics data. Please try again.
-            </p>
-            <Button onClick={fetchAnalyticsData}>Retry Loading Data</Button>
-          </CardContent>
-        </Card>
-      </div>
+      </DashboardLayout>
     );
   }
 
@@ -277,7 +342,7 @@ const InvoiceAnalytics: React.FC = () => {
                 <SelectTrigger>
                   <SelectValue placeholder="Select time period" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-60 overflow-y-auto bg-white">
                   <SelectItem value="current_quarter">
                     Current Quarter
                   </SelectItem>
@@ -295,12 +360,15 @@ const InvoiceAnalytics: React.FC = () => {
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="furniture">Furniture</SelectItem>
-                  <SelectItem value="decor">Home Decor</SelectItem>
-                  <SelectItem value="lighting">Lighting</SelectItem>
-                  {/* Add more categories as needed based on your Product model */}
+                <SelectContent className="max-h-60 overflow-y-auto bg-white">
+                  {productCategories.map((category) => (
+                    <SelectItem
+                      key={category}
+                      value={category.toLowerCase().replace(/\s+/g, "_")}
+                    >
+                      {category}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -405,9 +473,20 @@ const InvoiceAnalytics: React.FC = () => {
                 <BarChart data={analyticsData.quarterlyRevenue}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="quarter" />
-                  <YAxis yAxisId="left" />
+                  <YAxis
+                    yAxisId="left"
+                    tickFormatter={(value) => formatCurrency(value)}
+                  />
                   <YAxis yAxisId="right" orientation="right" />
-                  <Tooltip formatter={customTooltipFormatter} />
+                  <Tooltip
+                    formatter={(value: any, name: string) => {
+                      if (name === "Revenue") {
+                        return [formatCurrency(Number(value)), "Revenue"];
+                      }
+                      return [value, name];
+                    }}
+                    labelFormatter={(label) => `Quarter: ${label}`}
+                  />
                   <Legend />
                   <Bar
                     yAxisId="left"
@@ -437,7 +516,7 @@ const InvoiceAnalytics: React.FC = () => {
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={analyticsData.topProducts}
+                    data={analyticsData.topProducts.slice(0, 6)} // Show top 6 products
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -448,16 +527,23 @@ const InvoiceAnalytics: React.FC = () => {
                     fill="#8884d8"
                     dataKey="revenue"
                   >
-                    {analyticsData.topProducts.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={
-                          themeColors.chart[index % themeColors.chart.length]
-                        }
-                      />
-                    ))}
+                    {analyticsData.topProducts
+                      .slice(0, 6)
+                      .map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={
+                            themeColors.chart[index % themeColors.chart.length]
+                          }
+                        />
+                      ))}
                   </Pie>
-                  <Tooltip formatter={customTooltipFormatter} />
+                  <Tooltip
+                    formatter={(value: any) => [
+                      formatCurrency(Number(value)),
+                      "Revenue",
+                    ]}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>
@@ -473,9 +559,23 @@ const InvoiceAnalytics: React.FC = () => {
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={analyticsData.annualIncome}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="year" />
-                  <YAxis />
-                  <Tooltip formatter={customTooltipFormatter} />
+                  <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+                  <YAxis
+                    tickFormatter={(value) => formatCurrency(value)}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip
+                    formatter={(value: any, name: string) => {
+                      if (name === "Revenue") {
+                        return [formatCurrency(Number(value)), "Revenue"];
+                      }
+                      if (name === "growth") {
+                        return [`${Number(value).toFixed(1)}%`, "Growth Rate"];
+                      }
+                      return [value, name];
+                    }}
+                    labelFormatter={(label) => `Year: ${label}`}
+                  />
                   <Area
                     type="monotone"
                     dataKey="revenue"
@@ -493,7 +593,7 @@ const InvoiceAnalytics: React.FC = () => {
             <CardHeader>
               <CardTitle>Invoice Status by Quarter</CardTitle>
               <CardDescription>
-                Paid, pending, and overdue invoices
+                Paid, Advance, and Unpaid invoices
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -505,43 +605,90 @@ const InvoiceAnalytics: React.FC = () => {
                   <Tooltip />
                   <Legend />
                   <Bar dataKey="paid" fill="#10b981" name="Paid" />
-                  <Bar dataKey="pending" fill="#f59e0b" name="Pending" />
-                  <Bar dataKey="overdue" fill="#ef4444" name="Overdue" />
+                  <Bar dataKey="advance" fill="#f59e0b" name="Advance" />
+                  <Bar dataKey="unpaid" fill="#ef4444" name="Unpaid" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          {/* Top Customers */}
-          <Card className="lg:col-span-2">
+          {/* Top Customers Card with Filters */}
+          <Card className="lg:col-span-2 mt-6">
             <CardHeader>
-              <CardTitle>Top 5 Customers</CardTitle>
-              <CardDescription>By total spending</CardDescription>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <CardTitle>Top Customers</CardTitle>
+                  <CardDescription>By total spending</CardDescription>
+                </div>
+
+                {/* Customer Filters */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* Search Filter */}
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                    <Input
+                      type="text"
+                      placeholder="Search customers..."
+                      className="pl-8 w-full sm:w-48"
+                      value={searchInput} // Use searchInput instead of customerSearchTerm
+                      onChange={handleSearchChange} // Use the new handler
+                    />
+                  </div>
+
+                  {/* Count Filter */}
+                  <Select
+                    value={customerCountFilter}
+                    onValueChange={handleCountFilterChange} // Use the new handler
+                  >
+                    <SelectTrigger className="w-full sm:w-32">
+                      <SelectValue placeholder="Show" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 overflow-y-auto bg-white">
+                      <SelectItem value="5">Top 5</SelectItem>
+                      <SelectItem value="10">Top 10</SelectItem>
+                      <SelectItem value="25">Top 25</SelectItem>
+                      <SelectItem value="all">All</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </CardHeader>
+
             <CardContent>
+              {/* Results Count */}
+              <div className="mb-4 text-sm text-gray-600">
+                Showing {filteredCustomers.length} customer
+                {filteredCustomers.length !== 1 ? "s" : ""}
+                {customerSearchTerm && ` matching "${customerSearchTerm}"`}
+              </div>
+
+              {/* Customers List */}
               <div className="space-y-4">
-                {analyticsData.topCustomers.length > 0 ? (
-                  analyticsData.topCustomers.map((customer, index) => (
+                {filteredCustomers.length > 0 ? (
+                  filteredCustomers.map((customer, index) => (
                     <div
                       key={customer.customer}
-                      className="flex items-center justify-between p-3 border rounded-lg"
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                     >
-                      <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-4 flex-1 min-w-0">
                         <Badge
                           variant="secondary"
-                          className="h-8 w-8 flex items-center justify-center"
+                          className="h-8 w-8 flex-shrink-0 flex items-center justify-center"
                         >
                           {index + 1}
                         </Badge>
-                        <div>
-                          <p className="font-medium">{customer.customer}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium truncate">
+                            {customer.customer}
+                          </p>
                           <p className="text-sm text-muted-foreground">
-                            {customer.invoiceCount} invoices
+                            {customer.invoiceCount} invoice
+                            {customer.invoiceCount !== 1 ? "s" : ""}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold">
+                      <div className="text-right flex-shrink-0 ml-4">
+                        <p className="font-bold text-lg">
                           {formatCurrency(customer.totalSpent)}
                         </p>
                         <p className="text-sm text-muted-foreground">
@@ -554,11 +701,62 @@ const InvoiceAnalytics: React.FC = () => {
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No customer data available for the selected period
+                  <div className="text-center py-12">
+                    <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      No customers found
+                    </h3>
+                    <p className="text-gray-500">
+                      {customerSearchTerm
+                        ? `No customers match "${customerSearchTerm}"`
+                        : "No customer data available for the selected period"}
+                    </p>
+                    {customerSearchTerm && (
+                      <Button
+                        variant="outline"
+                        className="mt-4"
+                        onClick={() => setCustomerSearchTerm("")}
+                      >
+                        Clear Search
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
+
+              {/* Total Summary */}
+              {filteredCustomers.length > 0 && (
+                <div className="mt-6 pt-4 border-t">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-semibold">
+                        Total from displayed customers
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {filteredCustomers.length} customer
+                        {filteredCustomers.length !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-xl">
+                        {formatCurrency(
+                          filteredCustomers.reduce(
+                            (sum, customer) => sum + customer.totalSpent,
+                            0
+                          )
+                        )}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {filteredCustomers.reduce(
+                          (sum, customer) => sum + customer.invoiceCount,
+                          0
+                        )}{" "}
+                        total invoices
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

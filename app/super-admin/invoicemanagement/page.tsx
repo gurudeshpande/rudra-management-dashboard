@@ -462,9 +462,15 @@ const InvoiceManagement = () => {
                           </div>
                           {invoice.advancePaid > 0 && (
                             <div className="text-xs space-y-1">
-                              <div className="text-green-600">
-                                Advance: {formatCurrency(invoice.advancePaid)}
-                              </div>
+                              {invoice.status === "ADVANCE" ? (
+                                <div className="text-amber-600">
+                                  Advance: {formatCurrency(invoice.advancePaid)}
+                                </div>
+                              ) : (
+                                <div className="text-green-600">
+                                  Paid: {formatCurrency(invoice.advancePaid)}
+                                </div>
+                              )}
                               <div className="text-blue-600 font-medium">
                                 Remaining: {formatCurrency(remainingAmount)}
                               </div>
@@ -484,6 +490,7 @@ const InvoiceManagement = () => {
                                 setMode("view");
                               }}
                               title="View Invoice"
+                              className="cursor-pointer"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -495,6 +502,7 @@ const InvoiceManagement = () => {
                                 setMode("edit");
                               }}
                               title="Edit Invoice"
+                              className="cursor-pointer"
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -503,6 +511,7 @@ const InvoiceManagement = () => {
                               size="icon"
                               onClick={() => setDeleteConfirm(invoice.id)}
                               title="Delete Invoice"
+                              className="cursor-pointer"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -628,20 +637,29 @@ const InvoiceManagement = () => {
                 onSubmit={async (e) => {
                   e.preventDefault();
                   const formData = new FormData(e.currentTarget);
-                  const remainingAmount = Number(formData.get("remaining"));
+                  const paidAmount = Number(formData.get("paidAmount")) || 0;
 
-                  // Calculate new advance paid amount
-                  const totalAmount = selectedInvoice.subtotal;
-                  const newAdvancePaid = totalAmount - remainingAmount;
-
-                  // Determine new status based on payment
+                  // Calculate new values based on current status
+                  let newAdvancePaid = selectedInvoice.advancePaid;
                   let newStatus = selectedInvoice.status;
-                  if (remainingAmount === 0) {
-                    newStatus = "PAID";
-                  } else if (newAdvancePaid > 0 && remainingAmount > 0) {
-                    newStatus = "ADVANCE";
-                  } else if (newAdvancePaid === 0) {
-                    newStatus = "UNPAID";
+
+                  if (selectedInvoice.status === "UNPAID") {
+                    // For unpaid invoices, set the paid amount as advance
+                    newAdvancePaid = paidAmount;
+                    newStatus = paidAmount > 0 ? "ADVANCE" : "UNPAID";
+                    if (paidAmount >= selectedInvoice.subtotal) {
+                      newStatus = "PAID";
+                      newAdvancePaid = selectedInvoice.subtotal;
+                    }
+                  } else if (selectedInvoice.status === "ADVANCE") {
+                    // For advance invoices, add to existing advance
+                    newAdvancePaid = selectedInvoice.advancePaid + paidAmount;
+                    if (newAdvancePaid >= selectedInvoice.subtotal) {
+                      newStatus = "PAID";
+                      newAdvancePaid = selectedInvoice.subtotal;
+                    } else {
+                      newStatus = "ADVANCE";
+                    }
                   }
 
                   const body = {
@@ -649,7 +667,6 @@ const InvoiceManagement = () => {
                       name: formData.get("customerName"),
                       number: formData.get("customerNumber"),
                     },
-                    remaining: remainingAmount,
                     advancePaid: newAdvancePaid,
                     status: newStatus,
                   };
@@ -711,10 +728,10 @@ const InvoiceManagement = () => {
                   </div>
                 </div>
 
-                {/* Payment Summary */}
+                {/* Current Payment Status */}
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <h4 className="font-medium text-blue-800 mb-2">
-                    Payment Summary
+                    Current Payment Status
                   </h4>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
@@ -724,122 +741,188 @@ const InvoiceManagement = () => {
                       </p>
                     </div>
                     <div>
-                      <span className="text-gray-600">Current Advance:</span>
-                      <p className="font-medium text-green-600">
-                        {formatCurrency(selectedInvoice.advancePaid)}
+                      <span className="text-gray-600">Current Status:</span>
+                      <p className="font-medium">
+                        {getStatusDisplay(selectedInvoice.status)}
                       </p>
                     </div>
-                    <div className="col-span-2">
-                      <span className="text-gray-600">
-                        Current Balance Due:
-                      </span>
-                      <p className="font-medium text-blue-700">
-                        {formatCurrency(
-                          selectedInvoice.subtotal - selectedInvoice.advancePaid
-                        )}
-                      </p>
-                    </div>
+                    {selectedInvoice.advancePaid > 0 && (
+                      <div>
+                        <span className="text-gray-600">Already Paid:</span>
+                        <p className="font-medium text-green-600">
+                          {formatCurrency(selectedInvoice.advancePaid)}
+                        </p>
+                      </div>
+                    )}
+                    {(selectedInvoice.status === "UNPAID" ||
+                      selectedInvoice.status === "ADVANCE") && (
+                      <div>
+                        <span className="text-gray-600">Balance Due:</span>
+                        <p className="font-medium text-red-600">
+                          {formatCurrency(
+                            selectedInvoice.subtotal -
+                              selectedInvoice.advancePaid
+                          )}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Remaining Amount Field */}
-                <div className="space-y-2">
-                  <label htmlFor="remaining" className="text-sm font-medium">
-                    Remaining Amount (Balance Due)
-                  </label>
-                  <Input
-                    id="remaining"
-                    name="remaining"
-                    type="number"
-                    min="0"
-                    max={selectedInvoice.subtotal}
-                    defaultValue={
-                      selectedInvoice.subtotal - selectedInvoice.advancePaid
-                    }
-                    placeholder="Enter remaining amount"
-                  />
-                  <p className="text-xs text-gray-500">
-                    Enter the remaining balance amount. Setting this to 0 will
-                    mark the invoice as PAID.
-                  </p>
-                </div>
+                {/* Payment Input - Different based on status */}
+                {(selectedInvoice.status === "UNPAID" ||
+                  selectedInvoice.status === "ADVANCE") && (
+                  <div className="space-y-2">
+                    <label htmlFor="paidAmount" className="text-sm font-medium">
+                      {selectedInvoice.status === "UNPAID"
+                        ? "Amount Paid"
+                        : "Additional Payment"}
+                    </label>
+                    <Input
+                      id="paidAmount"
+                      name="paidAmount"
+                      type="number"
+                      min="0"
+                      max={
+                        selectedInvoice.subtotal - selectedInvoice.advancePaid
+                      }
+                      defaultValue="0"
+                      placeholder={`Enter amount (max: ${formatCurrency(
+                        selectedInvoice.subtotal - selectedInvoice.advancePaid
+                      )})`}
+                    />
+                    <p className="text-xs text-gray-500">
+                      {selectedInvoice.status === "UNPAID"
+                        ? "Enter the amount being paid now. This will update the invoice status accordingly."
+                        : `Enter additional payment. Already paid: ${formatCurrency(
+                            selectedInvoice.advancePaid
+                          )}`}
+                    </p>
+                  </div>
+                )}
 
-                {/* New Payment Summary Preview */}
-                <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
-                  <h4 className="font-medium text-amber-800 mb-2">
-                    Update Preview
-                  </h4>
-                  <div className="text-sm space-y-1">
-                    <div className="flex justify-between">
-                      <span>Total Amount:</span>
-                      <span className="font-medium">
-                        {formatCurrency(selectedInvoice.subtotal)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>New Advance Paid:</span>
-                      <span className="font-medium text-green-600">
-                        {formatCurrency(
-                          selectedInvoice.subtotal -
-                            (selectedInvoice.subtotal -
-                              selectedInvoice.advancePaid)
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex justify-between border-t border-amber-200 pt-1">
-                      <span>New Balance Due:</span>
-                      <span className="font-medium text-blue-700">
-                        {formatCurrency(
-                          selectedInvoice.subtotal - selectedInvoice.advancePaid
-                        )}
-                      </span>
+                {/* Update Preview */}
+                {(selectedInvoice.status === "UNPAID" ||
+                  selectedInvoice.status === "ADVANCE") && (
+                  <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                    <h4 className="font-medium text-amber-800 mb-2">
+                      Update Preview
+                    </h4>
+                    <div className="text-sm space-y-2">
+                      <div className="flex justify-between">
+                        <span>Total Amount:</span>
+                        <span className="font-medium">
+                          {formatCurrency(selectedInvoice.subtotal)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>New Total Paid:</span>
+                        <span className="font-medium text-green-600">
+                          {formatCurrency(
+                            selectedInvoice.advancePaid +
+                              (Number(
+                                (
+                                  document.getElementById(
+                                    "paidAmount"
+                                  ) as HTMLInputElement
+                                )?.value
+                              ) || 0)
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>New Balance:</span>
+                        <span className="font-medium text-red-600">
+                          {formatCurrency(
+                            selectedInvoice.subtotal -
+                              selectedInvoice.advancePaid -
+                              (Number(
+                                (
+                                  document.getElementById(
+                                    "paidAmount"
+                                  ) as HTMLInputElement
+                                )?.value
+                              ) || 0)
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-amber-200 pt-1 font-medium">
+                        <span>New Status:</span>
+                        <span>
+                          {(() => {
+                            const paidAmount =
+                              Number(
+                                (
+                                  document.getElementById(
+                                    "paidAmount"
+                                  ) as HTMLInputElement
+                                )?.value
+                              ) || 0;
+                            const newTotalPaid =
+                              selectedInvoice.advancePaid + paidAmount;
+
+                            if (newTotalPaid >= selectedInvoice.subtotal) {
+                              return "PAID";
+                            } else if (newTotalPaid > 0) {
+                              return "ADVANCE";
+                            } else {
+                              return "UNPAID";
+                            }
+                          })()}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                <DialogFooter className="gap-2 sm:gap-0">
-                  <Button
-                    type="button"
-                    onClick={async () => {
-                      const markAsPaidPromise = fetch(
-                        `/api/allinvoices/${selectedInvoice.id}`,
-                        {
-                          method: "PUT",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            customer: {
-                              name: selectedInvoice.customer.name,
-                              number: selectedInvoice.customer.number,
-                            },
-                            remaining: 0,
-                            advancePaid: selectedInvoice.subtotal,
-                            status: "PAID",
-                          }),
-                        }
-                      );
-
-                      toast.promise(markAsPaidPromise, {
-                        loading: "Marking as paid...",
-                        success: async (res) => {
-                          if (res.ok) {
-                            await fetchInvoices();
-                            setSelectedInvoice(null);
-                            setMode(null);
-                            return "Invoice marked as paid successfully";
-                          } else {
-                            throw new Error("Failed to mark as paid");
+                <DialogFooter className="gap-5 sm:gap-2">
+                  {/* Mark as Fully Paid Button - Only show for unpaid/advance invoices */}
+                  {(selectedInvoice.status === "UNPAID" ||
+                    selectedInvoice.status === "ADVANCE") && (
+                    <Button
+                      type="button"
+                      onClick={async () => {
+                        const markAsPaidPromise = fetch(
+                          `/api/allinvoices/${selectedInvoice.id}`,
+                          {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              customer: {
+                                name: selectedInvoice.customer.name,
+                                number: selectedInvoice.customer.number,
+                              },
+                              advancePaid: selectedInvoice.subtotal,
+                              status: "PAID",
+                            }),
                           }
-                        },
-                        error: (error) => {
-                          return error.message || "Failed to mark as paid";
-                        },
-                      });
-                    }}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    Mark as Fully Paid
+                        );
+
+                        toast.promise(markAsPaidPromise, {
+                          loading: "Marking as paid...",
+                          success: async (res) => {
+                            if (res.ok) {
+                              await fetchInvoices();
+                              setSelectedInvoice(null);
+                              setMode(null);
+                              return "Invoice marked as paid successfully";
+                            } else {
+                              throw new Error("Failed to mark as paid");
+                            }
+                          },
+                          error: (error) => {
+                            return error.message || "Failed to mark as paid";
+                          },
+                        });
+                      }}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      Mark as Fully Paid
+                    </Button>
+                  )}
+                  <Button type="submit" className="bg-amber-500">
+                    Save Changes
                   </Button>
-                  <Button type="submit">Save Changes</Button>
                 </DialogFooter>
               </form>
             )}

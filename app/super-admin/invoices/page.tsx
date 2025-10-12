@@ -43,6 +43,7 @@ interface Product {
   size: string;
   price: number;
   category: string;
+  quantity: number; // Add this
 }
 
 interface InvoiceItem {
@@ -113,9 +114,6 @@ const Invoices = () => {
   const [generatePdf, setGeneratePdf] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState<string>("");
   const [isLoadingInvoiceNumber, setIsLoadingInvoiceNumber] = useState(true);
-  const [productStock, setProductStock] = useState<{ [key: number]: number }>(
-    {}
-  );
   const [invoiceStatus, setInvoiceStatus] = useState<
     "PAID" | "UNPAID" | "ADVANCE"
   >("UNPAID");
@@ -312,24 +310,10 @@ const Invoices = () => {
 
   const checkProductAvailability = async () => {
     const availabilityChecks = items.map(async (item) => {
-      try {
-        const response = await fetch(`/api/products/${item.productId}`);
-        if (!response.ok) throw new Error("Failed to fetch product");
+      // Find product in productsData instead of making API call
+      const product = productsData.find((p) => p.id === item.productId);
 
-        const product = await response.json();
-
-        return {
-          productId: item.productId,
-          productName: item.name,
-          available: product.quantity,
-          requested: item.quantity,
-          isAvailable: product.quantity >= item.quantity,
-        };
-      } catch (error) {
-        console.error(
-          `Error checking availability for product ${item.productId}:`,
-          error
-        );
+      if (!product) {
         return {
           productId: item.productId,
           productName: item.name,
@@ -339,6 +323,14 @@ const Invoices = () => {
           error: true,
         };
       }
+
+      return {
+        productId: item.productId,
+        productName: item.name,
+        available: product.quantity,
+        requested: item.quantity,
+        isAvailable: product.quantity >= item.quantity,
+      };
     });
 
     return Promise.all(availabilityChecks);
@@ -364,25 +356,6 @@ const Invoices = () => {
         const data = await res.json();
         setProductsData(data);
         setFilteredProducts(data);
-
-        // Fetch quantities for all products
-        const stockData: { [key: number]: number } = {};
-        for (const product of data) {
-          try {
-            const response = await fetch(`/api/products/${product.id}`);
-            if (response.ok) {
-              const productData = await response.json();
-              stockData[product.id] = productData.quantity;
-            }
-          } catch (error) {
-            console.error(
-              `Error fetching quantity for product ${product.id}:`,
-              error
-            );
-            stockData[product.id] = 0; // Default to 0 if there's an error
-          }
-        }
-        setProductStock(stockData);
 
         // Show info alert if no products found
         if (data.length === 0) {
@@ -744,16 +717,9 @@ const Invoices = () => {
     productId: number,
     quantity: number
   ) => {
-    try {
-      const response = await fetch(`/api/products/${productId}`);
-      if (!response.ok) throw new Error("Failed to fetch product");
-
-      const product = await response.json();
-      return product.quantity >= quantity;
-    } catch (error) {
-      console.error("Error checking quantity:", error);
-      return false;
-    }
+    // Find the product in the already fetched productsData
+    const product = productsData.find((p) => p.id === productId);
+    return product ? product.quantity >= quantity : false;
   };
 
   return (
@@ -916,10 +882,8 @@ const Invoices = () => {
                                 {product.name} {product.size}
                               </span>
                               <span className="block text-xs text-gray-500">
-                                Stock:{" "}
-                                {productStock[product.id] !== undefined
-                                  ? productStock[product.id]
-                                  : "Loading..."}
+                                Stock: {product.quantity}{" "}
+                                {/* Use product.quantity directly */}
                               </span>
                             </div>
                             <span className="text-blue-600">
@@ -1039,12 +1003,13 @@ const Invoices = () => {
                         key={index}
                         className="flex justify-between items-center p-3 border border-gray-200 rounded-lg hover:bg-blue-50/30 transition-colors"
                       >
+                        {/* {console.log(item)} */}
                         <div>
                           <p className="font-medium text-gray-800">
                             {item.name}
                           </p>
                           <p className="text-sm text-gray-500">
-                            {item.quantity} x ₹{item.price}
+                            {item.quantity} x ₹{item.originalPrice}
                             {item.discount && item.discount > 0 && (
                               <span className="text-green-600 ml-2">
                                 ({item.discount}% off)
@@ -1054,7 +1019,7 @@ const Invoices = () => {
                         </div>
                         <div className="flex items-center space-x-4">
                           <p className="font-medium text-[#954C2E]">
-                            ₹{item.subtotal.toFixed(2)}
+                            ₹{item.total.toFixed(2)}
                           </p>
                           <Button
                             variant="ghost"
@@ -1251,7 +1216,7 @@ const Invoices = () => {
                             </td>
                             <td className="text-right py-3 text-[#954C2E] font-semibold text-sm">
                               ₹
-                              {item.subtotal.toLocaleString("en-IN", {
+                              {item.total.toLocaleString("en-IN", {
                                 minimumFractionDigits: 2,
                               })}
                             </td>

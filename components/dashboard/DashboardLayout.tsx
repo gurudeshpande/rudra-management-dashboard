@@ -22,6 +22,8 @@ import {
   ChevronRight,
   PlusCircle,
   List,
+  BarChart2Icon,
+  Factory,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
@@ -108,18 +110,18 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         icon: LayoutDashboard,
       },
       {
+        name: "User Management",
+        href: "/super-admin/users",
+        icon: Package,
+      },
+      {
         name: "Inventory",
         href: "/super-admin/inventory/inventory-management",
         icon: Package,
       },
-      // {
-      //   name: "Expenses",
-      //   href: "/super-admin/expenses",
-      //   icon: CreditCard,
-      // },
       {
         name: "Billing & Invoices",
-        href: "#", // Using href="#" for menu items with submenus
+        href: "#",
         icon: FileText,
         subItems: [
           {
@@ -134,12 +136,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           },
         ],
       },
-      // { name: "Users", href: "/super-admin/users", icon: Users },
-      // {
-      //   name: "Resellers",
-      //   href: "/super-admin/resellers",
-      //   icon: BarChart,
-      // },
+      {
+        name: "Manifacturing",
+        href: "/super-admin/manufacturing",
+        icon: Factory,
+      },
+      {
+        name: "Analytics",
+        href: "/super-admin/analysis",
+        icon: BarChart2Icon,
+      },
     ],
     ADMIN: [
       {
