@@ -3,11 +3,44 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+// Define your product categories
+const PRODUCT_CATEGORIES = [
+  "Mavala",
+  "Maharaj",
+  "Shastra (Weapons)",
+  "Miniature Weapons",
+  "Miniatures",
+  "Spiritual Statues",
+  "Car Dashboard",
+  "Frame Collection",
+  "Shilekhana (Weapon Vault)",
+  "Symbolic & Cultural Artefacts",
+  "Sanch",
+  "Keychains",
+  "Jewellery",
+  "Historical Legends",
+  "Badges",
+  "Taxidermy",
+];
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const timeFilter = searchParams.get("timeFilter") || "current_year";
-    const productFilter = searchParams.get("productFilter") || "all";
+    const category = searchParams.get("category") || "all";
+    const customerLimit = searchParams.get("customerLimit") || "10"; // ✅ Add customer limit
+    const customerSearch = searchParams.get("customerSearch") || ""; // ✅ Add customer search
+
+    console.log(
+      timeFilter,
+      "timefilter",
+      category,
+      "category",
+      customerLimit,
+      "customerLimit",
+      customerSearch,
+      "customerSearch"
+    );
 
     // Calculate date ranges based on filter
     const now = new Date();
@@ -30,28 +63,62 @@ export async function GET(request: NextRequest) {
       case "current_year":
       default:
         startDate = new Date(now.getFullYear(), 0, 1);
+        endDate = new Date(now.getFullYear(), 11, 31);
         break;
     }
 
-    // Fetch data from database with filters
-    const whereClause = {
-      invoiceDate: { gte: startDate, lte: endDate },
-      ...(productFilter !== "all"
-        ? {
-            items: {
-              some: {
-                product: {
-                  category: productFilter,
-                },
-              },
-            },
-          }
-        : {}),
+    // Build where clause for invoices
+    const invoiceWhereClause: any = {
+      invoiceDate: {
+        gte: startDate,
+        lte: endDate,
+      },
     };
 
+    // Build where clause for invoice items
+    const invoiceItemWhereClause: any = {
+      invoice: {
+        invoiceDate: { gte: startDate, lte: endDate },
+      },
+    };
+
+    // Build where clause for customers
+    const customerWhereClause: any = {};
+
+    // ✅ Add customer name search filter
+    if (customerSearch.trim()) {
+      customerWhereClause.name = {
+        contains: customerSearch,
+        mode: "insensitive", // Case-insensitive search
+      };
+    }
+
+    // Add category filter if not "all"
+    if (category !== "all") {
+      // Convert URL parameter back to proper category name
+      const categoryName =
+        PRODUCT_CATEGORIES.find(
+          (cat) => cat.toLowerCase().replace(/\s+/g, "_") === category
+        ) || category;
+
+      invoiceWhereClause.items = {
+        some: {
+          product: {
+            category: categoryName,
+          },
+        },
+      };
+
+      invoiceItemWhereClause.product = {
+        category: categoryName,
+      };
+    }
+
+    // Fetch data from database with filters
     const [invoices, invoiceItems, customers, products] = await Promise.all([
+      // Fetch invoices with related data
       prisma.invoice.findMany({
-        where: whereClause,
+        where: invoiceWhereClause,
         include: {
           customer: true,
           items: {
@@ -64,36 +131,40 @@ export async function GET(request: NextRequest) {
           invoiceDate: "desc",
         },
       }),
+
+      // Fetch invoice items for product analysis
       prisma.invoiceItem.findMany({
-        where: {
-          invoice: {
-            invoiceDate: { gte: startDate, lte: endDate },
-          },
-          ...(productFilter !== "all"
-            ? {
-                product: {
-                  category: productFilter,
-                },
-              }
-            : {}),
-        },
+        where: invoiceItemWhereClause,
         include: {
           invoice: true,
           product: true,
         },
       }),
+
+      // ✅ Fetch customers with search filter and their invoices
       prisma.customer.findMany({
+        where: customerWhereClause, // ✅ Apply customer search filter
         include: {
           invoices: {
-            where: whereClause,
+            where: invoiceWhereClause,
             include: {
               items: true,
             },
           },
         },
       }),
+
+      // Fetch products for category analysis
       prisma.product.findMany({
-        where: productFilter !== "all" ? { category: productFilter } : {},
+        where:
+          category !== "all"
+            ? {
+                category:
+                  PRODUCT_CATEGORIES.find(
+                    (cat) => cat.toLowerCase().replace(/\s+/g, "_") === category
+                  ) || category,
+              }
+            : {},
       }),
     ]);
 
@@ -101,13 +172,18 @@ export async function GET(request: NextRequest) {
     const analyticsData = {
       quarterlyRevenue: calculateQuarterlyRevenue(invoices, now.getFullYear()),
       topProducts: calculateTopProducts(invoiceItems),
-      topCustomers: calculateTopCustomers(customers),
+      topCustomers: calculateTopCustomers(
+        customers,
+        customerLimit,
+        customerSearch
+      ), // ✅ Pass filters
       annualIncome: calculateAnnualIncome(invoices),
       quarterlyInvoices: calculateQuarterlyInvoices(
         invoices,
         now.getFullYear()
       ),
-      summary: calculateSummary(invoices, timeFilter),
+      summary: calculateSummary(invoices, timeFilter, category),
+      availableCategories: PRODUCT_CATEGORIES,
     };
 
     return NextResponse.json(analyticsData);
@@ -159,9 +235,12 @@ function calculateTopProducts(invoiceItems: any[]) {
 
   invoiceItems.forEach((item) => {
     const productName = item.product?.name || item.name;
+    const productCategory = item.product?.category || "Uncategorized";
+
     if (!productMap.has(productName)) {
       productMap.set(productName, {
         product: productName,
+        category: productCategory,
         quantity: 0,
         revenue: 0,
       });
@@ -169,16 +248,21 @@ function calculateTopProducts(invoiceItems: any[]) {
 
     const productData = productMap.get(productName);
     productData.quantity += item.quantity;
-    productData.revenue += item.total;
+    productData.revenue += item.quantity * item.price;
   });
 
   return Array.from(productMap.values())
     .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 5);
+    .slice(0, 10); // Show top 10 products
 }
 
-function calculateTopCustomers(customers: any[]) {
-  const customerData = customers
+// ✅ Updated function with customer filters
+function calculateTopCustomers(
+  customers: any[],
+  customerLimit: string,
+  customerSearch: string
+) {
+  let customerData = customers
     .map((customer) => {
       const totalSpent = customer.invoices.reduce(
         (sum: number, invoice: any) => sum + invoice.total,
@@ -193,8 +277,19 @@ function calculateTopCustomers(customers: any[]) {
       };
     })
     .filter((customer) => customer.totalSpent > 0)
-    .sort((a, b) => b.totalSpent - a.totalSpent)
-    .slice(0, 5);
+    .sort((a, b) => b.totalSpent - a.totalSpent);
+
+  // ✅ Apply limit filter only if not "all" and no search term
+  // When searching, we want to see all matching results
+  if (customerLimit !== "all" && !customerSearch.trim()) {
+    const limit = parseInt(customerLimit);
+    if (!isNaN(limit) && limit > 0) {
+      customerData = customerData.slice(0, limit);
+    }
+  }
+
+  // ✅ If there's a search term but no specific limit, show all matching results
+  // The frontend will handle further filtering if needed
 
   return customerData;
 }
@@ -221,7 +316,7 @@ function calculateAnnualIncome(invoices: any[]) {
     .sort((a, b) => a.year - b.year)
     .map((data, index, array) => {
       const growth =
-        index > 0
+        index > 0 && array[index - 1].revenue > 0
           ? ((data.revenue - array[index - 1].revenue) /
               array[index - 1].revenue) *
             100
@@ -257,11 +352,18 @@ function calculateQuarterlyInvoices(invoices: any[], currentYear: number) {
     const paid = quarterInvoices.filter(
       (invoice) => invoice.status === "PAID"
     ).length;
-    const pending = quarterInvoices.filter(
-      (invoice) => invoice.status === "PENDING"
+
+    const unpaid = quarterInvoices.filter(
+      (invoice) => invoice.status === "UNPAID"
     ).length;
+
+    const advance = quarterInvoices.filter(
+      (invoice) => invoice.status === "ADVANCE"
+    ).length;
+
+    // Calculate overdue invoices (unpaid with due date passed)
     const overdue = quarterInvoices.filter((invoice) => {
-      if (invoice.status === "PENDING") {
+      if (invoice.status === "UNPAID" || invoice.status === "ADVANCE") {
         const dueDate = new Date(invoice.dueDate);
         return dueDate < new Date();
       }
@@ -271,7 +373,7 @@ function calculateQuarterlyInvoices(invoices: any[], currentYear: number) {
     quarterlyData.push({
       quarter: `${quarter} ${currentYear}`,
       paid,
-      pending: pending - overdue, // Pending but not overdue
+      pending: unpaid + advance - overdue, // Pending but not overdue
       overdue,
     });
   });
@@ -279,7 +381,11 @@ function calculateQuarterlyInvoices(invoices: any[], currentYear: number) {
   return quarterlyData;
 }
 
-function calculateSummary(invoices: any[], timeFilter: string) {
+function calculateSummary(
+  invoices: any[],
+  timeFilter: string,
+  category: string
+) {
   const totalRevenue = invoices.reduce(
     (sum, invoice) => sum + invoice.total,
     0
@@ -288,29 +394,56 @@ function calculateSummary(invoices: any[], timeFilter: string) {
   const averageOrderValue =
     totalInvoices > 0 ? totalRevenue / totalInvoices : 0;
 
-  // Calculate growth rate (simplified - you might want to compare with previous period)
+  // Calculate growth rate based on time filter
   let growthRate = 0;
-  if (timeFilter === "current_year") {
-    // For demo purposes, using a calculated growth rate
+
+  if (timeFilter === "current_year" || timeFilter === "last_year") {
     const currentYear = new Date().getFullYear();
-    const lastYearInvoices = invoices.filter(
+    const comparisonYear =
+      timeFilter === "current_year" ? currentYear - 1 : currentYear - 2;
+
+    // This would require additional database queries for accurate comparison
+    // For now, using a calculated estimate based on available data
+    const comparisonInvoices = invoices.filter(
       (invoice) =>
-        new Date(invoice.invoiceDate).getFullYear() === currentYear - 1
+        new Date(invoice.invoiceDate).getFullYear() === comparisonYear
     );
-    const lastYearRevenue = lastYearInvoices.reduce(
+
+    const comparisonRevenue = comparisonInvoices.reduce(
       (sum, invoice) => sum + invoice.total,
       0
     );
 
-    if (lastYearRevenue > 0) {
-      growthRate = ((totalRevenue - lastYearRevenue) / lastYearRevenue) * 100;
+    if (comparisonRevenue > 0) {
+      growthRate =
+        ((totalRevenue - comparisonRevenue) / comparisonRevenue) * 100;
+    } else if (totalRevenue > 0) {
+      growthRate = 100; // 100% growth if no previous data but current data exists
     }
   }
+
+  // Calculate category-specific metrics
+  const paidInvoices = invoices.filter((inv) => inv.status === "PAID").length;
+  const unpaidInvoices = invoices.filter(
+    (inv) => inv.status === "UNPAID"
+  ).length;
+  const advanceInvoices = invoices.filter(
+    (inv) => inv.status === "ADVANCE"
+  ).length;
 
   return {
     totalRevenue,
     totalInvoices,
-    averageOrderValue: Math.round(averageOrderValue * 100) / 100,
+    averageOrderValue: Math.round(averageOrderValue),
     growthRate: Math.round(growthRate * 100) / 100,
+    paidInvoices,
+    unpaidInvoices,
+    advanceInvoices,
+    selectedCategory:
+      category === "all"
+        ? "All Categories"
+        : PRODUCT_CATEGORIES.find(
+            (cat) => cat.toLowerCase().replace(/\s+/g, "_") === category
+          ) || category,
   };
 }
