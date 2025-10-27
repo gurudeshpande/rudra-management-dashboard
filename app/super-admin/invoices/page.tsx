@@ -226,11 +226,11 @@ const Invoices = () => {
     (sum, item) => sum + (item.discountedPrice || 0),
     0
   );
-  const cgst = includeGst ? subtotal * 0.06 : 0;
-  const sgst = includeGst ? subtotal * 0.06 : 0;
+  const cgst = includeGst ? subtotal * 0.025 : 0;
+  const sgst = includeGst ? subtotal * 0.025 : 0;
   const gstTotal = cgst + sgst;
   const total = subtotal + gstTotal;
-  const advanceAmount = subtotal - advancePayment;
+  const advanceAmount = total - advancePayment;
   const balance = total - advanceAmount;
 
   // Save Invoice to API
@@ -247,7 +247,7 @@ const Invoices = () => {
           name: item.name,
           quantity: item.quantity,
           price: item.price,
-          total: item.subtotal,
+          total: item.total,
           description: item.description || "",
           notes: item.notes || "",
         })),
@@ -611,7 +611,7 @@ const Invoices = () => {
             cgst,
             sgst,
             total,
-            totalInWords: `${convertToWords(subtotal)} Only`,
+            totalInWords: `${convertToWords(total)} Only`,
             deliveryDate: new Date().toLocaleDateString("en-IN", {
               year: "numeric",
               month: "long",
@@ -679,7 +679,7 @@ const Invoices = () => {
         alert.info(
           "Invoice saved as ADVANCE",
           `Advance payment of ₹${advancePayment} received. Balance due: ₹${
-            subtotal - advancePayment
+            total - advancePayment
           }`,
           {
             duration: 8000,
@@ -1125,10 +1125,10 @@ const Invoices = () => {
                           Discount (%)
                         </th>
                         <th className="text-right py-3 text-[#954C2E] font-semibold text-sm">
-                          CGST (6%)
+                          CGST (2.5%)
                         </th>
                         <th className="text-right py-3 text-[#954C2E] font-semibold text-sm">
-                          SGST (6%)
+                          SGST (2.5%)
                         </th>
                         <th className="text-right py-3 text-[#954C2E] font-semibold text-sm">
                           Amount (₹)
@@ -1137,8 +1137,8 @@ const Invoices = () => {
                     </thead>
                     <tbody>
                       {items.map((item, index) => {
-                        const itemCgst = includeGst ? item.total * 0.06 : 0;
-                        const itemSgst = includeGst ? item.total * 0.06 : 0;
+                        const itemCgst = includeGst ? item.total * 0.025 : 0;
+                        const itemSgst = includeGst ? item.total * 0.025 : 0;
 
                         return (
                           <tr key={index} className="border-b border-blue-50">
@@ -1317,7 +1317,7 @@ const Invoices = () => {
                       htmlFor="includeGst"
                       className="text-gray-700 cursor-pointer"
                     >
-                      Include GST (12% total: 6% CGST + 6% SGST)
+                      Include GST (5% total: 2.5% CGST + 2.5% SGST)
                     </Label>
                   </div>
 
@@ -1327,13 +1327,13 @@ const Invoices = () => {
                         <span className="text-gray-800 font-semibold">
                           CGST:
                         </span>
-                        <span className="text-gray-800">6%</span>
+                        <span className="text-gray-800">2.5%</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-800 font-semibold">
                           SGST:
                         </span>
-                        <span className="text-gray-800">6%</span>
+                        <span className="text-gray-800">2.5%</span>
                       </div>
                       <div className="flex justify-between border-t border-blue-100 pt-2">
                         <span className="text-gray-800 font-semibold">
@@ -1353,7 +1353,7 @@ const Invoices = () => {
                     <span className="text-[#954C2E]">Total:</span>
                     <span className="text-[#954C2E]">
                       ₹
-                      {subtotal.toLocaleString("en-IN", {
+                      {total.toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
                       })}
                     </span>
@@ -1431,7 +1431,7 @@ const Invoices = () => {
                             id="advance"
                             type="number"
                             min="0"
-                            max={subtotal}
+                            max={total}
                             value={advancePayment}
                             onChange={(e) =>
                               setAdvancePayment(parseFloat(e.target.value) || 0)
@@ -1449,7 +1449,7 @@ const Invoices = () => {
                             <span className="text-gray-600">Total Amount:</span>
                             <span className="text-gray-800 font-medium">
                               ₹
-                              {subtotal.toLocaleString("en-IN", {
+                              {total.toLocaleString("en-IN", {
                                 minimumFractionDigits: 2,
                               })}
                             </span>
@@ -1474,7 +1474,7 @@ const Invoices = () => {
                                 </span>
                                 <span className="text-blue-700">
                                   ₹
-                                  {(subtotal - advancePayment).toLocaleString(
+                                  {(total - advancePayment).toLocaleString(
                                     "en-IN",
                                     {
                                       minimumFractionDigits: 2,

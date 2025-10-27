@@ -3,11 +3,10 @@
 
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { ManufacturingOverview } from "@/app/manufacturing/page";
-import { RawMaterialsTable } from "@/app/manufacturing/rawMaterialsTable/page";
-import { RawMaterialForm } from "@/app/manufacturing/rawMaterialForm/page";
-import { ProductStructureBuilder } from "@/app/manufacturing/productStructureBuilder/page";
-import { RawMaterialTransfer } from "@/app/manufacturing/RawMaterialTransfer/page";
+import { RawMaterialsTable } from "@/components/manufacturing/RawMaterialsTable";
+import { RawMaterialForm } from "@/components/manufacturing/RawMaterialForm";
+import { ProductStructureBuilder } from "@/components/manufacturing/ProductStructureBuilder";
+import { RawMaterialTransfer } from "@/components/manufacturing/RawMaterialTransfer";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +24,13 @@ import {
   Users,
   CheckCircle2,
   History,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Warehouse,
+  Calendar,
+  Wrench,
+  Hammer,
 } from "lucide-react";
 
 interface User {
@@ -46,6 +52,7 @@ interface RawMaterial {
 interface Product {
   id: number;
   name: string;
+  quantity: number;
 }
 
 interface Transfer {
@@ -63,6 +70,24 @@ interface Transfer {
   rawMaterial: RawMaterial;
 }
 
+interface ProductTransfer {
+  id: number;
+  userId: string;
+  productId: number;
+  quantitySent: number;
+  status: "SENT" | "RECEIVED" | "REJECTED" | "CANCELLED";
+  notes?: string;
+  receivedBy?: string;
+  receivedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    name: string;
+    email: string;
+  };
+  product: Product;
+}
+
 export default function ManufacturingPage() {
   const themeColor = "#954C2E";
   const themeLight = "#F5E9E4";
@@ -72,12 +97,17 @@ export default function ManufacturingPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [productTransfers, setProductTransfers] = useState<ProductTransfer[]>(
+    []
+  );
   const [showMaterialForm, setShowMaterialForm] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<RawMaterial | null>(
     null
   );
   const [loading, setLoading] = useState(true);
   const [showTransferHistory, setShowTransferHistory] = useState(false);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [repairLoading, setRepairLoading] = useState<number | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -87,13 +117,19 @@ export default function ManufacturingPage() {
     try {
       setLoading(true);
       // Fetch all data in parallel
-      const [materialsRes, productsRes, usersRes, transfersRes] =
-        await Promise.all([
-          fetch("/api/raw-materials"),
-          fetch("/api/products"),
-          fetch("/api/auth/users"),
-          fetch("/api/raw-material-transfers"),
-        ]);
+      const [
+        materialsRes,
+        productsRes,
+        usersRes,
+        transfersRes,
+        productTransfersRes,
+      ] = await Promise.all([
+        fetch("/api/raw-materials"),
+        fetch("/api/products"),
+        fetch("/api/auth/users"),
+        fetch("/api/raw-material-transfers"),
+        fetch("/api/product-transfers"),
+      ]);
 
       if (materialsRes.ok) {
         const materialsData = await materialsRes.json();
@@ -113,6 +149,11 @@ export default function ManufacturingPage() {
       if (transfersRes.ok) {
         const transfersData = await transfersRes.json();
         setTransfers(transfersData);
+      }
+
+      if (productTransfersRes.ok) {
+        const productTransfersData = await productTransfersRes.json();
+        setProductTransfers(productTransfersData);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -173,36 +214,6 @@ export default function ManufacturingPage() {
     }
   };
 
-  const handleCreateProductStructure = async (
-    productId: number,
-    items: any[]
-  ) => {
-    try {
-      for (const item of items) {
-        const response = await fetch("/api/product-structures", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            productId,
-            rawMaterialId: item.rawMaterialId,
-            quantityRequired: item.quantityRequired,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to create product structure");
-        }
-      }
-
-      alert("Product structure created successfully!");
-      setActiveTab("materials");
-      fetchData();
-    } catch (error) {
-      console.error("Error creating product structure:", error);
-      alert("Error creating product structure. Please try again.");
-    }
-  };
-
   const handleSubmitTransfer = async (
     userId: string,
     items: any[],
@@ -239,6 +250,212 @@ export default function ManufacturingPage() {
     }
   };
 
+  // Repair Functions
+  const handleStartRepair = async (transferId: number) => {
+    if (!confirm("Are you sure you want to start repairing this material?"))
+      return;
+
+    setRepairLoading(transferId);
+    try {
+      const response = await fetch(
+        `/api/raw-material-transfers/${transferId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            status: "REPAIRING",
+            notes: "Material under repair",
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to start repair");
+      }
+
+      await fetchData();
+      alert("Repair started successfully!");
+    } catch (error) {
+      console.error("Error starting repair:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Error starting repair. Please try again."
+      );
+    } finally {
+      setRepairLoading(null);
+    }
+  };
+
+  const handleFinishRepair = async (transferId: number) => {
+    const repairNotes = "Material Repaire Successfully";
+    if (!repairNotes) {
+      alert("Repair completion notes are required.");
+      return;
+    }
+
+    if (!confirm("Are you sure you want to mark this repair as finished?"))
+      return;
+
+    setRepairLoading(transferId);
+    try {
+      const response = await fetch(
+        `/api/raw-material-transfers/${transferId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            status: "FINISHED",
+            notes: repairNotes,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to finish repair");
+      }
+
+      await fetchData();
+      alert("Repair marked as finished successfully!");
+    } catch (error) {
+      console.error("Error finishing repair:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Error finishing repair. Please try again."
+      );
+    } finally {
+      setRepairLoading(null);
+    }
+  };
+
+  // Product Transfer Functions
+  const handleApproveProductTransfer = async (transferId: number) => {
+    if (!confirm("Are you sure you want to approve and receive this product?"))
+      return;
+
+    setActionLoading(transferId);
+    try {
+      // First, get the transfer details to know which product and quantity to add
+      const transferResponse = await fetch(
+        `/api/product-transfers/${transferId}`
+      );
+
+      if (!transferResponse.ok) {
+        throw new Error("Failed to fetch transfer details");
+      }
+
+      const transfer = await transferResponse.json();
+
+      // Now update the product quantity using your API
+      const quantityResponse = await fetch(
+        `/api/products/${transfer.productId}/quantity`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            quantityToAdd: transfer.quantitySent,
+          }),
+        }
+      );
+
+      if (!quantityResponse.ok) {
+        const errorData = await quantityResponse.json();
+        throw new Error(errorData.error || "Failed to update product quantity");
+      }
+
+      // Then update the transfer status
+      const statusResponse = await fetch(
+        `/api/product-transfers/${transferId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            status: "RECEIVED",
+            notes: "Product received successfully and added to inventory",
+            receivedBy: "Super Admin",
+          }),
+        }
+      );
+
+      if (!statusResponse.ok) {
+        const errorData = await statusResponse.json();
+        throw new Error(
+          errorData.error || "Failed to approve product transfer"
+        );
+      }
+
+      await fetchData();
+      alert(
+        `Product received successfully! ${transfer.quantitySent} units added to inventory.`
+      );
+    } catch (error) {
+      console.error("Error approving product transfer:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Error approving product transfer. Please try again."
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRejectProductTransfer = async (transferId: number) => {
+    const reason = prompt("Please provide a reason for rejection:");
+    if (!reason) {
+      alert("Rejection reason is required.");
+      return;
+    }
+
+    if (!confirm("Are you sure you want to reject this product transfer?"))
+      return;
+
+    setActionLoading(transferId);
+    try {
+      const response = await fetch(`/api/product-transfers/${transferId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: "REJECTED",
+          notes: reason,
+          receivedBy: "Super Admin",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to reject product transfer");
+      }
+
+      await fetchData();
+      alert(
+        "Product transfer rejected successfully! Materials have been returned to the user."
+      );
+    } catch (error) {
+      console.error("Error rejecting product transfer:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Error rejecting product transfer. Please try again."
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // Calculate stats for overview
   const lowStockMaterials = rawMaterials.filter(
     (material) => material.quantity < 20
@@ -246,13 +463,115 @@ export default function ManufacturingPage() {
   const outOfStockMaterials = rawMaterials.filter(
     (material) => material.quantity === 0
   );
-  const totalStockValue = rawMaterials.reduce(
-    (sum, material) => sum + material.quantity * 1,
-    0
+
+  // Product transfer stats
+  const pendingProductTransfers = productTransfers.filter(
+    (t) => t.status === "SENT"
   );
+  const receivedProductTransfers = productTransfers.filter(
+    (t) => t.status === "RECEIVED"
+  );
+  const rejectedProductTransfers = productTransfers.filter(
+    (t) => t.status === "REJECTED"
+  );
+
+  // Repair stats
+  const returnedTransfers = transfers.filter((t) => t.status === "RETURNED");
+  const repairingTransfers = transfers.filter((t) => t.status === "REPAIRING");
+  const finishedRepairs = transfers.filter((t) => t.status === "FINISHED");
 
   // Recent transfers for overview
   const recentTransfers = transfers.slice(0, 5);
+
+  const getStatusBadge = (
+    status: string,
+    type: "rawMaterial" | "product" = "rawMaterial"
+  ) => {
+    const statusConfig = {
+      // Raw Material Statuses
+      SENT: {
+        variant: "secondary" as const,
+        label: "Pending Approval",
+        icon: Clock,
+        color: "text-amber-600",
+        bgColor: "bg-amber-100 text-amber-800",
+      },
+      USED: {
+        variant: "default" as const,
+        label: "Approved & Used",
+        icon: CheckCircle2,
+        color: "text-green-600",
+        bgColor: "bg-green-100 text-green-800",
+      },
+      RETURNED: {
+        variant: "destructive" as const,
+        label: "Returned",
+        icon: XCircle,
+        color: "text-red-600",
+        bgColor: "bg-red-100 text-red-800",
+      },
+      REPAIRING: {
+        variant: "secondary" as const,
+        label: "Repairing",
+        icon: Wrench,
+        color: "text-blue-600",
+        bgColor: "bg-blue-100 text-blue-800",
+      },
+      FINISHED: {
+        variant: "default" as const,
+        label: "Repair Finished",
+        icon: CheckCircle,
+        color: "text-green-600",
+        bgColor: "bg-green-100 text-green-800",
+      },
+      CANCELLED: {
+        variant: "outline" as const,
+        label: "Cancelled",
+        icon: XCircle,
+        color: "text-gray-600",
+        bgColor: "bg-gray-100 text-gray-800",
+      },
+      // Product Transfer Statuses
+      RECEIVED: {
+        variant: "default" as const,
+        label: "Received",
+        icon: CheckCircle,
+        color: "text-green-600",
+        bgColor: "bg-green-100 text-green-800",
+      },
+      REJECTED: {
+        variant: "destructive" as const,
+        label: "Rejected",
+        icon: XCircle,
+        color: "text-red-600",
+        bgColor: "bg-red-100 text-red-800",
+      },
+    };
+
+    const config =
+      statusConfig[status as keyof typeof statusConfig] || statusConfig.SENT;
+    const IconComponent = config.icon;
+
+    return (
+      <Badge
+        variant={config.variant}
+        className={`capitalize ${config.bgColor}`}
+      >
+        <IconComponent className={`h-3 w-3 mr-1 ${config.color}`} />
+        {config.label}
+      </Badge>
+    );
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   if (loading) {
     return (
@@ -298,7 +617,7 @@ export default function ManufacturingPage() {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-6">
               <div className="bg-white rounded-xl p-4 shadow-sm border">
                 <div className="flex items-center justify-between">
                   <div>
@@ -334,16 +653,13 @@ export default function ManufacturingPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">
-                      Recent Transfers
+                      Pending Products
                     </p>
-                    <p
-                      className="text-2xl font-bold mt-1"
-                      style={{ color: themeColor }}
-                    >
-                      {recentTransfers.length}
+                    <p className="text-2xl font-bold mt-1 text-blue-600">
+                      {pendingProductTransfers.length}
                     </p>
                   </div>
-                  <Truck className="h-8 w-8" style={{ color: themeLight }} />
+                  <Clock className="h-8 w-8 text-blue-200" />
                 </div>
               </div>
 
@@ -351,13 +667,41 @@ export default function ManufacturingPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">
-                      Out of Stock
+                      Received Products
                     </p>
-                    <p className="text-2xl font-bold mt-1 text-red-600">
-                      {outOfStockMaterials.length}
+                    <p className="text-2xl font-bold mt-1 text-green-600">
+                      {receivedProductTransfers.length}
                     </p>
                   </div>
-                  <AlertTriangle className="h-8 w-8 text-red-200" />
+                  <Warehouse className="h-8 w-8 text-green-200" />
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl p-4 shadow-sm border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Returned Items
+                    </p>
+                    <p className="text-2xl font-bold mt-1 text-red-600">
+                      {returnedTransfers.length}
+                    </p>
+                  </div>
+                  <XCircle className="h-8 w-8 text-red-200" />
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl p-4 shadow-sm border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Under Repair
+                    </p>
+                    <p className="text-2xl font-bold mt-1 text-blue-600">
+                      {repairingTransfers.length}
+                    </p>
+                  </div>
+                  <Wrench className="h-8 w-8 text-blue-200" />
                 </div>
               </div>
             </div>
@@ -415,12 +759,31 @@ export default function ManufacturingPage() {
                 <Truck className="h-4 w-4 mr-2" />
                 Material Transfers
               </TabsTrigger>
+              <TabsTrigger
+                value="product-receive"
+                className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-6"
+                style={{
+                  color:
+                    activeTab === "product-receive" ? themeColor : "inherit",
+                }}
+              >
+                <Warehouse className="h-4 w-4 mr-2" />
+                Product Receive
+                {pendingProductTransfers.length > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="ml-2 bg-amber-100 text-amber-800"
+                  >
+                    {pendingProductTransfers.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
             </TabsList>
 
             {/* Overview Tab */}
             <TabsContent value="overview" className="p-6 space-y-6">
               {/* Quick Actions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Card
                   className="border-2 hover:border-[#954C2E] transition-colors cursor-pointer"
                   onClick={() => setActiveTab("materials")}
@@ -522,6 +885,40 @@ export default function ManufacturingPage() {
                     </Button>
                   </CardContent>
                 </Card>
+
+                <Card
+                  className="border-2 hover:border-[#954C2E] transition-colors cursor-pointer"
+                  onClick={() => setActiveTab("product-receive")}
+                >
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <div
+                        className="p-2 rounded-lg"
+                        style={{ backgroundColor: themeLight }}
+                      >
+                        <Warehouse
+                          className="h-5 w-5"
+                          style={{ color: themeColor }}
+                        />
+                      </div>
+                      Product Receive
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Receive finished products from manufacturing teams and
+                      update inventory
+                    </p>
+                    <Button
+                      variant="ghost"
+                      className="p-0 h-auto text-sm group"
+                      style={{ color: themeColor }}
+                    >
+                      Receive products
+                      <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </Button>
+                  </CardContent>
+                </Card>
               </div>
 
               {/* Recent Activity & Alerts */}
@@ -561,11 +958,6 @@ export default function ManufacturingPage() {
                             </Badge>
                           </div>
                         ))}
-                        {lowStockMaterials.length > 5 && (
-                          <Button variant="ghost" className="w-full text-sm">
-                            View all {lowStockMaterials.length} alerts
-                          </Button>
-                        )}
                       </div>
                     ) : (
                       <div className="text-center py-6">
@@ -578,24 +970,21 @@ export default function ManufacturingPage() {
                   </CardContent>
                 </Card>
 
-                {/* Recent Transfers */}
+                {/* Pending Product Transfers */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Truck
-                        className="h-5 w-5"
-                        style={{ color: themeColor }}
-                      />
-                      Recent Transfers
+                      <Clock className="h-5 w-5 text-blue-600" />
+                      Pending Product Receipts
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {recentTransfers.length > 0 ? (
+                    {pendingProductTransfers.length > 0 ? (
                       <div className="space-y-3">
-                        {recentTransfers.map((transfer) => (
+                        {pendingProductTransfers.slice(0, 5).map((transfer) => (
                           <div
                             key={transfer.id}
-                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
+                            className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200"
                           >
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
@@ -607,47 +996,161 @@ export default function ManufacturingPage() {
                               <div className="flex items-center gap-2">
                                 <Package className="h-3 w-3 text-gray-500" />
                                 <span className="text-sm text-gray-600">
-                                  {transfer.rawMaterial.name}
+                                  {transfer.product.name} (
+                                  {transfer.quantitySent})
                                 </span>
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="font-medium text-sm">
-                                {transfer.quantityIssued}{" "}
-                                {transfer.rawMaterial.unit}
-                              </div>
                               <div className="text-xs text-gray-500">
                                 {new Date(
                                   transfer.createdAt
                                 ).toLocaleDateString()}
                               </div>
+                              <Button
+                                size="sm"
+                                className="mt-1"
+                                onClick={() => setActiveTab("product-receive")}
+                              >
+                                Review
+                              </Button>
                             </div>
                           </div>
                         ))}
                         <Button
                           variant="ghost"
                           className="w-full text-sm"
-                          onClick={() => setActiveTab("transfers")}
+                          onClick={() => setActiveTab("product-receive")}
                         >
-                          View all transfers
+                          View all {pendingProductTransfers.length} pending
+                          transfers
                         </Button>
                       </div>
                     ) : (
                       <div className="text-center py-6">
-                        <Truck className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-600">No recent transfers</p>
-                        <Button
-                          className="mt-2"
-                          style={{ backgroundColor: themeColor }}
-                          onClick={() => setActiveTab("transfers")}
-                        >
-                          Create First Transfer
-                        </Button>
+                        <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                        <p className="text-gray-600">
+                          No pending product transfers
+                        </p>
                       </div>
                     )}
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Repair Status Section */}
+              {/* {(returnedTransfers.length > 0 ||
+                repairingTransfers.length > 0) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Wrench className="h-5 w-5 text-blue-600" />
+                      Repair Management
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      {returnedTransfers.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-amber-700 mb-3">
+                            Returned Items ({returnedTransfers.length})
+                          </h4>
+                          <div className="space-y-3">
+                            {returnedTransfers.slice(0, 3).map((transfer) => (
+                              <div
+                                key={transfer.id}
+                                className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200"
+                              >
+                                <div>
+                                  <p className="font-medium">
+                                    {transfer.rawMaterial.name}
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    From: {transfer.user.name}
+                                  </p>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleStartRepair(transfer.id)}
+                                  disabled={repairLoading === transfer.id}
+                                >
+                                  {repairLoading === transfer.id ? (
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <Wrench className="h-4 w-4 mr-1" />
+                                  )}
+                                  Repair
+                                </Button>
+                              </div>
+                            ))}
+                            {returnedTransfers.length > 3 && (
+                              <Button
+                                variant="ghost"
+                                className="w-full text-sm"
+                                onClick={() => setActiveTab("transfers")}
+                              >
+                                View all {returnedTransfers.length} returned
+                                items
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                     
+                      {repairingTransfers.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-blue-700 mb-3">
+                            Under Repair ({repairingTransfers.length})
+                          </h4>
+                          <div className="space-y-3">
+                            {repairingTransfers.slice(0, 3).map((transfer) => (
+                              <div
+                                key={transfer.id}
+                                className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200"
+                              >
+                                <div>
+                                  <p className="font-medium">
+                                    {transfer.rawMaterial.name}
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    From: {transfer.user.name}
+                                  </p>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  onClick={() =>
+                                    handleFinishRepair(transfer.id)
+                                  }
+                                  disabled={repairLoading === transfer.id}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  {repairLoading === transfer.id ? (
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                  )}
+                                  Finish
+                                </Button>
+                              </div>
+                            ))}
+                            {repairingTransfers.length > 3 && (
+                              <Button
+                                variant="ghost"
+                                className="w-full text-sm"
+                                onClick={() => setActiveTab("transfers")}
+                              >
+                                View all {repairingTransfers.length} repairs
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )} */}
             </TabsContent>
 
             {/* Raw Materials Tab */}
@@ -707,7 +1210,7 @@ export default function ManufacturingPage() {
               <ProductStructureBuilder
                 products={products}
                 rawMaterials={rawMaterials}
-                onSubmit={handleCreateProductStructure}
+                // onSubmit={handleCreateProductStructure}
               />
             </TabsContent>
 
@@ -824,8 +1327,14 @@ export default function ManufacturingPage() {
                                         <th className="text-center p-3 text-sm font-medium">
                                           Status
                                         </th>
+                                        <th className="text-center p-3 text-sm font-medium">
+                                          Actions
+                                        </th>
+                                        <th className="text-center p-3 text-sm font-medium">
+                                          Comments
+                                        </th>
                                         <th className="text-right p-3 text-sm font-medium">
-                                          Time
+                                          Date & Time
                                         </th>
                                       </tr>
                                     </thead>
@@ -850,31 +1359,92 @@ export default function ManufacturingPage() {
                                             </Badge>
                                           </td>
                                           <td className="p-3 text-center">
-                                            <Badge
-                                              variant={
-                                                transfer.status === "SENT"
-                                                  ? "default"
-                                                  : transfer.status === "USED"
-                                                  ? "secondary"
-                                                  : "outline"
-                                              }
-                                              style={
-                                                transfer.status === "SENT"
-                                                  ? {
-                                                      backgroundColor:
-                                                        themeColor,
-                                                    }
-                                                  : {}
-                                              }
-                                              className="capitalize text-white"
-                                            >
-                                              {transfer.status.toLowerCase()}
-                                            </Badge>
+                                            {getStatusBadge(transfer.status)}
                                           </td>
-                                          <td className="p-3 text-right text-sm text-gray-500">
-                                            {new Date(
-                                              transfer.createdAt
-                                            ).toLocaleTimeString()}
+                                          <td className="p-3 text-center">
+                                            {transfer.status === "RETURNED" && (
+                                              <Button
+                                                size="sm"
+                                                onClick={() =>
+                                                  handleStartRepair(transfer.id)
+                                                }
+                                                disabled={
+                                                  repairLoading === transfer.id
+                                                }
+                                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                                              >
+                                                {repairLoading ===
+                                                transfer.id ? (
+                                                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                  <Wrench className="h-3 w-3 mr-1" />
+                                                )}
+                                                Repair
+                                              </Button>
+                                            )}
+                                            {transfer.status ===
+                                              "REPAIRING" && (
+                                              <Button
+                                                size="sm"
+                                                onClick={() =>
+                                                  handleFinishRepair(
+                                                    transfer.id
+                                                  )
+                                                }
+                                                disabled={
+                                                  repairLoading === transfer.id
+                                                }
+                                                className="bg-green-600 hover:bg-green-700 text-white"
+                                              >
+                                                {repairLoading ===
+                                                transfer.id ? (
+                                                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                                )}
+                                                Finish
+                                              </Button>
+                                            )}
+                                            {(transfer.status === "SENT" ||
+                                              transfer.status === "USED" ||
+                                              transfer.status ===
+                                                "FINISHED") && (
+                                              <span className="text-sm text-gray-500">
+                                                No actions
+                                              </span>
+                                            )}
+                                          </td>
+                                          <td className="p-3 max-w-xs">
+                                            {transfer.notes ? (
+                                              <div className="text-sm text-gray-600">
+                                                <div className="flex items-start gap-2">
+                                                  <span className="flex-shrink-0 mt-0.5">
+                                                    📝
+                                                  </span>
+                                                  <span className="break-words">
+                                                    {transfer.notes}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <span className="text-sm text-gray-400 italic">
+                                                No Comments
+                                              </span>
+                                            )}
+                                          </td>
+                                          <td className="p-3 text-right">
+                                            <div className="text-sm text-gray-500 space-y-1">
+                                              <div>
+                                                {new Date(
+                                                  transfer.createdAt
+                                                ).toLocaleDateString()}
+                                              </div>
+                                              <div className="text-xs">
+                                                {new Date(
+                                                  transfer.createdAt
+                                                ).toLocaleTimeString()}
+                                              </div>
+                                            </div>
                                           </td>
                                         </tr>
                                       ))}
@@ -908,6 +1478,296 @@ export default function ManufacturingPage() {
                   rawMaterials={rawMaterials}
                   onSubmit={handleSubmitTransfer}
                 />
+              )}
+            </TabsContent>
+
+            {/* Product Receive Tab */}
+            <TabsContent value="product-receive" className="p-6 space-y-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-bold">Product Receive</h3>
+                  <p className="text-gray-600">
+                    Review and manage incoming product transfers from
+                    manufacturing teams
+                  </p>
+                </div>
+                <Badge variant="outline" className="text-sm">
+                  {pendingProductTransfers.length} Pending
+                </Badge>
+              </div>
+
+              {productTransfers.length > 0 ? (
+                <div className="space-y-6">
+                  {/* Pending Product Transfers */}
+                  {pendingProductTransfers.length > 0 && (
+                    <div>
+                      <h4 className="text-lg font-semibold text-amber-700 mb-4">
+                        Pending Receipt ({pendingProductTransfers.length})
+                      </h4>
+                      <div className="space-y-4">
+                        {pendingProductTransfers.map((transfer) => (
+                          <Card
+                            key={transfer.id}
+                            className="border-2 border-amber-200"
+                          >
+                            <CardContent className="p-6">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-4">
+                                    <Package className="h-6 w-6 text-amber-600" />
+                                    <div>
+                                      <h3 className="font-semibold text-lg">
+                                        {transfer.product.name}
+                                      </h3>
+                                      <p className="text-sm text-gray-600">
+                                        From: {transfer.user.name} (
+                                        {transfer.user.email})
+                                      </p>
+                                    </div>
+                                    {getStatusBadge(transfer.status, "product")}
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm mb-4">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">
+                                        Quantity Sent:{" "}
+                                      </span>
+                                      <Badge variant="outline">
+                                        {transfer.quantitySent}
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Calendar className="h-4 w-4 text-gray-400" />
+                                      <span className="text-gray-600">
+                                        {formatDate(transfer.createdAt)}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">
+                                        Current Stock:{" "}
+                                      </span>
+                                      <Badge variant="secondary">
+                                        {transfer.product.quantity}
+                                      </Badge>
+                                    </div>
+                                  </div>
+
+                                  {transfer.notes && (
+                                    <div className="bg-gray-50 rounded-lg p-3">
+                                      <span className="font-medium">
+                                        Transfer Notes:{" "}
+                                      </span>
+                                      <span className="text-gray-600">
+                                        {transfer.notes}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="flex flex-col gap-2 ml-6 min-w-[140px]">
+                                  <Button
+                                    onClick={() =>
+                                      handleApproveProductTransfer(transfer.id)
+                                    }
+                                    disabled={actionLoading === transfer.id}
+                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                  >
+                                    {actionLoading === transfer.id ? (
+                                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <CheckCircle className="h-4 w-4 mr-2" />
+                                    )}
+                                    {actionLoading === transfer.id
+                                      ? "Processing..."
+                                      : "Approve"}
+                                  </Button>
+                                  <Button
+                                    onClick={() =>
+                                      handleRejectProductTransfer(transfer.id)
+                                    }
+                                    disabled={actionLoading === transfer.id}
+                                    variant="outline"
+                                    className="text-red-600 border-red-200 hover:bg-red-50"
+                                  >
+                                    <XCircle className="h-4 w-4 mr-2" />
+                                    Reject
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Received Product Transfers */}
+                  {receivedProductTransfers.length > 0 && (
+                    <div>
+                      <h4 className="text-lg font-semibold text-green-700 mb-4">
+                        Received Products ({receivedProductTransfers.length})
+                      </h4>
+                      <div className="space-y-4">
+                        {receivedProductTransfers.map((transfer) => (
+                          <Card
+                            key={transfer.id}
+                            className="border-2 border-green-200"
+                          >
+                            <CardContent className="p-6">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-4">
+                                    <Package className="h-6 w-6 text-green-600" />
+                                    <div>
+                                      <h3 className="font-semibold text-lg">
+                                        {transfer.product.name}
+                                      </h3>
+                                      <p className="text-sm text-gray-600">
+                                        From: {transfer.user.name}
+                                      </p>
+                                    </div>
+                                    {getStatusBadge(transfer.status, "product")}
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                                    <div>
+                                      <span className="font-medium">
+                                        Quantity:{" "}
+                                      </span>
+                                      <span className="text-gray-600">
+                                        {transfer.quantitySent}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium">
+                                        Received On:{" "}
+                                      </span>
+                                      <span className="text-gray-600">
+                                        {transfer.receivedAt
+                                          ? formatDate(transfer.receivedAt)
+                                          : "N/A"}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium">
+                                        Received By:{" "}
+                                      </span>
+                                      <span className="text-gray-600">
+                                        {transfer.receivedBy || "Super Admin"}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium">
+                                        Sent On:{" "}
+                                      </span>
+                                      <span className="text-gray-600">
+                                        {formatDate(transfer.createdAt)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Rejected Product Transfers */}
+                  {rejectedProductTransfers.length > 0 && (
+                    <div>
+                      <h4 className="text-lg font-semibold text-red-700 mb-4">
+                        Rejected Products ({rejectedProductTransfers.length})
+                      </h4>
+                      <div className="space-y-4">
+                        {rejectedProductTransfers.map((transfer) => (
+                          <Card
+                            key={transfer.id}
+                            className="border-2 border-red-200"
+                          >
+                            <CardContent className="p-6">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-4">
+                                    <Package className="h-6 w-6 text-red-600" />
+                                    <div>
+                                      <h3 className="font-semibold text-lg">
+                                        {transfer.product.name}
+                                      </h3>
+                                      <p className="text-sm text-gray-600">
+                                        From: {transfer.user.name}
+                                      </p>
+                                    </div>
+                                    {getStatusBadge(transfer.status, "product")}
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm mb-4">
+                                    <div>
+                                      <span className="font-medium">
+                                        Quantity:{" "}
+                                      </span>
+                                      <span className="text-gray-600">
+                                        {transfer.quantitySent}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium">
+                                        Rejected On:{" "}
+                                      </span>
+                                      <span className="text-gray-600">
+                                        {transfer.receivedAt
+                                          ? formatDate(transfer.receivedAt)
+                                          : "N/A"}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium">
+                                        Rejected By:{" "}
+                                      </span>
+                                      <span className="text-gray-600">
+                                        {transfer.receivedBy || "Super Admin"}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium">
+                                        Sent On:{" "}
+                                      </span>
+                                      <span className="text-gray-600">
+                                        {formatDate(transfer.createdAt)}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {transfer.notes && (
+                                    <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+                                      <span className="font-medium text-red-800">
+                                        Rejection Reason:{" "}
+                                      </span>
+                                      <span className="text-red-700">
+                                        {transfer.notes}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Warehouse className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    No Product Transfers
+                  </h3>
+                  <p className="text-gray-600">
+                    No product transfers have been sent to you yet.
+                  </p>
+                </div>
               )}
             </TabsContent>
           </Tabs>

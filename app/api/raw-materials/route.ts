@@ -39,6 +39,8 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { name, quantity, unit } = body;
 
+    console.log(name, quantity, unit, "Raw MAterials");
+
     if (!name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }

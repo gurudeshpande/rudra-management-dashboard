@@ -24,6 +24,8 @@ import {
   List,
   BarChart2Icon,
   Factory,
+  ListIcon,
+  LucidePlaySquare,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
@@ -120,6 +122,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         icon: Package,
       },
       {
+        name: "User Inventory",
+        href: "/user/UserInventory",
+        icon: Package,
+      },
+      {
         name: "Billing & Invoices",
         href: "#",
         icon: FileText,
@@ -146,6 +153,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         href: "/super-admin/analysis",
         icon: BarChart2Icon,
       },
+      {
+        name: "Payment Receipt",
+        href: "/super-admin/payment",
+        icon: LucidePlaySquare,
+      },
     ],
     ADMIN: [
       {
@@ -162,8 +174,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     ],
     USER: [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { name: "Invoices", href: "/invoices", icon: FileText },
-      { name: "Products", href: "/products", icon: ShoppingCart },
+      { name: "Inventory", href: "/user/UserInventory", icon: ListIcon },
+      {
+        name: "Manifacturing",
+        href: "/user/manifacturing",
+        icon: ShoppingCart,
+      },
     ],
   };
 

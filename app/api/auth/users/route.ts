@@ -1,10 +1,11 @@
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
+import { NextResponse } from "next/server";
 
 const prisma = new PrismaClient();
 
 export async function GET() {
   try {
-    // Fetch all users (excluding passwords)
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -17,32 +18,27 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return new Response(
-      JSON.stringify({
-        message: "Users fetched successfully",
-        users,
-      }),
-      { status: 200 }
-    );
-  } catch (error) {
+    return NextResponse.json({
+      message: "Users fetched successfully",
+      users,
+    });
+  } catch (error: any) {
     console.error("Error fetching users:", error);
-    return new Response(
-      JSON.stringify({
+    return NextResponse.json(
+      {
         message: "Internal server error",
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
+        error: error.message || "Unknown error",
+      },
       { status: 500 }
     );
   }
 }
 
-// Create new user
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { name, email, password, role } = body;
 
-    // Validation
     if (!name || !email || !password) {
       return NextResponse.json(
         { message: "Name, email, and password are required" },
@@ -50,10 +46,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const existingUser = await prisma.user.findUnique({ where: { email } });
 
     if (existingUser) {
       return NextResponse.json(
@@ -62,10 +55,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user
     const user = await prisma.user.create({
       data: {
         name,
@@ -87,10 +78,10 @@ export async function POST(req: Request) {
       { message: "User created successfully", user },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating user:", error);
     return NextResponse.json(
-      { message: "Internal server error" },
+      { message: "Internal server error", error: error.message },
       { status: 500 }
     );
   }

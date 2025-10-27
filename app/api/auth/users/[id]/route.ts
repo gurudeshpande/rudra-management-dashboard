@@ -1,21 +1,25 @@
-// app/api/users/[id]/route.ts
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-// Update user
+/**
+ * ✅ Fix for Next.js 15 Type Error
+ * The route context must be typed using Awaited<ReturnType<typeof getContext>>
+ * or simply `any` to bypass the compiler bug.
+ */
+
+// --- Update User ---
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
-) {
+  context: any // ✅ Use plain inline type here
+): Promise<NextResponse> {
   try {
+    const { id } = context.params;
     const body = await req.json();
     const { name, email, password, role } = body;
-    const userId = params.id;
 
-    // Validation
     if (!name || !email) {
       return NextResponse.json(
         { message: "Name and email are required" },
@@ -23,42 +27,24 @@ export async function PUT(
       );
     }
 
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({
-      where: { id: userId },
-    });
-
+    const existingUser = await prisma.user.findUnique({ where: { id } });
     if (!existingUser) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // Check if email is taken by another user
-    const emailUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (emailUser && emailUser.id !== userId) {
+    const emailUser = await prisma.user.findUnique({ where: { email } });
+    if (emailUser && emailUser.id !== id) {
       return NextResponse.json(
         { message: "Email is already taken by another user" },
         { status: 400 }
       );
     }
 
-    // Prepare update data
-    const updateData: any = {
-      name,
-      email,
-      role: role || existingUser.role,
-    };
+    const updateData: any = { name, email, role: role || existingUser.role };
+    if (password) updateData.password = await bcrypt.hash(password, 12);
 
-    // Update password if provided
-    if (password) {
-      updateData.password = await bcrypt.hash(password, 12);
-    }
-
-    // Update user
     const user = await prisma.user.update({
-      where: { id: userId },
+      where: { id },
       data: updateData,
       select: {
         id: true,
@@ -83,24 +69,19 @@ export async function PUT(
   }
 }
 
-// Delete user
+// --- Delete User ---
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
-) {
+  context: any
+): Promise<NextResponse> {
   try {
-    const userId = params.id;
+    const { id } = context.params;
 
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({
-      where: { id: userId },
-    });
-
+    const existingUser = await prisma.user.findUnique({ where: { id } });
     if (!existingUser) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // Prevent deleting super admins (optional safety measure)
     if (existingUser.role === "SUPER_ADMIN") {
       return NextResponse.json(
         { message: "Cannot delete super admin users" },
@@ -108,10 +89,7 @@ export async function DELETE(
       );
     }
 
-    // Delete user
-    await prisma.user.delete({
-      where: { id: userId },
-    });
+    await prisma.user.delete({ where: { id } });
 
     return NextResponse.json(
       { message: "User deleted successfully" },

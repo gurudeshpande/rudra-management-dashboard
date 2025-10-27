@@ -1,135 +1,64 @@
-// components/manufacturing/RawMaterialForm.tsx
-"use client";
+// app/manufacturing/rawmaterialform/page.tsx
+import { RawMaterialForm } from "@/components/manufacturing/RawMaterialForm";
+import { PrismaClient } from "@prisma/client";
 
-import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+const prisma = new PrismaClient();
 
-interface RawMaterial {
-  id?: number;
-  name: string;
-  quantity: number;
-  unit: string;
+async function getMaterialData(id: string) {
+  try {
+    const material = await prisma.rawMaterial.findUnique({
+      where: { id: parseInt(id) },
+    });
+    return material;
+  } catch (error) {
+    console.error("Error fetching material:", error);
+    return undefined;
+  }
 }
 
-interface RawMaterialFormProps {
-  material?: RawMaterial;
-  onSubmit: (data: Omit<RawMaterial, "id">) => void;
-  onCancel: () => void;
-  isEditing?: boolean;
+interface PageProps {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export function RawMaterialForm({
-  material,
-  onSubmit,
-  onCancel,
-  isEditing,
-}: RawMaterialFormProps) {
-  const [formData, setFormData] = useState({
-    name: material?.name || "",
-    quantity: material?.quantity || 0,
-    unit: material?.unit || "pcs",
-  });
+export default async function RawMaterialFormPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const materialId = params.id as string;
+  const isEditing = !!materialId;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
+  const material = isEditing ? await getMaterialData(materialId) : undefined;
+
+  // Placeholder server action
+  const handleSubmit = async (data: any) => {
+    "use server";
+    console.log("Form submitted:", data);
+    return { success: true };
+  };
+
+  const handleCancel = () => {
+    console.log("Form cancelled");
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          {isEditing ? "Edit Raw Material" : "Add New Raw Material"}
-        </CardTitle>
-        <CardDescription>
+    <div className="container mx-auto py-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">
+          {isEditing ? "Edit Raw Material" : "Add Raw Material"}
+        </h1>
+        <p className="text-gray-600 mt-2">
           {isEditing
-            ? "Update the raw material details"
+            ? "Update the raw material details and inventory"
             : "Add a new raw material to your inventory"}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Material Name</Label>
-            <Input
-              id="name"
-              placeholder="e.g., Small Jiretop, Kawdyachi Mala"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              required
-            />
-          </div>
+        </p>
+      </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Initial Quantity</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.quantity}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    quantity: parseFloat(e.target.value) || 0,
-                  })
-                }
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="unit">Unit</Label>
-              <Select
-                value={formData.unit}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, unit: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pcs">Pieces</SelectItem>
-                  <SelectItem value="kg">Kilograms</SelectItem>
-                  <SelectItem value="g">Grams</SelectItem>
-                  <SelectItem value="m">Meters</SelectItem>
-                  <SelectItem value="l">Liters</SelectItem>
-                  <SelectItem value="set">Set</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button type="submit" className="bg-amber-800 text-white">
-              {isEditing ? "Update Material" : "Add Material"}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+      <div className="max-w-2xl">
+        <RawMaterialForm
+          material={material || undefined}
+          onSubmit={handleSubmit}
+          onCancel={handleCancel}
+          isEditing={isEditing}
+        />
+      </div>
+    </div>
   );
 }
