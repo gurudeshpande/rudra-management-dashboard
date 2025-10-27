@@ -1,187 +1,91 @@
-// components/manufacturing/RawMaterialsTable.tsx
-"use client";
+// app/manufacturing/rawMaterialsTable/page.tsx
+import { RawMaterialsTable } from "@/components/manufacturing/RawMaterialsTable";
+import { PrismaClient } from "@prisma/client";
 
-import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Plus,
-  Search,
-  MoreVertical,
-  Edit,
-  Trash2,
-  Package,
-  AlertTriangle,
-} from "lucide-react";
+const prisma = new PrismaClient();
 
-interface RawMaterial {
-  id: number;
-  name: string;
-  quantity: number;
-  unit: string;
-  createdAt: string;
-  updatedAt: string;
+async function getRawMaterials() {
+  try {
+    const materials = await prisma.rawMaterial.findMany({
+      orderBy: {
+        name: "asc",
+      },
+    });
+
+    // Transform the data to match your interface
+    return materials.map((material) => ({
+      ...material,
+      unit: material.unit || "pcs", // Provide default value if null
+      createdAt: material.createdAt.toISOString(),
+      updatedAt: material.updatedAt.toISOString(),
+    }));
+  } catch (error) {
+    console.error("Error fetching raw materials:", error);
+    return [];
+  }
 }
 
-interface RawMaterialsTableProps {
-  materials: RawMaterial[];
-  onAddMaterial: () => void;
-  onEditMaterial: (material: RawMaterial) => void;
-  onDeleteMaterial: (id: number) => void;
+interface PageProps {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export function RawMaterialsTable({
-  materials,
-  onAddMaterial,
-  onEditMaterial,
-  onDeleteMaterial,
-}: RawMaterialsTableProps) {
-  const [searchTerm, setSearchTerm] = useState("");
+export default async function RawMaterialsTablePage({
+  searchParams,
+}: PageProps) {
+  const params = await searchParams;
+  const materials = await getRawMaterials();
 
-  const filteredMaterials = materials.filter((material) =>
-    material.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Mock handlers - you'll implement these based on your routing
+  const handleAddMaterial = () => {
+    console.log("Add material clicked");
+    // Typically you would redirect to the form page
+    // window.location.href = '/manufacturing/rawmaterialform';
+  };
 
-  const getStockStatus = (quantity: number) => {
-    if (quantity === 0)
-      return { status: "Out of Stock", variant: "destructive" as const };
-    if (quantity < 10)
-      return { status: "Low", variant: "destructive" as const };
-    if (quantity < 50)
-      return { status: "Medium", variant: "secondary" as const };
-    return { status: "In Stock", variant: "default" as const };
+  const handleEditMaterial = (material: any) => {
+    console.log("Edit material:", material);
+    // Typically you would redirect to the form page with the material ID
+    // window.location.href = `/manufacturing/rawmaterialform?id=${material.id}`;
+  };
+
+  const handleDeleteMaterial = async (id: number) => {
+    console.log("Delete material:", id);
+    // Implement your delete logic here
+    if (confirm("Are you sure you want to delete this material?")) {
+      try {
+        const response = await fetch(`/api/raw-materials/${id}`, {
+          method: "DELETE",
+        });
+
+        if (response.ok) {
+          console.log("Material deleted successfully");
+          // Refresh the page or update the data
+          window.location.reload();
+        } else {
+          alert("Failed to delete material");
+        }
+      } catch (error) {
+        console.error("Error deleting material:", error);
+        alert("Error deleting material");
+      }
+    }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <div>
-            <CardTitle>Raw Materials Inventory</CardTitle>
-            <CardDescription>
-              Manage your raw materials and track stock levels
-            </CardDescription>
-          </div>
-          <Button onClick={onAddMaterial} className="bg-amber-800 text-white">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Material
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center mb-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search materials..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">Raw Materials Management</h1>
+        <p className="text-gray-600 mt-2">
+          View and manage all raw materials in your inventory
+        </p>
+      </div>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Material Name</TableHead>
-              <TableHead>Current Stock</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Last Updated</TableHead>
-              <TableHead className="w-[80px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredMaterials.map((material) => {
-              const stockStatus = getStockStatus(material.quantity);
-              return (
-                <TableRow key={material.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4 text-muted-foreground" />
-                      {material.name}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {material.quantity}
-                      {material.quantity < 10 && (
-                        <AlertTriangle className="h-4 w-4 text-amber-500" />
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>{material.unit}</TableCell>
-                  <TableCell>
-                    <Badge variant={stockStatus.variant}>
-                      {stockStatus.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(material.updatedAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-white">
-                        <DropdownMenuItem
-                          onClick={() => onEditMaterial(material)}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => onDeleteMaterial(material.id)}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-
-        {filteredMaterials.length === 0 && (
-          <div className="text-center py-8">
-            <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No raw materials found</p>
-            <Button variant="outline" className="mt-4" onClick={onAddMaterial}>
-              Add Your First Material
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      <RawMaterialsTable
+        materials={materials}
+        onAddMaterial={handleAddMaterial}
+        onEditMaterial={handleEditMaterial}
+        onDeleteMaterial={handleDeleteMaterial}
+      />
+    </div>
   );
 }

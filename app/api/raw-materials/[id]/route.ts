@@ -1,3 +1,4 @@
+// app/api/raw-materials/[id]/route.ts
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 
@@ -6,9 +7,10 @@ const prisma = new PrismaClient();
 // PUT /api/raw-materials/[id] → update raw material
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await req.json();
     const { name, quantity, unit } = body;
 
@@ -17,7 +19,7 @@ export async function PUT(
     }
 
     const updatedMaterial = await prisma.rawMaterial.update({
-      where: { id: parseInt(params.id) },
+      where: { id: parseInt(id) },
       data: { name, quantity, unit },
     });
 
@@ -34,11 +36,13 @@ export async function PUT(
 // DELETE /api/raw-materials/[id] → delete raw material
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+
     await prisma.rawMaterial.delete({
-      where: { id: parseInt(params.id) },
+      where: { id: parseInt(id) },
     });
 
     return NextResponse.json({ message: "Raw material deleted successfully" });

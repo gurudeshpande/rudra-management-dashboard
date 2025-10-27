@@ -22,6 +22,9 @@ import {
   ArrowRight,
   TrendingUp,
   UserCheck,
+  User,
+  List,
+  PlaySquareIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -56,13 +59,13 @@ export default function DashboardPage() {
       description: "Create, view and manage invoices",
       icon: <FileText className="h-8 w-8" />,
       href: "/super-admin/invoices",
-      role: ["SUPER_ADMIN", "ADMIN", "USER"],
+      role: ["SUPER_ADMIN", "ADMIN"],
       badge: "All Access",
     },
     {
       title: "User Management",
       description: "Create, view and manage Users",
-      icon: <FileText className="h-8 w-8" />,
+      icon: <User className="h-8 w-8" />,
       href: "/super-admin/users",
       role: ["SUPER_ADMIN"],
       badge: "All Access",
@@ -78,7 +81,7 @@ export default function DashboardPage() {
     {
       title: "Inventory",
       description: "Track and manage product inventory",
-      icon: <Package className="h-8 w-8" />,
+      icon: <List className="h-8 w-8" />,
       href: "/super-admin/inventory/inventory-management",
       role: ["SUPER_ADMIN"],
       badge: "Management",
@@ -91,47 +94,63 @@ export default function DashboardPage() {
       role: ["SUPER_ADMIN", "ADMIN"],
       badge: "Management",
     },
+    // {
+    //   title: "User Management",
+    //   description: "Manage system users, roles and permissions",
+    //   icon: <Users className="h-8 w-8" />,
+    //   href: "/super-admin/users",
+    //   role: ["SUPER_ADMIN"],
+    //   badge: "Admin Only",
+    // },
+    // {
+    //   title: "Expense Tracking",
+    //   description: "Monitor and categorize expenses",
+    //   icon: <CreditCard className="h-8 w-8" />,
+    //   href: "/super-admin/expenses",
+    //   role: ["SUPER_ADMIN"],
+    //   badge: "Financial",
+    // },
+    // {
+    //   title: "Reseller Analytics",
+    //   description: "Analyze reseller performance and metrics",
+    //   icon: <BarChart className="h-8 w-8" />,
+    //   href: "/super-admin/resellers",
+    //   role: ["SUPER_ADMIN"],
+    //   badge: "Analytics",
+    // },
     {
-      title: "User Management",
-      description: "Manage system users, roles and permissions",
-      icon: <Users className="h-8 w-8" />,
-      href: "/super-admin/users",
-      role: ["SUPER_ADMIN"],
-      badge: "Admin Only",
-    },
-    {
-      title: "Expense Tracking",
-      description: "Monitor and categorize expenses",
-      icon: <CreditCard className="h-8 w-8" />,
-      href: "/super-admin/expenses",
-      role: ["SUPER_ADMIN"],
-      badge: "Financial",
-    },
-    {
-      title: "Reseller Analytics",
-      description: "Analyze reseller performance and metrics",
-      icon: <BarChart className="h-8 w-8" />,
-      href: "/super-admin/resellers",
-      role: ["SUPER_ADMIN"],
-      badge: "Analytics",
-    },
-    {
-      title: "Products",
+      title: "Manifacturing",
       description: "Browse and manage available products",
       icon: <ShoppingCart className="h-8 w-8" />,
-      href: "/products",
+      href: "/user/manifacturing",
       role: ["USER"],
-      badge: "Shopping",
+      badge: "Management",
+    },
+    {
+      title: "User Inventory",
+      description: "Browse and manage available products",
+      icon: <List className="h-8 w-8" />,
+      href: "/user/UserInventory",
+      role: ["USER", "SUPER_ADMIN"],
+      badge: "Inventory",
+    },
+    {
+      title: "Payment Receipt",
+      description: "Browse and manage available products",
+      icon: <PlaySquareIcon className="h-8 w-8" />,
+      href: "/super-admin/payment",
+      role: ["SUPER_ADMIN"],
+      badge: "Receipt",
     },
 
-    {
-      title: "Profile Management",
-      description: "Update your personal information and preferences",
-      icon: <UserCheck className="h-8 w-8" />,
-      href: "/profile",
-      role: ["SUPER_ADMIN", "ADMIN", "USER"],
-      badge: "Personal",
-    },
+    // {
+    //   title: "Profile Management",
+    //   description: "Update your personal information and preferences",
+    //   icon: <UserCheck className="h-8 w-8" />,
+    //   href: "/profile",
+    //   role: ["SUPER_ADMIN", "ADMIN"],
+    //   badge: "Personal",
+    // },
   ];
 
   const filteredCards = user
@@ -176,7 +195,9 @@ export default function DashboardPage() {
               index !== 1 &&
               index !== 2 &&
               index !== 3 &&
-              index !== 4; // only first and second cards are enabled
+              index !== 4 && // only first and second cards are enabled
+              index !== 5 &&
+              index !== 6;
             return (
               <Card
                 key={index}

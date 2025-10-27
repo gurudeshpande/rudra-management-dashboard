@@ -25,6 +25,11 @@ model User {
   updatedAt DateTime @updatedAt
 
   RawMaterialTransfer RawMaterialTransfer[]
+  ProductTransfer    ProductTransfer[]
+
+  UserInventory UserInventory[]
+
+  RawMaterialConsumption RawMaterialConsumption[]
 }
 
 // ====================== CUSTOMER ======================
@@ -62,6 +67,9 @@ model Product {
   updatedAt DateTime       @updatedAt
 
   ProductStructure ProductStructure[]
+  ProductTransfer ProductTransfer[]
+
+  RawMaterialConsumption RawMaterialConsumption[]
 }
 
 // ====================== INVOICE ======================
@@ -116,15 +124,22 @@ model RawMaterial {
   // Relations
   productStructures ProductStructure[]
   transfers        RawMaterialTransfer[]
+
+  UserInventory UserInventory[]
+
+  RawMaterialConsumption RawMaterialConsumption[]
 }
 
 model ProductStructure {
   id              Int          @id @default(autoincrement())
   product         Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId       Int
+  productName     String?      // Make optional first
   rawMaterial     RawMaterial  @relation(fields: [rawMaterialId], references: [id], onDelete: Cascade)
   rawMaterialId   Int
+  materialName    String?      // Make optional first
   quantityRequired Float
+  unit            String?      // Make optional first
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -141,6 +156,12 @@ model RawMaterialTransfer {
   quantityIssued Float
   status         TransferStatus @default(SENT)
   notes          String?
+  
+  // New fields for partial rejection tracking
+  quantityRejected Float?      @default(0)
+  quantityApproved Float?      @default(0)
+  rejectionReason  String?
+  
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 }
@@ -150,4 +171,91 @@ enum TransferStatus {
   USED
   RETURNED
   CANCELLED
+  REPAIRING // Materials under repair
+  FINISHED
+}
+
+enum ProductTransferStatus {
+  SENT
+  RECEIVED
+  REJECTED
+  CANCELLED
+}
+
+// Add this new model for Product Transfers
+model ProductTransfer {
+  id             Int                   @id @default(autoincrement())
+  user           User                  @relation(fields: [userId], references: [id])
+  userId         String
+  product        Product               @relation(fields: [productId], references: [id])
+  productId      Int
+  quantitySent   Int
+  status         ProductTransferStatus @default(SENT)
+  notes          String?
+  receivedBy     String?               // Super admin who received it
+  receivedAt     DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+}
+
+model UserInventory {
+  id            Int       @id @default(autoincrement())
+  user          User      @relation(fields: [userId], references: [id])
+  userId        String
+  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  rawMaterialId Int
+  quantity      Float     @default(0)
+  unit          String    @default("pcs")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([userId, rawMaterialId])
+}
+
+model RawMaterialConsumption {
+  id                      Int       @id @default(autoincrement())
+  userId                  String
+  productId               Int
+  rawMaterialId           Int
+  quantityUsed            Float
+  unit                    String
+  productTransferQuantity Int       // Number of products transferred
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  
+  // Relations
+  user        User        @relation(fields: [userId], references: [id])
+  product     Product     @relation(fields: [productId], references: [id])
+  rawMaterial RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  
+  @@map("raw_material_consumption")
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  customerName    String
+  customerNumber  String?
+  amount          Float
+  paymentMethod   PaymentMethod
+  transactionId   String?
+  receiptNumber   String   @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("payments")
+}
+
+model ReceiptCounter {
+  id        String @id @default(cuid())
+  financialYear String @unique // Format: "2024-2025"
+  lastNumber Int    @default(0)
+  
+  @@map("receipt_counters")
+}
+
+enum PaymentMethod {
+  UPI
+  CASH
+  BANK_TRANSFER
+  CARD
 }

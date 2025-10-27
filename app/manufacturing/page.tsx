@@ -1,24 +1,6 @@
-// components/manufacturing/ManufacturingOverview.tsx
-"use client";
-
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Package,
-  Factory,
-  Users,
-  TrendingUp,
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-} from "lucide-react";
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Package, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
 
 interface StockAlert {
   materialId: number;
@@ -28,92 +10,117 @@ interface StockAlert {
   status: "LOW" | "CRITICAL" | "OK";
 }
 
-interface ManufacturingOverviewProps {
-  totalRawMaterials: number;
-  lowStockAlerts: StockAlert[];
-  pendingTransfers: number;
-  completedProductions: number;
+// Remove the ManufacturingPageProps interface and use the correct one
+interface PageProps {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export function ManufacturingOverview({
-  totalRawMaterials,
-  lowStockAlerts,
-  pendingTransfers,
-  completedProductions,
-}: ManufacturingOverviewProps) {
-  const criticalAlerts = lowStockAlerts.filter(
+// Mock data - replace with your actual data fetching
+const getManufacturingData = async () => {
+  return {
+    totalRawMaterials: 42,
+    lowStockAlerts: [
+      {
+        materialId: 1,
+        materialName: "Steel",
+        currentStock: 5,
+        minThreshold: 10,
+        status: "LOW" as const,
+      },
+      {
+        materialId: 2,
+        materialName: "Copper",
+        currentStock: 2,
+        minThreshold: 8,
+        status: "CRITICAL" as const,
+      },
+    ],
+    pendingTransfers: 3,
+    completedProductions: 15,
+  };
+};
+
+export default async function ManufacturingPage({ searchParams }: PageProps) {
+  // Await the searchParams Promise (this is correct for Next.js 15)
+  const params = await searchParams;
+  const data = await getManufacturingData();
+
+  const criticalAlerts = data.lowStockAlerts.filter(
     (alert) => alert.status === "CRITICAL"
   );
-  const lowAlerts = lowStockAlerts.filter((alert) => alert.status === "LOW");
+  const lowAlerts = data.lowStockAlerts.filter(
+    (alert) => alert.status === "LOW"
+  );
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Raw Materials</CardTitle>
-          <Package className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{totalRawMaterials}</div>
-          <p className="text-xs text-muted-foreground">
-            Total materials in inventory
-          </p>
-        </CardContent>
-      </Card>
+    <div className="p-6">
+      <h1 className="text-3xl font-bold mb-6">Manufacturing Overview</h1>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Stock Alerts</CardTitle>
-          <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-amber-600">
-            {criticalAlerts.length}
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge
-              variant={criticalAlerts.length > 0 ? "destructive" : "outline"}
-            >
-              Critical: {criticalAlerts.length}
-            </Badge>
-            <Badge variant={lowAlerts.length > 0 ? "secondary" : "outline"}>
-              Low: {lowAlerts.length}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Raw Materials</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data.totalRawMaterials}</div>
+            <p className="text-xs text-muted-foreground">
+              Total materials in inventory
+            </p>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Pending Transfers
-          </CardTitle>
-          <Clock className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-blue-600">
-            {pendingTransfers}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Materials issued to users
-          </p>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Stock Alerts</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-600">
+              {criticalAlerts.length + lowAlerts.length}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {criticalAlerts.length} critical, {lowAlerts.length} low
+              </span>
+            </div>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Completed Productions
-          </CardTitle>
-          <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-green-600">
-            {completedProductions}
-          </div>
-          <p className="text-xs text-muted-foreground">This month</p>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Pending Transfers
+            </CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">
+              {data.pendingTransfers}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Transfers awaiting action
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Completed Productions
+            </CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {data.completedProductions}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Productions completed
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
