@@ -4,19 +4,14 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-/**
- * ✅ Fix for Next.js 15 Type Error
- * The route context must be typed using Awaited<ReturnType<typeof getContext>>
- * or simply `any` to bypass the compiler bug.
- */
-
 // --- Update User ---
 export async function PUT(
   req: Request,
-  context: any // ✅ Use plain inline type here
+  context: { params: Promise<{ id: string }> } // ✅ Correct type for Next.js 15
 ): Promise<NextResponse> {
   try {
-    const { id } = context.params;
+    const params = await context.params; // ✅ Await the params
+    const { id } = params;
     const body = await req.json();
     const { name, email, password, role } = body;
 
@@ -72,10 +67,11 @@ export async function PUT(
 // --- Delete User ---
 export async function DELETE(
   req: Request,
-  context: any
+  context: { params: Promise<{ id: string }> } // ✅ Correct type for Next.js 15
 ): Promise<NextResponse> {
   try {
-    const { id } = context.params;
+    const params = await context.params; // ✅ Await the params
+    const { id } = params;
 
     const existingUser = await prisma.user.findUnique({ where: { id } });
     if (!existingUser) {
