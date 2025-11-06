@@ -26,6 +26,9 @@ import {
   Factory,
   ListIcon,
   LucidePlaySquare,
+  AlertTriangle,
+  Wrench,
+  CheckCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
@@ -42,6 +45,7 @@ import {
 import { Badge } from "../ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { useReturnedItems } from "@/contexts/ReturnedItemsContext";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -68,6 +72,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
   const router = useRouter();
   const pathname = usePathname();
+  const {
+    pendingRepairCount,
+    showReturnedItemsPopup,
+    setShowReturnedItemsPopup,
+  } = useReturnedItems();
 
   // Check if device is mobile
   useEffect(() => {
@@ -438,12 +447,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
 
             <div className="flex items-center space-x-3">
-              {/* <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
-                  3
-                </span>
-              </Button> */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative"
+                onClick={() => setShowReturnedItemsPopup(true)}
+              >
+                <AlertTriangle className="h-5 w-5" />
+                {pendingRepairCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
+                    {pendingRepairCount}
+                  </span>
+                )}
+              </Button>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -510,6 +526,205 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </motion.div>
         </main>
       </div>
+      {/* Returned Items Popup */}
+      <ReturnedItemsPopup />
     </div>
   );
 }
+
+// Returned Items Popup Component
+// In your DashboardLayout component, update the ReturnedItemsPopup:
+const ReturnedItemsPopup = () => {
+  const {
+    returnedItems,
+    showReturnedItemsPopup,
+    setShowReturnedItemsPopup,
+    markAsRepairing,
+    markAsFinished,
+    fetchReturnedItems,
+  } = useReturnedItems();
+
+  const [loadingStates, setLoadingStates] = useState<
+    Record<number, "repairing" | "finishing" | null>
+  >({});
+
+  console.log(returnedItems, "returenedItems");
+
+  const handleClosePopup = () => {
+    setShowReturnedItemsPopup(false);
+    // Mark that user has seen the popup for this session
+    localStorage.setItem("hasSeenReturnedItemsPopup", "true");
+  };
+
+  const handleStartRepair = async (itemId: number) => {
+    if (!confirm("Are you sure you want to start repairing this material?"))
+      return;
+
+    setLoadingStates((prev) => ({ ...prev, [itemId]: "repairing" }));
+    try {
+      await markAsRepairing(itemId);
+      // The fetchReturnedItems will be called automatically by markAsRepairing
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to start repair");
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, [itemId]: null }));
+    }
+  };
+
+  const handleFinishRepair = async (itemId: number) => {
+    if (!confirm("Are you sure you want to mark this repair as finished?"))
+      return;
+
+    setLoadingStates((prev) => ({ ...prev, [itemId]: "finishing" }));
+    try {
+      await markAsFinished(itemId);
+      // The fetchReturnedItems will be called automatically by markAsFinished
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to finish repair");
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, [itemId]: null }));
+    }
+  };
+
+  if (!showReturnedItemsPopup || returnedItems.length === 0) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-gray-200">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-red-50 to-orange-50 px-6 py-5 border-b border-red-100">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-full">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Returned Items Requiring Attention
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {returnedItems.length} item(s) returned by manufacturing teams
+                </p>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" onClick={handleClosePopup}>
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="max-h-[60vh] overflow-y-auto">
+          <div className="p-6 space-y-4">
+            {returnedItems.map((item) => (
+              <div
+                key={item.id}
+                className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Package className="h-6 w-6 text-red-600" />
+                      <div>
+                        <h3 className="font-semibold text-lg text-gray-900">
+                          {item.rawMaterialName}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          Returned by: {item.userName}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm mb-3">
+                      <div>
+                        <span className="font-medium">Quantity Returned:</span>
+                        <Badge variant="outline" className="ml-2">
+                          {item.quantityRejected} {item.unit}
+                        </Badge>
+                      </div>
+                      <div>
+                        <span className="font-medium">Returned:</span>
+                        <span className="text-gray-600 ml-2">
+                          {new Date(item.returnedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {/* {item.quantityApproved && item.quantityApproved > 0 && (
+                        <div>
+                          <span className="font-medium text-green-600">
+                            Approved:
+                          </span>
+                          <span className="text-green-600 ml-2">
+                            {item.quantityApproved} {item.unit}
+                          </span>
+                        </div>
+                      )} */}
+                      {item.rejectionReason && (
+                        <div>
+                          <span className="font-medium">Reason:</span>
+                          <span className="text-gray-600 ml-2 capitalize">
+                            {item.rejectionReason.replace("_", " ")}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <span className="font-medium text-sm">Notes: </span>
+                      <span className="text-gray-600 text-sm">
+                        {item.reason}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 ml-4 min-w-[140px]">
+                    <Button
+                      size="sm"
+                      onClick={() => handleStartRepair(item.id)}
+                      // disabled={loadingStates[item.id] !== null}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {loadingStates[item.id] === "repairing" ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />
+                      ) : (
+                        <Wrench className="h-4 w-4 mr-1" />
+                      )}
+                      {loadingStates[item.id] === "repairing"
+                        ? "Starting..."
+                        : "Start Repair"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleFinishRepair(item.id)}
+                      // disabled={loadingStates[item.id] !== null}
+                      className="text-green-600 border-green-200 hover:bg-green-50"
+                    >
+                      {loadingStates[item.id] === "finishing" ? (
+                        <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin mr-1" />
+                      ) : (
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                      )}
+                      {loadingStates[item.id] === "finishing"
+                        ? "Finishing..."
+                        : "Mark Complete"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+          <p className="text-sm text-gray-600">
+            These items were returned by manufacturing teams and require your
+            attention.
+          </p>
+          <Button onClick={handleClosePopup} variant="outline">
+            Close
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};

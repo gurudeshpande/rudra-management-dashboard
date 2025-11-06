@@ -1,3 +1,4 @@
+// app/api/products/update-quantity/route.ts
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 
@@ -31,6 +32,7 @@ export async function POST(req: Request) {
           error: "Insufficient quantity",
           available: product.quantity,
           requested: quantityToDeduct,
+          productName: product.name,
         },
         { status: 400 }
       );
@@ -40,11 +42,17 @@ export async function POST(req: Request) {
     const updatedProduct = await prisma.product.update({
       where: { id: parseInt(productId) },
       data: {
-        quantity: product.quantity - quantityToDeduct,
+        quantity: {
+          decrement: quantityToDeduct,
+        },
       },
     });
 
-    return NextResponse.json(updatedProduct);
+    return NextResponse.json({
+      success: true,
+      product: updatedProduct,
+      message: `Quantity updated successfully. New quantity: ${updatedProduct.quantity}`,
+    });
   } catch (error) {
     console.error("Error updating product quantity:", error);
     return NextResponse.json(

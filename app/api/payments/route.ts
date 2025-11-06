@@ -15,7 +15,9 @@ export async function GET(request: Request) {
         OR: [
           { customerName: { contains: search, mode: "insensitive" } },
           { customerNumber: { contains: search, mode: "insensitive" } },
+          { customerEmail: { contains: search, mode: "insensitive" } },
           { receiptNumber: { contains: search, mode: "insensitive" } },
+          { transactionId: { contains: search, mode: "insensitive" } },
         ],
       },
       orderBy: { createdAt: "desc" },
@@ -35,13 +37,19 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+
+    console.log(body, "follow");
     const {
       customerName,
       customerNumber,
+      customerEmail,
       amount,
       paymentMethod,
       transactionId,
       receiptNumber,
+      status = "DUE", // Changed default from "PENDING" to "DUE"
+      dueDate,
+      balanceDue,
     } = body;
 
     // Validate required fields
@@ -53,11 +61,18 @@ export async function POST(request: Request) {
     }
 
     // Validate payment method
-    if (!["UPI", "CASH", "BANK_TRANSFER", "CARD"].includes(paymentMethod)) {
+    const validPaymentMethods = ["UPI", "CASH", "BANK_TRANSFER", "CARD"];
+    if (!validPaymentMethods.includes(paymentMethod)) {
       return NextResponse.json(
         { error: "Invalid payment method" },
         { status: 400 }
       );
+    }
+
+    // Validate status - updated to new enum values
+    const validStatuses = ["DUE", "COMPLETED", "OVERDUE"];
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
     // Validate transaction ID for non-cash payments
@@ -68,14 +83,48 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate amount
+    const amountValue = parseFloat(amount);
+    if (isNaN(amountValue) || amountValue <= 0) {
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+    }
+
+    // Validate balanceDue if provided
+    let balanceDueValue = null;
+    if (balanceDue) {
+      balanceDueValue = parseFloat(balanceDue);
+      if (isNaN(balanceDueValue) || balanceDueValue < 0) {
+        return NextResponse.json(
+          { error: "Invalid balance due amount" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Parse dueDate if provided
+    let dueDateValue = null;
+    if (dueDate) {
+      dueDateValue = new Date(dueDate);
+      if (isNaN(dueDateValue.getTime())) {
+        return NextResponse.json(
+          { error: "Invalid due date" },
+          { status: 400 }
+        );
+      }
+    }
+
     const payment = await prisma.payment.create({
       data: {
         customerName,
         customerNumber: customerNumber || null,
-        amount: parseFloat(amount),
+        customerEmail: customerEmail || null,
+        amount: amountValue,
         paymentMethod,
         transactionId: transactionId || null,
         receiptNumber,
+        status,
+        dueDate: dueDateValue,
+        balanceDue: balanceDueValue,
       },
     });
 
@@ -84,11 +133,25 @@ export async function POST(request: Request) {
     console.error("Error creating payment:", error);
 
     // Handle duplicate receipt number
-    if (error instanceof Error && error.message.includes("Unique constraint")) {
-      return NextResponse.json(
-        { error: "Receipt number already exists" },
-        { status: 400 }
-      );
+    if (error instanceof Error) {
+      if (
+        error.message.includes("Unique constraint") ||
+        error.message.includes("receiptNumber")
+      ) {
+        return NextResponse.json(
+          { error: "Receipt number already exists" },
+          { status: 400 }
+        );
+      }
+
+      if (
+        error.message.includes("Invalid `prisma.payment.create()` invocation")
+      ) {
+        return NextResponse.json(
+          { error: "Invalid data provided" },
+          { status: 400 }
+        );
+      }
     }
 
     return NextResponse.json(

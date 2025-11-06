@@ -581,7 +581,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoiceData, logoUrl }) => {
               <View
                 style={[styles.summaryLabelCell, styles.summaryBorderRight]}
               >
-                <Text style={styles.summaryLabel}>CGST (6%):</Text>
+                <Text style={styles.summaryLabel}>CGST (2.5%):</Text>
               </View>
               <View style={styles.summaryValueCell}>
                 <Text style={styles.summaryValue}>
@@ -595,7 +595,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoiceData, logoUrl }) => {
               <View
                 style={[styles.summaryLabelCell, styles.summaryBorderRight]}
               >
-                <Text style={styles.summaryLabel}>SGST (6%):</Text>
+                <Text style={styles.summaryLabel}>SGST (2.5%):</Text>
               </View>
               <View style={styles.summaryValueCell}>
                 <Text style={styles.summaryValue}>
@@ -615,7 +615,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoiceData, logoUrl }) => {
               </View>
               <View style={styles.summaryValueCell}>
                 <Text style={[styles.summaryValue, styles.boldText]}>
-                  Rs.{formatIndianCurrency(subtotal)}
+                  Rs.{formatIndianCurrency(total)}
                 </Text>
               </View>
             </View>
@@ -675,7 +675,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoiceData, logoUrl }) => {
           <View style={styles.amountDueRow}>
             <Text style={styles.amountDueLabel}>Amount Due:</Text>
             <Text style={styles.amountDueValue}>
-              Rs.{formatIndianCurrency(subtotal - advancePaid! || 0)}
+              Rs.{formatIndianCurrency(total - advancePaid! || 0)}
             </Text>
           </View>
           <View style={styles.amountDueRow}>
@@ -687,7 +687,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoiceData, logoUrl }) => {
           <View style={styles.amountDueRow}>
             <Text style={styles.amountDueLabel}>Total:</Text>
             <Text style={styles.amountDueValue}>
-              Rs.{formatIndianCurrency(subtotal)}
+              Rs.{formatIndianCurrency(total)}
             </Text>
           </View>
         </View>

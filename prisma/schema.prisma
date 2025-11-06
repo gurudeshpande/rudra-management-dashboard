@@ -235,14 +235,24 @@ model Payment {
   id              String   @id @default(cuid())
   customerName    String
   customerNumber  String?
+  customerEmail   String?
   amount          Float
   paymentMethod   PaymentMethod
   transactionId   String?
   receiptNumber   String   @unique
+  status          PaymentStatus @default(DUE)
+  dueDate         DateTime?
+  balanceDue      Float?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@map("payments")
+}
+
+enum PaymentStatus {
+  COMPLETED
+  DUE
+  OVERDUE
 }
 
 model ReceiptCounter {

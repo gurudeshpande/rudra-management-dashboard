@@ -1,135 +1,149 @@
 // components/payment/PaymentReceiptPDF.tsx
-"use client";
-import { useState } from "react";
-import {
-  Document,
-  Page,
-  Text,
-  View,
-  StyleSheet,
-  pdf,
-} from "@react-pdf/renderer";
+import React from "react";
+import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Payment } from "@prisma/client";
 
-interface Payment {
-  id: string;
-  customerName: string;
-  customerNumber: string | null;
-  amount: number;
-  paymentMethod: "UPI" | "CASH" | "BANK_TRANSFER" | "CARD";
-  transactionId: string | null;
-  createdAt: string;
-  receiptNumber: string;
-}
-
-interface PaymentReceiptPDFProps {
-  payment: Payment;
-  children: (props: {
-    loading: boolean;
-    generatePDF: () => void;
-  }) => React.ReactNode;
-}
-
-// Create styles
+// Create styles for payment receipt
 const styles = StyleSheet.create({
   page: {
     flexDirection: "column",
     backgroundColor: "#FFFFFF",
     padding: 30,
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: "Helvetica",
   },
   header: {
+    alignItems: "center",
     marginBottom: 20,
-    borderBottom: "2 solid #3B82F6",
-    paddingBottom: 10,
   },
   companyName: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#1F2937",
-    marginBottom: 5,
-  },
-  receiptTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#3B82F6",
-    marginBottom: 10,
+    color: "#1a365d",
+    marginBottom: 5,
   },
-  section: {
-    marginTop: 5,
+  companyDetails: {
+    fontSize: 9,
+    marginBottom: 2,
+    color: "#4a5568",
+    textAlign: "center",
+  },
+  receiptTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1a365d",
+    textAlign: "center",
     marginBottom: 15,
   },
+  receiptInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 15,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#d0d0d0",
+    borderRadius: 4,
+  },
+  twoColumn: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 15,
+  },
+  column: {
+    width: "48%",
+  },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "bold",
     marginBottom: 8,
-    color: "#374151",
-    backgroundColor: "#F3F4F6",
-    padding: 5,
+    color: "#2c3e50",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+    paddingBottom: 5,
   },
-  row: {
+  infoText: {
+    fontSize: 10,
+    marginBottom: 4,
+    color: "#4a5568",
+  },
+  paymentDetails: {
+    borderWidth: 1,
+    borderColor: "#d0d0d0",
+    borderRadius: 4,
+    padding: 15,
+    marginBottom: 15,
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  detailLabel: {
+    fontSize: 10,
+    color: "#4a5568",
+    fontWeight: "bold",
+  },
+  detailValue: {
+    fontSize: 10,
+    color: "#4a5568",
+  },
+  amountSection: {
+    backgroundColor: "#f8f9fa",
+    padding: 15,
+    borderWidth: 1,
+    borderColor: "#d0d0d0",
+    borderRadius: 4,
+    marginBottom: 15,
+  },
+  amountRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 5,
   },
-  label: {
-    fontWeight: "bold",
-    color: "#6B7280",
-    width: "40%",
-  },
-  value: {
-    width: "60%",
-    color: "#374151",
-  },
-  amountSection: {
-    marginTop: 20,
-    padding: 15,
-    backgroundColor: "#F0F9FF",
-    border: "1 solid #3B82F6",
-    borderRadius: 5,
-  },
-  amountText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#065F46",
-    textAlign: "center",
-  },
-  amountInWords: {
-    fontSize: 12,
-    color: "#374151",
-    textAlign: "center",
-    marginTop: 5,
-    fontStyle: "italic",
-  },
-  footer: {
-    marginTop: 30,
-    paddingTop: 10,
-    borderTop: "1 solid #E5E7EB",
-    textAlign: "center",
-    color: "#6B7280",
-    fontSize: 10,
-  },
-  signature: {
-    marginTop: 40,
+  totalAmount: {
     flexDirection: "row",
     justifyContent: "space-between",
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#d0d0d0",
+    fontSize: 12,
+    fontWeight: "bold",
   },
-  signatureBox: {
-    width: "45%",
-    borderTop: "1 solid #000",
-    paddingTop: 5,
+  footer: {
+    marginTop: 20,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#e0e0e0",
+    fontSize: 8,
+    color: "#666",
     textAlign: "center",
-    fontSize: 10,
   },
-  address: {
-    textAlign: "left",
-    marginBottom: 10,
-    fontSize: 10,
-    color: "#6B7280",
+  signature: {
+    marginTop: 30,
+    alignItems: "center",
+  },
+  boldText: {
+    fontWeight: "bold",
   },
 });
 
-// Function to convert number to words (fixed version)
+interface PaymentReceiptPDFProps {
+  payment: Payment;
+}
+
+// Helper function to format currency
+const formatIndianCurrency = (amount: number): string => {
+  return new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+  }).format(amount);
+};
+
+// Helper function to convert number to words
 const numberToWords = (num: number): string => {
   const ones = [
     "",
@@ -167,262 +181,274 @@ const numberToWords = (num: number): string => {
     "Ninety",
   ];
 
-  if (num === 0) return "Zero";
-
-  let words = "";
-
-  // Handle rupees part
+  // Handle decimal part (paise)
   let rupees = Math.floor(num);
   const paise = Math.round((num - rupees) * 100);
 
-  // Helper function to convert numbers below 1000
-  const convertBelowThousand = (n: number): string => {
-    if (n === 0) return "";
+  let words = "";
 
+  // Function to convert numbers less than 1000
+  const convertHundreds = (n: number): string => {
     let result = "";
 
-    // Hundreds
+    // Hundreds place
     if (n >= 100) {
-      result += ones[Math.floor(n / 100)] + " Hundred";
+      result += ones[Math.floor(n / 100)] + " Hundred ";
       n %= 100;
-      if (n > 0) result += " and ";
     }
 
-    // Tens and Ones
+    // Tens and ones place
+    if (n >= 20) {
+      result += tens[Math.floor(n / 10)] + " ";
+      n %= 10;
+    }
+
     if (n > 0) {
-      if (n < 20) {
-        result += ones[n];
-      } else {
-        result += tens[Math.floor(n / 10)];
-        if (n % 10 > 0) {
-          result += " " + ones[n % 10];
-        }
-      }
+      result += ones[n] + " ";
     }
 
-    return result;
+    return result.trim();
   };
 
-  if (rupees > 0) {
+  // Convert rupees part
+  if (rupees === 0) {
+    words = "Zero";
+  } else {
     // Crores
     if (rupees >= 10000000) {
-      const crores = Math.floor(rupees / 10000000);
-      words += convertBelowThousand(crores) + " Crore";
+      words += convertHundreds(Math.floor(rupees / 10000000)) + " Crore ";
       rupees %= 10000000;
-      if (rupees > 0) words += " ";
     }
 
     // Lakhs
     if (rupees >= 100000) {
-      const lakhs = Math.floor(rupees / 100000);
-      words += convertBelowThousand(lakhs) + " Lakh";
+      words += convertHundreds(Math.floor(rupees / 100000)) + " Lakh ";
       rupees %= 100000;
-      if (rupees > 0) words += " ";
     }
 
     // Thousands
     if (rupees >= 1000) {
-      const thousands = Math.floor(rupees / 1000);
-      words += convertBelowThousand(thousands) + " Thousand";
+      words += convertHundreds(Math.floor(rupees / 1000)) + " Thousand ";
       rupees %= 1000;
-      if (rupees > 0) words += " ";
     }
 
-    // Hundreds, Tens and Ones
+    // Hundreds
     if (rupees > 0) {
-      words += convertBelowThousand(rupees);
+      words += convertHundreds(rupees);
     }
   }
 
-  // Handle paise
+  // Trim and add "Rupees"
+  words = words.trim();
+  if (words === "Zero") {
+    words = "Zero Rupees";
+  } else {
+    words += " Rupees";
+  }
+
+  // Add paise if exists
   if (paise > 0) {
-    if (words !== "") words += " and ";
-    words += convertBelowThousand(paise) + " Paise";
+    let paiseWords = "";
+
+    if (paise >= 20) {
+      paiseWords += tens[Math.floor(paise / 10)];
+      if (paise % 10 > 0) {
+        paiseWords += " " + ones[paise % 10];
+      }
+    } else if (paise > 0) {
+      paiseWords = ones[paise];
+    }
+
+    words += " and " + paiseWords + " Paise";
   }
 
-  return words.trim() + " Only";
+  return words + " Only";
 };
 
-// Function to format number with Indian comma separators
-const formatIndianNumber = (num: number): string => {
-  // Handle decimal part
-  const parts = num.toFixed(2).split(".");
-  let integerPart = parts[0];
-  const decimalPart = parts[1];
+const PaymentReceiptPDF: React.FC<PaymentReceiptPDFProps> = ({ payment }) => {
+  const getPaymentMethodText = (
+    method: "UPI" | "CASH" | "BANK_TRANSFER" | "CARD"
+  ) => {
+    const methods = {
+      UPI: "UPI Payment",
+      CASH: "Cash",
+      BANK_TRANSFER: "Bank Transfer",
+      CARD: "Card Payment",
+    } as const;
+    return methods[method];
+  };
 
-  // Indian numbering system: 1,00,000 format
-  let lastThree = integerPart.substring(integerPart.length - 3);
-  const otherNumbers = integerPart.substring(0, integerPart.length - 3);
-
-  if (otherNumbers !== "") {
-    lastThree = "," + lastThree;
-  }
-
-  const formatted =
-    otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + lastThree;
-
-  return formatted + "." + decimalPart;
-};
-
-// PDF Document Component
-const ReceiptDocument = ({ payment }: { payment: Payment }) => {
-  const amountInWords = numberToWords(payment.amount);
-  const formattedAmount = formatIndianNumber(payment.amount);
+  const getStatusText = (status: Payment["status"]) => {
+    const statuses: Record<Payment["status"], string> = {
+      DUE: "DUE",
+      COMPLETED: "Completed",
+      OVERDUE: "OVERDUE",
+    };
+    return statuses[status];
+  };
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.companyName}>Rudra Arts and Handicrafts</Text>
-          <Text style={styles.address}>
-            Handmade Traditional Arts & Crafts | Quality Assured Products
+          <Text style={styles.companyName}>Rudra Arts & Handicrafts</Text>
+          <Text style={styles.companyDetails}>
+            Samata Nagar, Ganesh Nagar Lane No 1, Famous Chowk, New Sangavi,
+            Pune
           </Text>
-          <Text style={styles.receiptTitle}>PAYMENT RECEIPT</Text>
-          {/* <Text>Official Payment Confirmation</Text> */}
+          <Text style={styles.companyDetails}>
+            Maharashtra 411061, India | GSTIN: 27AMWPV8148A1ZE
+          </Text>
+          <Text style={styles.companyDetails}>
+            Phone: 9595221296 | Email: rudraarts30@gmail.com
+          </Text>
         </View>
 
-        {/* Receipt Details */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Receipt Information</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Receipt Number:</Text>
-            <Text style={styles.value}>{payment.receiptNumber}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Date Issued:</Text>
-            <Text style={styles.value}>
-              {new Date(payment.createdAt).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
+        {/* Receipt Title */}
+        <Text style={styles.receiptTitle}>PAYMENT RECEIPT</Text>
+
+        {/* Receipt Information */}
+        <View style={styles.receiptInfo}>
+          <View>
+            <Text style={styles.infoText}>
+              <Text style={styles.boldText}>Receipt No:</Text>{" "}
+              {payment.receiptNumber}
             </Text>
           </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Time:</Text>
-            <Text style={styles.value}>
-              {new Date(payment.createdAt).toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: true,
-              })}
+          <View>
+            <Text style={styles.infoText}>
+              <Text style={styles.boldText}>Date:</Text>{" "}
+              {new Date(payment.createdAt).toLocaleDateString("en-IN")}
             </Text>
           </View>
         </View>
 
-        {/* Customer Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Customer Information</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Customer Name:</Text>
-            <Text style={styles.value}>{payment.customerName}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Phone Number:</Text>
-            <Text style={styles.value}>
-              {payment.customerNumber || "Not Provided"}
+        {/* Customer and Payment Details */}
+        <View style={styles.twoColumn}>
+          <View style={styles.column}>
+            <Text style={styles.sectionTitle}>Customer Details</Text>
+            <Text style={styles.infoText}>
+              <Text style={styles.boldText}>Name:</Text> {payment.customerName}
             </Text>
+            {payment.customerNumber && (
+              <Text style={styles.infoText}>
+                <Text style={styles.boldText}>Phone:</Text>{" "}
+                {payment.customerNumber}
+              </Text>
+            )}
+            {payment.customerEmail && (
+              <Text style={styles.infoText}>
+                <Text style={styles.boldText}>Email:</Text>{" "}
+                {payment.customerEmail}
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.column}>
+            <Text style={styles.sectionTitle}>Payment Information</Text>
+            <Text style={styles.infoText}>
+              <Text style={styles.boldText}>Status:</Text>{" "}
+              {getStatusText(payment.status)}
+            </Text>
+            <Text style={styles.infoText}>
+              <Text style={styles.boldText}>Method:</Text>{" "}
+              {getPaymentMethodText(payment.paymentMethod)}
+            </Text>
+            {payment.dueDate && (
+              <Text style={styles.infoText}>
+                <Text style={styles.boldText}>Due Date:</Text>{" "}
+                {new Date(payment.dueDate).toLocaleDateString("en-IN")}
+              </Text>
+            )}
           </View>
         </View>
 
         {/* Payment Details */}
-        <View style={styles.section}>
+        <View style={styles.paymentDetails}>
           <Text style={styles.sectionTitle}>Payment Details</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Payment Method:</Text>
-            <Text style={styles.value}>
-              {payment.paymentMethod === "UPI" && "UPI Payment"}
-              {payment.paymentMethod === "CASH" && "Cash Payment"}
-              {payment.paymentMethod === "BANK_TRANSFER" && "Bank Transfer"}
-              {payment.paymentMethod === "CARD" && "Card Payment"}
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Amount Paid:</Text>
+            <Text style={styles.detailValue}>
+              Rs.{formatIndianCurrency(payment.amount)}
             </Text>
           </View>
-          {payment.transactionId && (
-            <View style={styles.row}>
-              <Text style={styles.label}>Transaction ID:</Text>
-              <Text style={[styles.value, { fontFamily: "Courier" }]}>
-                {payment.transactionId}
+
+          {payment.balanceDue && payment.balanceDue > 0 && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Balance Due:</Text>
+              <Text style={styles.detailValue}>
+                Rs.{formatIndianCurrency(payment.balanceDue)}
               </Text>
             </View>
           )}
+
+          {payment.transactionId && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Transaction ID:</Text>
+              <Text style={styles.detailValue}>{payment.transactionId}</Text>
+            </View>
+          )}
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Payment Date:</Text>
+            <Text style={styles.detailValue}>
+              {new Date(payment.createdAt).toLocaleString("en-IN")}
+            </Text>
+          </View>
         </View>
 
         {/* Amount Section */}
         <View style={styles.amountSection}>
-          <Text style={styles.amountText}>
-            Amount Paid: Rs.{formattedAmount}
-          </Text>
-          <Text style={styles.amountInWords}>{amountInWords}</Text>
-        </View>
-
-        {/* Notes Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notes</Text>
-          <Text style={[styles.value, { marginBottom: 10 }]}>
-            • This receipt acknowledges the payment received for goods/services
-            provided
-          </Text>
-          <Text style={styles.value}>
-            • Please retain this receipt for your records and any future
-            references
-          </Text>
-        </View>
-
-        {/* Signature Section */}
-        <View style={styles.signature}>
-          <View style={styles.signatureBox}>
-            <Text>Customer Signature</Text>
+          <View style={styles.amountRow}>
+            <Text style={styles.detailLabel}>Total Amount:</Text>
+            <Text style={styles.detailValue}>
+              Rs.{formatIndianCurrency(payment.amount)}
+            </Text>
           </View>
-          <View style={styles.signatureBox}>
-            <Text>Authorized Signature</Text>
-            <Text style={{ fontSize: 8, marginTop: 2 }}>
-              Rudra Arts and Handicrafts
+
+          <View style={styles.totalAmount}>
+            <Text style={styles.detailLabel}>Amount in Words:</Text>
+            <Text style={[styles.detailValue, { textAlign: "right", flex: 1 }]}>
+              {numberToWords(payment.amount)}
             </Text>
           </View>
         </View>
 
+        {/* Terms and Conditions */}
+        <View style={{ marginBottom: 15 }}>
+          <Text style={styles.sectionTitle}>Terms & Conditions</Text>
+          <Text style={styles.infoText}>
+            1. This is a computer generated receipt and does not require
+            signature.
+          </Text>
+          <Text style={styles.infoText}>
+            2. Please keep this receipt for your records.
+          </Text>
+          <Text style={styles.infoText}>
+            3. For any queries, contact us within 7 days of payment.
+          </Text>
+        </View>
+
+        {/* Signature */}
+        <View style={styles.signature}>
+          <Text>_________________________</Text>
+          <Text>Authorized Signature</Text>
+          <Text>Rudra Arts & Handicrafts</Text>
+        </View>
+
         {/* Footer */}
         <View style={styles.footer}>
-          <Text>Thank you for choosing Rudra Arts and Handicrafts!</Text>
-          <Text>For any queries, contact: +91-7028996666</Text>
-          <Text>Website: www.rudraartsandhandicrafts.com</Text>
-          <Text style={{ marginTop: 5 }}>
-            This is a computer-generated receipt. No physical signature
-            required.
+          <Text>
+            This is an electronically generated receipt - Valid without
+            signature
           </Text>
+          <Text>Generated on: {new Date().toLocaleString("en-IN")}</Text>
         </View>
       </Page>
     </Document>
   );
 };
 
-// Main PDF Component with Download Functionality
-export default function PaymentReceiptPDF({
-  payment,
-  children,
-}: PaymentReceiptPDFProps) {
-  const [loading, setLoading] = useState(false);
-
-  const generatePDF = async () => {
-    setLoading(true);
-    try {
-      const blob = await pdf(<ReceiptDocument payment={payment} />).toBlob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `receipt-${payment.receiptNumber}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      alert("Error generating PDF. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return <>{children({ loading, generatePDF })}</>;
-}
+export default PaymentReceiptPDF;
