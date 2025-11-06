@@ -363,9 +363,9 @@ export default function UserManufacturingPage() {
 
       // Show appropriate success message
       if (rejectQuantity === 0) {
-        alert("All materials have been added to your inventory!");
+        alert("Materials have been added to your inventory!");
       } else if (rejectQuantity === selectedTransfer!.quantityIssued) {
-        alert("All materials have been returned to main inventory!");
+        alert("Materials have been returned to main inventory!");
       } else {
         alert(
           "Product transfer rejected successfully! Raw materials have been returned to your inventory."
@@ -1789,230 +1789,433 @@ export default function UserManufacturingPage() {
           </Tabs>
         </div>
       </div>
-      {/* Reject Confirmation Dialog */}
+      {/* Reject Confirmation Dialog - Improved UI with Input Box */}
       {showRejectDialog && selectedTransfer && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md bg-white">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-red-600">
-                <AlertTriangle className="h-5 w-5" />
-                Reject Transfer
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <p className="text-sm text-amber-800">
-                  You are about to reject:{" "}
-                  <strong>
-                    {selectedTransfer.quantityIssued}{" "}
-                    {selectedTransfer.rawMaterial.unit} of{" "}
-                    {selectedTransfer.rawMaterial.name}
-                  </strong>
-                </p>
-              </div>
-
-              {/* Quantity to Reject */}
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Quantity to Reject (Damaged){" "}
-                  <span className="text-red-500">*</span>
-                  <span className="text-xs text-gray-500 ml-1">
-                    (Max: {selectedTransfer.quantityIssued}{" "}
-                    {selectedTransfer.rawMaterial.unit})
-                  </span>
-                </label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min="0"
-                    max={selectedTransfer.quantityIssued}
-                    value={rejectQuantity}
-                    onChange={(e) => setRejectQuantity(Number(e.target.value))}
-                    className="flex-1"
-                    placeholder={`Enter damaged quantity (0-${selectedTransfer.quantityIssued})`}
-                  />
-                  <span className="text-sm text-gray-600 whitespace-nowrap">
-                    {selectedTransfer.rawMaterial.unit}
-                  </span>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-red-50 to-orange-50 px-6 py-5 border-b border-red-100">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-full">
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
                 </div>
-                {rejectQuantity > selectedTransfer.quantityIssued && (
-                  <p className="text-red-500 text-xs mt-1">
-                    Cannot reject more than {selectedTransfer.quantityIssued}{" "}
-                    {selectedTransfer.rawMaterial.unit}
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Review Material Transfer
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Manage incoming {selectedTransfer.rawMaterial.name}
                   </p>
-                )}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-5 space-y-6 max-h-[70vh] overflow-y-auto">
+              {/* Material Summary */}
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Package className="h-8 w-8 text-blue-600" />
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
+                        {selectedTransfer.rawMaterial.name}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {selectedTransfer.quantityIssued}{" "}
+                        {selectedTransfer.rawMaterial.unit} received
+                      </p>
+                    </div>
+                  </div>
+                  <Badge
+                    variant="secondary"
+                    className="bg-blue-100 text-blue-800"
+                  >
+                    Pending
+                  </Badge>
+                </div>
               </div>
 
-              {/* Approved Quantity Display */}
-              {rejectQuantity < selectedTransfer.quantityIssued && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                  <div className="flex items-center gap-2 text-green-700">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span className="text-sm font-medium">
-                      {selectedTransfer.quantityIssued - rejectQuantity}{" "}
-                      {selectedTransfer.rawMaterial.unit} will be added to your
-                      inventory
-                    </span>
-                  </div>
+              {/* Quantity Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-gray-900">
+                    Quantity Management
+                  </label>
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                    Total: {selectedTransfer.quantityIssued}{" "}
+                    {selectedTransfer.rawMaterial.unit}
+                  </span>
                 </div>
-              )}
 
-              {rejectQuantity === selectedTransfer.quantityIssued && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <div className="flex items-center gap-2 text-amber-700">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span className="text-sm font-medium">
-                      All materials will be returned to main inventory
-                    </span>
+                {/* Quantity Input Box */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Damaged/Rejected Quantity */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Rejected Quantity
+                        <span className="text-red-500 ml-1">*</span>
+                      </label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min="0"
+                          max={selectedTransfer.quantityIssued}
+                          value={rejectQuantity}
+                          onChange={(e) =>
+                            setRejectQuantity(Number(e.target.value))
+                          }
+                          className={`pr-12 text-center border-2 ${
+                            rejectQuantity > 0
+                              ? "border-red-300 focus:border-red-500"
+                              : "border-gray-300 focus:border-gray-500"
+                          }`}
+                          placeholder="0"
+                        />
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <span className="text-sm text-gray-500 font-medium">
+                            {selectedTransfer.rawMaterial.unit}
+                          </span>
+                        </div>
+                      </div>
+                      {rejectQuantity > selectedTransfer.quantityIssued && (
+                        <p className="text-red-500 text-xs flex items-center gap-1">
+                          <XCircle className="h-3 w-3" />
+                          Cannot exceed {selectedTransfer.quantityIssued}{" "}
+                          {selectedTransfer.rawMaterial.unit}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Approved Quantity (Auto-calculated) */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Approved Quantity
+                      </label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          value={
+                            selectedTransfer.quantityIssued - rejectQuantity
+                          }
+                          disabled
+                          className="pr-12 text-center border-2 border-green-300 bg-green-50 text-green-800 font-semibold"
+                        />
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <span className="text-sm text-green-600 font-medium">
+                            {selectedTransfer.rawMaterial.unit}
+                          </span>
+                        </div>
+                      </div>
+                      {/* <p className="text-green-600 text-xs flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Will be added to inventory
+                      </p> */}
+                    </div>
                   </div>
-                </div>
-              )}
 
-              {/* Rejection Reason Type */}
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Rejection Type <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { value: "damaged", label: "Damaged", icon: "🚫" },
-                    { value: "wrong_item", label: "Wrong Item", icon: "❓" },
-                    {
-                      value: "quality_issue",
-                      label: "Quality Issue",
-                      icon: "🔍",
-                    },
-                    { value: "other", label: "Other", icon: "📝" },
-                  ].map((reason) => (
+                  {/* Quick Action Buttons */}
+                  {/* <div className="grid grid-cols-3 gap-2">
                     <Button
-                      key={reason.value}
+                      type="button"
+                      variant={rejectQuantity === 0 ? "default" : "outline"}
+                      size="sm"
+                      className={`text-xs h-9 ${
+                        rejectQuantity === 0
+                          ? "bg-green-600 hover:bg-green-700 text-white border-green-600"
+                          : "border-gray-300 text-gray-700 hover:bg-green-50 hover:border-green-200"
+                      }`}
+                      onClick={() => setRejectQuantity(0)}
+                    >
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      Keep All
+                    </Button>
+                    <Button
                       type="button"
                       variant={
-                        rejectionType === reason.value ? "default" : "outline"
+                        rejectQuantity === selectedTransfer.quantityIssued
+                          ? "default"
+                          : "outline"
                       }
-                      className={`h-12 text-xs ${
+                      size="sm"
+                      className={`text-xs h-9 ${
+                        rejectQuantity === selectedTransfer.quantityIssued
+                          ? "bg-red-600 hover:bg-red-700 text-white border-red-600"
+                          : "border-gray-300 text-gray-700 hover:bg-red-50 hover:border-red-200"
+                      }`}
+                      onClick={() =>
+                        setRejectQuantity(selectedTransfer.quantityIssued)
+                      }
+                    >
+                      <XCircle className="h-3 w-3 mr-1" />
+                      Reject All
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-9 border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-200"
+                      onClick={() =>
+                        setRejectQuantity(
+                          Math.floor(selectedTransfer.quantityIssued / 2)
+                        )
+                      }
+                    >
+                      <Clock className="h-3 w-3 mr-1" />
+                      Half
+                    </Button>
+                  </div> */}
+                </div>
+              </div>
+
+              {/* Visual Status Card */}
+              <div
+                className={`rounded-xl p-4 border-2 transition-all duration-200 ${
+                  rejectQuantity === 0
+                    ? "bg-green-50 border-green-200"
+                    : rejectQuantity === selectedTransfer.quantityIssued
+                    ? "bg-red-50 border-red-200"
+                    : "bg-amber-50 border-amber-200"
+                }`}
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  {rejectQuantity === 0 ? (
+                    <>
+                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      <span className="font-semibold text-green-800">
+                        All Materials Accepted
+                      </span>
+                    </>
+                  ) : rejectQuantity === selectedTransfer.quantityIssued ? (
+                    <>
+                      <XCircle className="h-5 w-5 text-red-600" />
+                      <span className="font-semibold text-red-800">
+                        All Materials Rejected
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="h-5 w-5 text-amber-600" />
+                      <span className="font-semibold text-amber-800">
+                        Partial Transfer
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-gray-600">
+                      Adding to your inventory:
+                    </span>
+                    <span className="font-semibold text-green-700">
+                      {selectedTransfer.quantityIssued - rejectQuantity}{" "}
+                      {selectedTransfer.rawMaterial.unit}
+                    </span>
+                  </div>
+
+                  {rejectQuantity > 0 && (
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-gray-600">
+                        Returning to main inventory:
+                      </span>
+                      <span className="font-semibold text-red-700">
+                        {rejectQuantity} {selectedTransfer.rawMaterial.unit}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Rejection Reason */}
+              <div className="space-y-3">
+                <label className="text-sm font-semibold text-gray-900">
+                  Rejection Reason
+                  <span className="text-red-500 ml-1">*</span>
+                </label>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    {
+                      value: "damaged",
+                      label: "Damaged",
+                      icon: "🚫",
+                      description: "Physical damage or defects",
+                    },
+                    {
+                      value: "wrong_item",
+                      label: "Wrong Item",
+                      icon: "❓",
+                      description: "Incorrect item received",
+                    },
+                    {
+                      value: "quality_issue",
+                      label: "Quality",
+                      icon: "🔍",
+                      description: "Doesn't meet standards",
+                    },
+                    {
+                      value: "other",
+                      label: "Other",
+                      icon: "📝",
+                      description: "Other reasons",
+                    },
+                  ].map((reason) => (
+                    <button
+                      key={reason.value}
+                      type="button"
+                      className={`p-3 rounded-xl border-2 text-left transition-all duration-200 ${
                         rejectionType === reason.value
-                          ? "bg-red-600 text-white"
-                          : "border-gray-300"
+                          ? "border-red-300 bg-red-50 shadow-sm ring-2 ring-red-100"
+                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
                       }`}
                       onClick={() => setRejectionType(reason.value)}
                     >
-                      <span className="mr-1">{reason.icon}</span>
-                      {reason.label}
-                    </Button>
+                      <div className="flex items-start gap-2">
+                        <span className="text-lg">{reason.icon}</span>
+                        <div>
+                          <div
+                            className={`font-medium text-sm ${
+                              rejectionType === reason.value
+                                ? "text-red-700"
+                                : "text-gray-900"
+                            }`}
+                          >
+                            {reason.label}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {reason.description}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
                   ))}
                 </div>
               </div>
 
               {/* Additional Notes */}
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Additional Notes <span className="text-red-500">*</span>
+              <div className="space-y-3">
+                <label className="text-sm font-semibold text-gray-900">
+                  Additional Notes
+                  <span className="text-red-500 ml-1">*</span>
                 </label>
                 <Textarea
-                  placeholder={`Provide details about why ${rejectQuantity} ${
-                    selectedTransfer.rawMaterial.unit
-                  } are being rejected as ${rejectionType.replace(
-                    "_",
-                    " "
-                  )}...`}
+                  placeholder={
+                    rejectQuantity === 0
+                      ? "Add notes about accepting all materials..."
+                      : rejectQuantity === selectedTransfer.quantityIssued
+                      ? `Explain why all ${selectedTransfer.quantityIssued} ${selectedTransfer.rawMaterial.unit} are being rejected...`
+                      : `Explain why ${rejectQuantity} ${
+                          selectedTransfer.rawMaterial.unit
+                        } are being rejected and ${
+                          selectedTransfer.quantityIssued - rejectQuantity
+                        } ${
+                          selectedTransfer.rawMaterial.unit
+                        } are being accepted...`
+                  }
                   value={rejectNotes}
                   onChange={(e) => setRejectNotes(e.target.value)}
-                  className="min-h-[80px]"
-                  required
+                  className="min-h-[100px] resize-none border-gray-300 focus:border-red-300 focus:ring focus:ring-red-100"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  {rejectQuantity > 0 ? (
-                    <>
-                      {rejectQuantity} {selectedTransfer.rawMaterial.unit} will
-                      be returned to main inventory.
-                      {selectedTransfer.quantityIssued - rejectQuantity > 0 && (
-                        <>
-                          {" "}
-                          The remaining{" "}
-                          {selectedTransfer.quantityIssued -
-                            rejectQuantity}{" "}
-                          {selectedTransfer.rawMaterial.unit} will be added to
-                          your inventory.
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    "All materials will be added to your inventory."
-                  )}
-                </p>
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Required for audit trail</span>
+                  <span>{rejectNotes.length}/500</span>
+                </div>
               </div>
 
-              {/* Summary */}
-              <div className="bg-gray-50 rounded-lg p-3 border">
-                <h4 className="font-medium text-sm mb-2">Transfer Summary:</h4>
-                <div className="text-sm space-y-2">
-                  <div className="flex justify-between">
-                    <span>Total Quantity:</span>
+              {/* Final Summary */}
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <h4 className="font-semibold text-sm text-gray-900 mb-3 flex items-center gap-2">
+                  <History className="h-4 w-4 text-gray-500" />
+                  Action Summary
+                </h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Material</span>
+                    <span className="font-medium">
+                      {selectedTransfer.rawMaterial.name}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Total Received</span>
                     <span className="font-medium">
                       {selectedTransfer.quantityIssued}{" "}
                       {selectedTransfer.rawMaterial.unit}
                     </span>
                   </div>
-                  <div className="flex justify-between text-red-600">
-                    <span>Quantity to Reject:</span>
-                    <span className="font-medium">
-                      {rejectQuantity} {selectedTransfer.rawMaterial.unit}
+                  <div className="flex justify-between py-1">
+                    <span className="text-gray-600">Adding to Inventory</span>
+                    <span className="font-medium text-green-700">
+                      {selectedTransfer.quantityIssued - rejectQuantity}{" "}
+                      {selectedTransfer.rawMaterial.unit}
                     </span>
                   </div>
-                  {selectedTransfer.quantityIssued - rejectQuantity > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span>Quantity to Keep:</span>
-                      <span className="font-medium">
-                        {selectedTransfer.quantityIssued - rejectQuantity}{" "}
-                        {selectedTransfer.rawMaterial.unit}
+                  {rejectQuantity > 0 && (
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-600">Returning to Main</span>
+                      <span className="font-medium text-red-700">
+                        {rejectQuantity} {selectedTransfer.rawMaterial.unit}
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between pt-2 border-t border-gray-200">
-                    <span>Reason:</span>
-                    <span className="font-medium capitalize">
-                      {rejectionType.replace("_", " ")}
-                    </span>
+                  <div className="border-t border-gray-200 pt-2 mt-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Reason</span>
+                      <span className="font-medium capitalize">
+                        {rejectionType.replace("_", " ")}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div className="flex gap-2 justify-end">
-                <Button
-                  variant="outline"
-                  onClick={cancelReject}
-                  disabled={actionLoading === selectedTransfer.id}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => handleRejectTransfer(selectedTransfer.id)}
-                  disabled={
-                    !rejectNotes.trim() ||
-                    !rejectionType ||
-                    rejectQuantity > selectedTransfer.quantityIssued ||
-                    rejectQuantity < 0 ||
-                    actionLoading === selectedTransfer.id
-                  }
-                  className="bg-red-600 hover:bg-red-700 text-white"
-                >
-                  {actionLoading === selectedTransfer.id ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      Processing...
-                    </>
-                  ) : rejectQuantity === 0 ? (
-                    "Keep All Materials"
-                  ) : rejectQuantity === selectedTransfer.quantityIssued ? (
-                    "Reject All Materials"
-                  ) : (
-                    `Reject ${rejectQuantity} ${selectedTransfer.rawMaterial.unit}`
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Footer Actions */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex gap-3">
+              <Button
+                variant="outline"
+                onClick={cancelReject}
+                disabled={actionLoading === selectedTransfer.id}
+                className="flex-1 border-gray-300 hover:bg-gray-100 text-gray-700"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Cancel Review
+              </Button>
+              <Button
+                onClick={() => handleRejectTransfer(selectedTransfer.id)}
+                disabled={
+                  !rejectNotes.trim() ||
+                  !rejectionType ||
+                  rejectQuantity > selectedTransfer.quantityIssued ||
+                  rejectQuantity < 0 ||
+                  actionLoading === selectedTransfer.id
+                }
+                className="flex-1 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {actionLoading === selectedTransfer.id ? (
+                  <div className="flex items-center gap-2 justify-center">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Processing...
+                  </div>
+                ) : rejectQuantity === 0 ? (
+                  <div className="flex items-center gap-2 justify-center">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Accept Materials
+                  </div>
+                ) : rejectQuantity === selectedTransfer.quantityIssued ? (
+                  <div className="flex items-center gap-2 justify-center">
+                    <XCircle className="h-4 w-4" />
+                    Return Materials
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 justify-center">
+                    <Package className="h-4 w-4" />
+                    Confirm Transfer
+                  </div>
+                )}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </DashboardLayout>

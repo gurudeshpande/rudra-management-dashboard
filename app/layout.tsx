@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { FontProvider } from "@/components/font-provider/font-provider";
-import { AlertToaster } from "@/components/ui/alert-toaster"; // Import the AlertToaster
+import { AlertToaster } from "@/components/ui/alert-toaster";
+import { ReturnedItemsProvider } from "@/contexts/ReturnedItemsContext"; // Add this import
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,8 +32,12 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <FontProvider>
-          {children}
-          <AlertToaster /> {/* Add the AlertToaster here */}
+          <ReturnedItemsProvider>
+            {" "}
+            {/* Wrap with ReturnedItemsProvider */}
+            {children}
+            <AlertToaster />
+          </ReturnedItemsProvider>
         </FontProvider>
       </body>
     </html>

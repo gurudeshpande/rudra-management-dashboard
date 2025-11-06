@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { pdf } from "@react-pdf/renderer";
 import {
   Select,
   SelectContent,
@@ -25,44 +26,161 @@ import {
   CreditCard,
   Trash2,
   RefreshCw,
+  ChevronDown,
+  Mail,
+  Phone,
+  IndianRupee,
+  Clock,
+  AlertCircle,
+  CheckCircle,
+  CalendarClock,
+  AlertTriangle,
 } from "lucide-react";
 import PaymentReceiptPDF from "@/components/payment/PaymentReceiptPDF";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+
+interface Customer {
+  id: number;
+  name: string;
+  number: string;
+  address?: string;
+  email?: string;
+}
+
+type PaymentStatus = "COMPLETED" | "DUE" | "OVERDUE";
 
 interface Payment {
   id: string;
   customerName: string;
   customerNumber: string | null;
+  customerEmail?: string;
   amount: number;
   paymentMethod: "UPI" | "CASH" | "BANK_TRANSFER" | "CARD";
   transactionId: string | null;
   createdAt: string;
+  updatedAt: Date;
   receiptNumber: string;
+  status: PaymentStatus;
+  dueDate?: string;
+  balanceDue?: number;
+}
+
+// Create a wrapper component that properly uses PaymentReceiptPDF
+function PaymentReceiptButton({ payment }: { payment: Payment }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleDownload = async () => {
+    setLoading(true);
+    try {
+      // Create the PDF blob
+      const blob = await pdf(
+        <PaymentReceiptPDF
+          payment={
+            {
+              ...payment,
+              customerEmail: payment.customerEmail || null,
+              dueDate: payment.dueDate ? new Date(payment.dueDate) : null,
+              balanceDue:
+                payment.balanceDue !== undefined ? payment.balanceDue : null,
+              createdAt:
+                typeof payment.createdAt === "string"
+                  ? new Date(payment.createdAt)
+                  : payment.createdAt,
+            } as any
+          }
+        />
+      ).toBlob();
+
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `payment-receipt-${payment.receiptNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Failed to download receipt. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Button
+      size="sm"
+      onClick={handleDownload}
+      disabled={loading}
+      className="bg-green-600 hover:bg-green-700 text-white"
+    >
+      {loading ? (
+        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+      ) : (
+        <Download className="h-4 w-4" />
+      )}
+    </Button>
+  );
 }
 
 export default function PaymentManager() {
   const [activeTab, setActiveTab] = useState("new-payment");
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [fetchLoading, setFetchLoading] = useState(false);
   const [nextReceiptNumber, setNextReceiptNumber] = useState<string>("");
   const [syncing, setSyncing] = useState(false);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
 
-  // Form state
+  // Complete form state with all fields
   const [formData, setFormData] = useState({
     customerName: "",
     customerNumber: "",
+    customerEmail: "",
     amount: "",
     paymentMethod: "" as Payment["paymentMethod"] | "",
     transactionId: "",
+    dueDate: "",
+    status: "DUE" as Payment["status"],
+    balanceDue: "",
   });
 
-  // Load payments from database on component mount and when search changes
+  // Calculate status counts
+  const statusCounts = {
+    COMPLETED: payments.filter((payment) => payment.status === "COMPLETED")
+      .length,
+    DUE: payments.filter((payment) => payment.status === "DUE").length,
+    OVERDUE: payments.filter((payment) => payment.status === "OVERDUE").length,
+  };
+
+  // Load payments and customers from database on component mount
   useEffect(() => {
     fetchPayments();
     fetchNextReceiptNumber();
-  }, [searchTerm]);
+    fetchCustomers();
+  }, []);
+
+  // Fetch payments when search term changes
+  useEffect(() => {
+    if (activeTab === "payment-history") {
+      fetchPayments();
+    }
+  }, [searchTerm, activeTab]);
+
+  const fetchCustomers = async () => {
+    try {
+      const response = await fetch("/api/customers");
+      if (response.ok) {
+        const customersData = await response.json();
+        setCustomers(customersData);
+      }
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+    }
+  };
 
   const fetchPayments = async () => {
     setFetchLoading(true);
@@ -78,6 +196,13 @@ export default function PaymentManager() {
       }
 
       const paymentsData = await response.json();
+
+      // DEBUG: Check what fields are actually coming from API
+      console.log("Payments data from API:", paymentsData);
+      if (paymentsData.length > 0) {
+        console.log("First payment fields:", Object.keys(paymentsData[0]));
+      }
+
       setPayments(paymentsData);
     } catch (error) {
       console.error("Error fetching payments:", error);
@@ -128,6 +253,16 @@ export default function PaymentManager() {
     }));
   };
 
+  const handleCustomerSelect = (customer: Customer) => {
+    setFormData((prev) => ({
+      ...prev,
+      customerName: customer.name,
+      customerNumber: customer.number,
+      customerEmail: customer.email || "",
+    }));
+    setShowCustomerDropdown(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -150,7 +285,8 @@ export default function PaymentManager() {
       });
 
       if (!receiptResponse.ok) {
-        throw new Error("Failed to generate receipt number");
+        const errorData = await receiptResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to generate receipt number");
       }
 
       const receiptData = await receiptResponse.json();
@@ -162,21 +298,28 @@ export default function PaymentManager() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          customerName: formData.customerName,
-          customerNumber: formData.customerNumber || null,
+          customerName: formData.customerName.trim(),
+          customerNumber: formData.customerNumber.trim() || null,
+          customerEmail: formData.customerEmail.trim() || null,
           amount: parseFloat(formData.amount),
           paymentMethod: formData.paymentMethod,
-          transactionId: formData.transactionId || null,
+          transactionId: formData.transactionId.trim() || null,
           receiptNumber,
+          status: formData.status,
+          dueDate: formData.dueDate || null,
+          balanceDue: formData.balanceDue
+            ? parseFloat(formData.balanceDue)
+            : null,
         }),
       });
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create payment");
+        throw new Error(responseData.error || "Failed to create payment");
       }
 
-      const newPayment = await response.json();
+      const newPayment = responseData;
 
       // Refresh the payments list and next receipt number
       await fetchPayments();
@@ -186,10 +329,19 @@ export default function PaymentManager() {
       setFormData({
         customerName: "",
         customerNumber: "",
+        customerEmail: "",
         amount: "",
         paymentMethod: "",
         transactionId: "",
+        dueDate: "",
+        status: "DUE",
+        balanceDue: "",
       });
+
+      setShowCustomerDropdown(false);
+
+      // Switch to payment history tab to see the new payment
+      setActiveTab("payment-history");
 
       alert("Payment recorded successfully!");
     } catch (error) {
@@ -257,6 +409,42 @@ export default function PaymentManager() {
     );
   };
 
+  const getStatusBadge = (status: Payment["status"]) => {
+    const config = {
+      COMPLETED: {
+        label: "Completed",
+        color: "bg-green-100 text-green-800",
+        icon: <CheckCircle className="h-3 w-3 mr-1" />,
+      },
+      DUE: {
+        label: "Due",
+        color: "bg-yellow-100 text-yellow-800",
+        icon: <CalendarClock className="h-3 w-3 mr-1" />,
+      },
+      OVERDUE: {
+        label: "Overdue",
+        color: "bg-red-100 text-red-800",
+        icon: <AlertTriangle className="h-3 w-3 mr-1" />,
+      },
+    };
+
+    // Default configuration for unknown status
+    const defaultConfig = {
+      label: "Unknown",
+      color: "bg-gray-100 text-gray-800",
+      icon: <AlertCircle className="h-3 w-3 mr-1" />,
+    };
+
+    const statusConfig = config[status] || defaultConfig;
+    const { label, color, icon } = statusConfig;
+    return (
+      <Badge variant="secondary" className={`flex items-center ${color}`}>
+        {icon}
+        {label}
+      </Badge>
+    );
+  };
+
   // Helper function to get current financial year for display
   const getCurrentFinancialYear = () => {
     const now = new Date();
@@ -269,6 +457,15 @@ export default function PaymentManager() {
       return `${year - 1}-${year}`;
     }
   };
+
+  // Filter customers based on search
+  const filteredCustomers = customers.filter(
+    (customer) =>
+      customer.name
+        .toLowerCase()
+        .includes(formData.customerName.toLowerCase()) ||
+      customer.number.includes(formData.customerName)
+  );
 
   return (
     <DashboardLayout>
@@ -302,6 +499,59 @@ export default function PaymentManager() {
           </div>
         </div>
 
+        {/* Status Count Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="bg-green-50 border-green-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-600">
+                    Completed
+                  </p>
+                  <p className="text-2xl font-bold text-green-900">
+                    {statusCounts.COMPLETED}
+                  </p>
+                </div>
+                <div className="p-3 bg-green-100 rounded-full">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-yellow-50 border-yellow-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-yellow-600">Due</p>
+                  <p className="text-2xl font-bold text-yellow-900">
+                    {statusCounts.DUE}
+                  </p>
+                </div>
+                <div className="p-3 bg-yellow-100 rounded-full">
+                  <CalendarClock className="h-6 w-6 text-yellow-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-red-50 border-red-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-red-600">Overdue</p>
+                  <p className="text-2xl font-bold text-red-900">
+                    {statusCounts.OVERDUE}
+                  </p>
+                </div>
+                <div className="p-3 bg-red-100 rounded-full">
+                  <AlertTriangle className="h-6 w-6 text-red-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="w-full p-2 bg-gray-50">
@@ -321,7 +571,7 @@ export default function PaymentManager() {
               </TabsTrigger>
             </TabsList>
 
-            {/* New Payment Tab */}
+            {/* New Payment Tab - COMPLETE FORM */}
             <TabsContent value="new-payment" className="p-6">
               <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <div className="flex items-center justify-between">
@@ -366,9 +616,8 @@ export default function PaymentManager() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* ... rest of the form remains the same ... */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Customer Name */}
+                  {/* Customer Name with Dropdown */}
                   <div className="space-y-2">
                     <Label
                       htmlFor="customerName"
@@ -377,20 +626,50 @@ export default function PaymentManager() {
                       <User className="h-4 w-4" />
                       Customer Name *
                     </Label>
-                    <Input
-                      id="customerName"
-                      value={formData.customerName}
-                      onChange={(e) =>
-                        handleInputChange("customerName", e.target.value)
-                      }
-                      placeholder="Enter customer name"
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        id="customerName"
+                        value={formData.customerName}
+                        onChange={(e) =>
+                          handleInputChange("customerName", e.target.value)
+                        }
+                        onFocus={() => setShowCustomerDropdown(true)}
+                        onBlur={() =>
+                          setTimeout(() => setShowCustomerDropdown(false), 200)
+                        }
+                        placeholder="Type customer name or select from list"
+                        required
+                      />
+                      <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+
+                      {/* Customer Dropdown */}
+                      {showCustomerDropdown && filteredCustomers.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                          {filteredCustomers.map((customer) => (
+                            <div
+                              key={customer.id}
+                              className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                              onClick={() => handleCustomerSelect(customer)}
+                            >
+                              <div className="font-medium">{customer.name}</div>
+                              <div className="text-sm text-gray-600">
+                                {customer.number}{" "}
+                                {customer.email && `• ${customer.email}`}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Customer Number */}
                   <div className="space-y-2">
-                    <Label htmlFor="customerNumber">
+                    <Label
+                      htmlFor="customerNumber"
+                      className="flex items-center gap-2"
+                    >
+                      <Phone className="h-4 w-4" />
                       Customer Phone Number
                     </Label>
                     <Input
@@ -404,16 +683,37 @@ export default function PaymentManager() {
                     />
                   </div>
 
+                  {/* Customer Email */}
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="customerEmail"
+                      className="flex items-center gap-2"
+                    >
+                      <Mail className="h-4 w-4" />
+                      Customer Email
+                    </Label>
+                    <Input
+                      id="customerEmail"
+                      type="email"
+                      value={formData.customerEmail}
+                      onChange={(e) =>
+                        handleInputChange("customerEmail", e.target.value)
+                      }
+                      placeholder="Enter email address"
+                    />
+                  </div>
+
                   {/* Amount */}
                   <div className="space-y-2">
                     <Label htmlFor="amount" className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4" />
+                      <IndianRupee className="h-4 w-4" />
                       Amount *
                     </Label>
                     <Input
                       id="amount"
                       type="number"
                       step="0.01"
+                      min="0"
                       value={formData.amount}
                       onChange={(e) =>
                         handleInputChange("amount", e.target.value)
@@ -425,7 +725,13 @@ export default function PaymentManager() {
 
                   {/* Payment Method */}
                   <div className="space-y-2">
-                    <Label htmlFor="paymentMethod">Payment Method *</Label>
+                    <Label
+                      htmlFor="paymentMethod"
+                      className="flex items-center gap-2"
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      Payment Method *
+                    </Label>
                     <Select
                       value={formData.paymentMethod}
                       onValueChange={(value: Payment["paymentMethod"]) =>
@@ -444,6 +750,61 @@ export default function PaymentManager() {
                         <SelectItem value="CARD">Card</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  {/* Status */}
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Status *</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value: Payment["status"]) =>
+                        handleInputChange("status", value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="COMPLETED">Completed</SelectItem>
+                        <SelectItem value="DUE">Due</SelectItem>
+                        <SelectItem value="OVERDUE">Overdue</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Due Date */}
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="dueDate"
+                      className="flex items-center gap-2"
+                    >
+                      <Calendar className="h-4 w-4" />
+                      Due Date
+                    </Label>
+                    <Input
+                      id="dueDate"
+                      type="date"
+                      value={formData.dueDate}
+                      onChange={(e) =>
+                        handleInputChange("dueDate", e.target.value)
+                      }
+                    />
+                  </div>
+
+                  {/* Balance Due */}
+                  <div className="space-y-2">
+                    <Label htmlFor="balanceDue">Balance Due</Label>
+                    <Input
+                      id="balanceDue"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.balanceDue}
+                      onChange={(e) =>
+                        handleInputChange("balanceDue", e.target.value)
+                      }
+                      placeholder="Enter balance due amount"
+                    />
                   </div>
 
                   {/* Transaction ID */}
@@ -467,15 +828,23 @@ export default function PaymentManager() {
                   </div>
                 </div>
 
-                <div className="flex gap-4 pt-4">
+                <div className="flex gap-4 pt-4 border-t">
                   <Button
                     type="submit"
                     disabled={loading || !nextReceiptNumber}
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    {loading
-                      ? "Processing..."
-                      : `Generate Receipt ${nextReceiptNumber}`}
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Generate Receipt {nextReceiptNumber}
+                      </>
+                    )}
                   </Button>
 
                   <Button
@@ -485,9 +854,13 @@ export default function PaymentManager() {
                       setFormData({
                         customerName: "",
                         customerNumber: "",
+                        customerEmail: "",
                         amount: "",
                         paymentMethod: "",
                         transactionId: "",
+                        dueDate: "",
+                        status: "DUE",
+                        balanceDue: "",
                       });
                     }}
                   >
@@ -497,114 +870,173 @@ export default function PaymentManager() {
               </form>
             </TabsContent>
 
-            {/* Payment History Tab - remains the same */}
             <TabsContent value="payment-history" className="p-6">
-              {/* ... payment history tab remains unchanged ... */}
               <div className="space-y-4">
                 {/* Search Bar */}
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 mb-6">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <Input
-                      placeholder="Search by customer name, phone, or receipt number..."
+                      placeholder="Search by customer name, phone, email, or receipt number..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10"
                     />
                   </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => setSearchTerm("")}
+                    disabled={!searchTerm}
+                  >
+                    Clear
+                  </Button>
                 </div>
 
-                {/* Payments List */}
+                {/* Enhanced Payments Table */}
                 {fetchLoading ? (
                   <div className="text-center py-8">
                     <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                     <p className="text-gray-600">Loading payments...</p>
                   </div>
                 ) : payments.length > 0 ? (
-                  <div className="space-y-4">
-                    {payments.map((payment) => (
-                      <Card
-                        key={payment.id}
-                        className="hover:shadow-md transition-shadow"
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="space-y-2 flex-1">
-                              <div className="flex items-center gap-4">
-                                <h3 className="font-semibold text-lg">
-                                  {payment.customerName}
-                                </h3>
-                                {getPaymentMethodBadge(payment.paymentMethod)}
-                                <Badge variant="outline" className="font-mono">
-                                  {payment.receiptNumber}
-                                </Badge>
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">Phone:</span>
-                                  <span>{payment.customerNumber || "N/A"}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">Amount:</span>
-                                  <span className="font-bold text-green-600">
-                                    ₹{payment.amount.toFixed(2)}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="h-4 w-4" />
-                                  <span>
-                                    {new Date(
-                                      payment.createdAt
-                                    ).toLocaleDateString()}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {payment.transactionId && (
-                                <div className="text-sm">
-                                  <span className="font-medium">
-                                    Transaction ID:
-                                  </span>
-                                  <span className="ml-2 font-mono text-gray-700">
-                                    {payment.transactionId}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex gap-2 ml-4">
-                              <PaymentReceiptPDF payment={payment}>
-                                {({ loading, generatePDF }) => (
-                                  <Button
-                                    size="sm"
-                                    onClick={generatePDF}
-                                    disabled={loading}
-                                    className="bg-green-600 hover:bg-green-700 text-white"
-                                  >
-                                    {loading ? (
-                                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                      <Download className="h-4 w-4 mr-2" />
-                                    )}
-                                    Download
-                                  </Button>
-                                )}
-                              </PaymentReceiptPDF>
-
-                              <Button
-                                size="sm"
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Receipt No.
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Customer Details
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Payment Info
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status & Due Date
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Transaction
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {payments.map((payment) => (
+                          <tr key={payment.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <Badge
                                 variant="outline"
-                                onClick={() => handleDeletePayment(payment.id)}
-                                className="text-red-600 border-red-200 hover:bg-red-50"
+                                className="font-mono text-sm"
                               >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                                {payment.receiptNumber}
+                              </Badge>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="space-y-1">
+                                <div className="font-medium text-gray-900">
+                                  {payment.customerName}
+                                </div>
+                                <div className="text-sm text-gray-600 flex items-center gap-1">
+                                  <Phone className="h-3 w-3" />
+                                  {payment.customerNumber || "No phone"}
+                                </div>
+                                <div className="text-sm text-gray-600 flex items-center gap-1">
+                                  <Mail className="h-3 w-3" />
+                                  {payment.customerEmail || "No email"}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="space-y-2">
+                                <div className="text-lg font-bold text-green-600">
+                                  ₹{payment.amount.toFixed(2)}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {getPaymentMethodBadge(payment.paymentMethod)}
+                                  {payment.balanceDue &&
+                                  payment.balanceDue > 0 ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-orange-600 border-orange-200"
+                                    >
+                                      Balance: ₹{payment.balanceDue.toFixed(2)}
+                                    </Badge>
+                                  ) : (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-green-600 border-green-200"
+                                    >
+                                      Fully Paid
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="space-y-2">
+                                <div>{getStatusBadge(payment.status)}</div>
+                                {payment.dueDate ? (
+                                  <div className="text-sm text-gray-600 flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    Due:{" "}
+                                    {new Date(
+                                      payment.dueDate
+                                    ).toLocaleDateString()}
+                                  </div>
+                                ) : (
+                                  <div className="text-sm text-gray-500">
+                                    No due date
+                                  </div>
+                                )}
+                                <div className="text-xs text-gray-500">
+                                  Created:{" "}
+                                  {new Date(
+                                    payment.createdAt
+                                  ).toLocaleDateString()}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm">
+                                {payment.transactionId ? (
+                                  <div className="space-y-1">
+                                    <div className="font-medium">
+                                      Transaction ID:
+                                    </div>
+                                    <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono">
+                                      {payment.transactionId}
+                                    </code>
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-500">
+                                    No transaction ID
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <div className="flex gap-2">
+                                <PaymentReceiptButton payment={payment} />
+
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    handleDeletePayment(payment.id)
+                                  }
+                                  className="text-red-600 border-red-200 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 ) : (
                   <div className="text-center py-12">

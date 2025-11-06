@@ -1,13 +1,19 @@
 // app/api/transfers/route.ts
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, TransferStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 // GET all transfers
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status") as TransferStatus | null;
+
+    const whereClause = status ? { status } : {};
+
     const transfers = await prisma.rawMaterialTransfer.findMany({
+      where: whereClause,
       include: {
         user: {
           select: { name: true, email: true },
@@ -16,6 +22,7 @@ export async function GET() {
       },
       orderBy: { createdAt: "desc" },
     });
+
     return NextResponse.json(transfers);
   } catch (error) {
     console.error("Error fetching transfers:", error);
