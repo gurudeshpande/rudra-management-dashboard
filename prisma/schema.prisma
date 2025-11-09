@@ -161,6 +161,7 @@ model RawMaterialTransfer {
   quantityRejected Float?      @default(0)
   quantityApproved Float?      @default(0)
   rejectionReason  String?
+  rejectionImages  String[] 
   
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt

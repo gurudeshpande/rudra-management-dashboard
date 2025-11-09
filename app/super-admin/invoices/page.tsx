@@ -34,6 +34,7 @@ import { AlertToaster, alert } from "@/components/ui/alert-toaster";
 
 // Define types
 interface Product {
+  stock: undefined;
   id: number;
   name: string;
   size: string;
@@ -53,6 +54,8 @@ interface InvoiceItem {
   discountedPrice: number;
   hsn?: string;
   unit?: string;
+  searchQuery: string;
+  showDropdown: boolean;
 }
 
 interface CustomerInfo {
@@ -97,6 +100,8 @@ const Invoices = () => {
       total: 0,
       discount: 0,
       discountedPrice: 0,
+      searchQuery: "",
+      showDropdown: false,
     },
   ]);
 
@@ -169,6 +174,56 @@ const Invoices = () => {
         .toLowerCase()
         .includes(bulkSearch.toLowerCase())
   );
+
+  // Filter products for custom dropdown search
+  const filteredProducts = (index: number) => {
+    const searchQuery = items[index].searchQuery.toLowerCase();
+    if (!searchQuery) return productsData;
+
+    return productsData.filter(
+      (product) =>
+        product.name.toLowerCase().includes(searchQuery) ||
+        product.size.toLowerCase().includes(searchQuery) ||
+        product.category.toLowerCase().includes(searchQuery) ||
+        product.id.toString().includes(searchQuery)
+    );
+  };
+
+  // Handle search change for product dropdown
+  const handleSearchChange = (index: number, query: string) => {
+    const newItems = [...items];
+    newItems[index].searchQuery = query;
+    setItems(newItems);
+  };
+
+  // Handle dropdown toggle
+  const handleDropdownToggle = (index: number, show: boolean) => {
+    const newItems = [...items];
+    newItems[index].showDropdown = show;
+    // Close other dropdowns
+    if (show) {
+      newItems.forEach((item, i) => {
+        if (i !== index) item.showDropdown = false;
+      });
+    }
+    setItems(newItems);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!(event.target as Element).closest(".custom-dropdown")) {
+        const newItems = items.map((item) => ({
+          ...item,
+          showDropdown: false,
+        }));
+        setItems(newItems);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [items]);
 
   // Handle customer selection from dropdown
   const handleCustomerSelect = (customer: CustomerInfo) => {
@@ -482,6 +537,8 @@ const Invoices = () => {
         total: 0,
         discount: 0,
         discountedPrice: 0,
+        searchQuery: "",
+        showDropdown: false,
       },
     ]);
   };
@@ -550,6 +607,8 @@ const Invoices = () => {
           originalPrice: product.price,
           total: finalTotal,
           discountedPrice: product.price * item.quantity - finalTotal,
+          searchQuery: `${product.name} ${product.size}`,
+          showDropdown: false,
         };
       }
       return item;
@@ -626,6 +685,8 @@ const Invoices = () => {
       total: bp.product.price * bp.quantity,
       discount: 0,
       discountedPrice: 0,
+      searchQuery: `${bp.product.name} ${bp.product.size}`,
+      showDropdown: false,
     }));
 
     // Add new items to existing items
@@ -814,6 +875,8 @@ const Invoices = () => {
           total: 0,
           discount: 0,
           discountedPrice: 0,
+          searchQuery: "",
+          showDropdown: false,
         },
       ]);
       setAdvancePayment(0);
@@ -1149,27 +1212,164 @@ const Invoices = () => {
                     key={index}
                     className="grid grid-cols-11 gap-3 items-center py-2 border-b border-gray-100 last:border-b-0"
                   >
-                    {/* Product Selection */}
-                    <div className="col-span-4">
-                      <select
-                        value={item.productId || ""}
-                        onChange={(e) => {
-                          const product = productsData.find(
-                            (p) => p.id === parseInt(e.target.value)
-                          );
-                          if (product) {
-                            handleProductSelect(index, product);
-                          }
-                        }}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Select a product</option>
-                        {productsData.map((product) => (
-                          <option key={product.id} value={product.id}>
-                            {product.name} {product.size} - ₹{product.price}
-                          </option>
-                        ))}
-                      </select>
+                    {/* Product Selection with Custom Search Dropdown */}
+                    <div className="col-span-4 custom-dropdown">
+                      <div className="relative">
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder="Search products..."
+                            value={item.searchQuery}
+                            onChange={(e) =>
+                              handleSearchChange(index, e.target.value)
+                            }
+                            onFocus={() => handleDropdownToggle(index, true)}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                          />
+                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                            <ChevronDown className="h-4 w-4" />
+                          </div>
+                        </div>
+
+                        {/* Dropdown Menu */}
+                        {item.showDropdown && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                            {/* Search Input inside Dropdown */}
+                            <div className="p-2 border-b">
+                              <div className="relative">
+                                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <input
+                                  type="text"
+                                  placeholder="Type to search products..."
+                                  value={item.searchQuery}
+                                  onChange={(e) =>
+                                    handleSearchChange(index, e.target.value)
+                                  }
+                                  className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  autoFocus
+                                />
+                              </div>
+                            </div>
+
+                            {/* Product List */}
+                            <div className="py-1">
+                              {filteredProducts(index).length === 0 ? (
+                                <div className="px-3 py-2 text-sm text-gray-500">
+                                  No products found
+                                </div>
+                              ) : (
+                                filteredProducts(index).map((product) => (
+                                  <div
+                                    key={product.id}
+                                    onClick={() => {
+                                      handleProductSelect(index, product);
+                                    }}
+                                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 flex justify-between items-center ${
+                                      item.productId === product.id
+                                        ? "bg-blue-50 text-blue-700"
+                                        : ""
+                                    }`}
+                                  >
+                                    <div>
+                                      <div className="font-medium">
+                                        {product.name} {product.size}
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        ₹{product.price}
+                                      </div>
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {product.quantity !== undefined && (
+                                        <span
+                                          className={
+                                            product.quantity === 0
+                                              ? "text-red-600"
+                                              : product.quantity < 10
+                                              ? "text-orange-600"
+                                              : "text-green-600"
+                                          }
+                                        >
+                                          Qty: {product.quantity}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Selected Product Info */}
+                      {/* {item.productId && (
+                        <div className="mt-2 p-2 bg-gray-50 rounded-md border">
+                          <div className="flex justify-between items-center text-sm">
+                            <div>
+                              <span className="font-medium">
+                                {
+                                  productsData.find(
+                                    (p) => p.id === item.productId
+                                  )?.name
+                                }
+                              </span>
+                              <span className="text-gray-600 ml-2">
+                                {
+                                  productsData.find(
+                                    (p) => p.id === item.productId
+                                  )?.size
+                                }
+                              </span>
+                            </div>
+                            <div className="text-gray-600">₹{item.price}</div>
+                          </div>
+                        </div>
+                      )} */}
+
+                      {/* Stock warning for selected product */}
+                      {item.productId && item.quantity > 0 && (
+                        <div className="mt-1">
+                          {(() => {
+                            const selectedProduct = productsData.find(
+                              (p) => p.id === item.productId
+                            );
+                            if (
+                              !selectedProduct ||
+                              selectedProduct.quantity === undefined
+                            )
+                              return null;
+
+                            const quantity = selectedProduct.quantity;
+                            const required = item.quantity;
+
+                            if (quantity === 0) {
+                              return (
+                                <div className="text-xs text-red-600 font-medium">
+                                  Out of Quantity
+                                </div>
+                              );
+                            } else if (required > quantity) {
+                              return (
+                                <div className="text-xs text-orange-600">
+                                  Only {quantity} available
+                                </div>
+                              );
+                            } else if (quantity < 10) {
+                              return (
+                                <div className="text-xs text-blue-600">
+                                  Low Quantity: {quantity} left
+                                </div>
+                              );
+                            } else {
+                              return (
+                                <div className="text-xs text-green-600">
+                                  {quantity} in Quantity
+                                </div>
+                              );
+                            }
+                          })()}
+                        </div>
+                      )}
                     </div>
 
                     {/* Quantity */}
@@ -1178,13 +1378,10 @@ const Invoices = () => {
                         type="number"
                         min="1"
                         value={item.quantity}
-                        onChange={(e) =>
-                          handleItemChange(
-                            index,
-                            "quantity",
-                            parseInt(e.target.value) || 1
-                          )
-                        }
+                        onChange={(e) => {
+                          const newQuantity = parseInt(e.target.value) || 1;
+                          handleItemChange(index, "quantity", newQuantity);
+                        }}
                         className="text-center"
                       />
                     </div>
@@ -1205,7 +1402,7 @@ const Invoices = () => {
                             )
                           }
                           className="text-right"
-                          readOnly // Rate is now read-only since discount applies to total
+                          readOnly
                         />
                       </div>
                     </div>
@@ -1283,49 +1480,6 @@ const Invoices = () => {
                 <CardTitle className="text-lg">Invoice Settings</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Overall Discount */}
-                {/* <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <Checkbox
-                      id="applyOverallDiscount"
-                      checked={applyOverallDiscount}
-                      onCheckedChange={handleOverallDiscountChange}
-                    />
-                    <Label
-                      htmlFor="applyOverallDiscount"
-                      className="cursor-pointer"
-                    >
-                      Apply Overall Discount
-                    </Label>
-                  </div>
-
-                  {applyOverallDiscount && (
-                    <div className="space-y-2 pl-8">
-                      <Label htmlFor="overallDiscountPercentage">
-                        Overall Discount Percentage (0-100%)
-                      </Label>
-                      <Input
-                        id="overallDiscountPercentage"
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={overallDiscountPercentage}
-                        onChange={(e) => {
-                          let value = parseInt(e.target.value) || 0;
-                          if (value > 100) value = 100;
-                          if (value < 0) value = 0;
-                          setOverallDiscountPercentage(value);
-                        }}
-                        placeholder="0"
-                      />
-                      <p className="text-xs text-gray-500">
-                        This discount will be applied to all items after
-                        individual discounts
-                      </p>
-                    </div>
-                  )}
-                </div> */}
-
                 {/* GST Settings */}
                 <div className="flex items-center space-x-3">
                   <Checkbox

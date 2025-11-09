@@ -49,7 +49,7 @@ export function RawMaterialForm({
   });
 
   const [quantityMode, setQuantityMode] = useState<"set" | "add" | "subtract">(
-    "set"
+    "add"
   );
   const [quantityInput, setQuantityInput] = useState("");
 
@@ -188,26 +188,30 @@ export function RawMaterialForm({
                   setQuantityMode(value as "set" | "add" | "subtract")
                 }
               >
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="set">Set Quantity</TabsTrigger>
-                  <TabsTrigger value="add">Add Stock</TabsTrigger>
-                  <TabsTrigger value="subtract">Remove Stock</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2">
+                  {" "}
+                  {/* Changed to 2 since you removed "set" */}
+                  <TabsTrigger
+                    value="add"
+                    className={
+                      quantityMode === "add"
+                        ? "bg-green-50 text-green-700 border-green-200 data-[state=active]:bg-green-100 data-[state=active]:text-green-800 data-[state=active]:border-green-300"
+                        : "data-[state=active]:bg-gray-100 data-[state=active]:text-gray-800"
+                    }
+                  >
+                    Add Stock
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="subtract"
+                    className={
+                      quantityMode === "subtract"
+                        ? "bg-red-50 text-red-700 border-red-200 data-[state=active]:bg-red-100 data-[state=active]:text-red-800 data-[state=active]:border-red-300"
+                        : "data-[state=active]:bg-gray-100 data-[state=active]:text-gray-800"
+                    }
+                  >
+                    Remove Stock
+                  </TabsTrigger>
                 </TabsList>
-
-                <TabsContent value="set" className="space-y-2">
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="Enter new total quantity"
-                    value={quantityInput}
-                    onChange={(e) => setQuantityInput(e.target.value)}
-                    required
-                  />
-                  <p className="text-xs text-gray-500">
-                    This will replace the current quantity
-                  </p>
-                </TabsContent>
 
                 <TabsContent value="add" className="space-y-2">
                   <Input
@@ -271,13 +275,13 @@ export function RawMaterialForm({
             )}
 
             {/* Debug info - remove in production */}
-            {process.env.NODE_ENV === "development" && (
+            {/* {process.env.NODE_ENV === "development" && (
               <div className="p-2 bg-gray-100 rounded text-xs">
                 <div>Debug: formData.quantity = {formData.quantity}</div>
                 <div>Debug: quantityInput = {quantityInput}</div>
                 <div>Debug: quantityMode = {quantityMode}</div>
               </div>
-            )}
+            )} */}
           </div>
 
           <div className="flex justify-end gap-3 pt-4">

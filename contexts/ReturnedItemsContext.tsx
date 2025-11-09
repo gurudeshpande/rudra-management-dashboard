@@ -23,6 +23,7 @@ interface ReturnedItem {
   quantityRejected?: number;
   quantityApproved?: number;
   rejectionReason?: string;
+  rejectionImages?: string[];
 }
 
 interface ReturnedItemsContextType {
@@ -79,6 +80,7 @@ export const ReturnedItemsProvider: React.FC<{ children: ReactNode }> = ({
             userName: transfer.user.name,
             reason: transfer.notes || "No reason provided",
             returnedAt: transfer.updatedAt,
+            rejectionImages: transfer.rejectionImages,
             status: "PENDING_REPAIR", // UI status for display
             quantityRejected: transfer.quantityRejected,
             quantityApproved: transfer.quantityApproved,

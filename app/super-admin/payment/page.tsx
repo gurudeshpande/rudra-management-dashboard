@@ -1,7 +1,7 @@
 // components/payment/PaymentManager.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,8 +30,6 @@ import {
   Mail,
   Phone,
   IndianRupee,
-  Clock,
-  AlertCircle,
   CheckCircle,
   CalendarClock,
   AlertTriangle,
@@ -72,7 +70,6 @@ function PaymentReceiptButton({ payment }: { payment: Payment }) {
   const handleDownload = async () => {
     setLoading(true);
     try {
-      // Create the PDF blob
       const blob = await pdf(
         <PaymentReceiptPDF
           payment={
@@ -91,7 +88,6 @@ function PaymentReceiptButton({ payment }: { payment: Payment }) {
         />
       ).toBlob();
 
-      // Create download link
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -134,6 +130,9 @@ export default function PaymentManager() {
   const [nextReceiptNumber, setNextReceiptNumber] = useState<string>("");
   const [syncing, setSyncing] = useState(false);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [selectedCustomerFromDropdown, setSelectedCustomerFromDropdown] =
+    useState(false);
+  const customerInputRef = useRef<HTMLInputElement>(null);
 
   // Complete form state with all fields
   const [formData, setFormData] = useState({
@@ -172,7 +171,7 @@ export default function PaymentManager() {
 
   const fetchCustomers = async () => {
     try {
-      const response = await fetch("/api/customers");
+      const response = await fetch("/api/payments/customers");
       if (response.ok) {
         const customersData = await response.json();
         setCustomers(customersData);
@@ -196,13 +195,6 @@ export default function PaymentManager() {
       }
 
       const paymentsData = await response.json();
-
-      // DEBUG: Check what fields are actually coming from API
-      console.log("Payments data from API:", paymentsData);
-      if (paymentsData.length > 0) {
-        console.log("First payment fields:", Object.keys(paymentsData[0]));
-      }
-
       setPayments(paymentsData);
     } catch (error) {
       console.error("Error fetching payments:", error);
@@ -251,16 +243,51 @@ export default function PaymentManager() {
       ...prev,
       [field]: value,
     }));
+
+    // If user starts typing in customer name field manually, reset the selected customer flag
+    if (field === "customerName" && !showCustomerDropdown) {
+      setSelectedCustomerFromDropdown(false);
+    }
   };
 
   const handleCustomerSelect = (customer: Customer) => {
-    setFormData((prev) => ({
-      ...prev,
+    setFormData({
       customerName: customer.name,
-      customerNumber: customer.number,
+      customerNumber: customer.number || "",
       customerEmail: customer.email || "",
-    }));
+      amount: formData.amount,
+      paymentMethod: formData.paymentMethod,
+      transactionId: formData.transactionId,
+      dueDate: formData.dueDate,
+      status: formData.status,
+      balanceDue: formData.balanceDue,
+    });
+    setSelectedCustomerFromDropdown(true);
     setShowCustomerDropdown(false);
+
+    // Focus on amount field after customer selection for better UX
+    setTimeout(() => {
+      const amountInput = document.getElementById("amount");
+      if (amountInput) {
+        (amountInput as HTMLInputElement).focus();
+      }
+    }, 100);
+  };
+
+  const handleCustomerInputFocus = () => {
+    setShowCustomerDropdown(true);
+  };
+
+  const handleCustomerInputBlur = () => {
+    // Delay hiding dropdown to allow for click selection
+    setTimeout(() => {
+      setShowCustomerDropdown(false);
+    }, 200);
+  };
+
+  const handleManualInput = () => {
+    // When user manually types in contact fields, mark as not selected from dropdown
+    setSelectedCustomerFromDropdown(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -319,11 +346,10 @@ export default function PaymentManager() {
         throw new Error(responseData.error || "Failed to create payment");
       }
 
-      const newPayment = responseData;
-
       // Refresh the payments list and next receipt number
       await fetchPayments();
       await fetchNextReceiptNumber();
+      await fetchCustomers(); // Refresh customers list to include the new one
 
       // Reset form
       setFormData({
@@ -338,6 +364,7 @@ export default function PaymentManager() {
         balanceDue: "",
       });
 
+      setSelectedCustomerFromDropdown(false);
       setShowCustomerDropdown(false);
 
       // Switch to payment history tab to see the new payment
@@ -379,26 +406,13 @@ export default function PaymentManager() {
 
   const getPaymentMethodBadge = (method: Payment["paymentMethod"]) => {
     const config = {
-      UPI: {
-        label: "UPI",
-        variant: "default" as const,
-        color: "bg-blue-100 text-blue-800",
-      },
-      CASH: {
-        label: "Cash",
-        variant: "secondary" as const,
-        color: "bg-green-100 text-green-800",
-      },
+      UPI: { label: "UPI", color: "bg-blue-100 text-blue-800" },
+      CASH: { label: "Cash", color: "bg-green-100 text-green-800" },
       BANK_TRANSFER: {
         label: "Bank Transfer",
-        variant: "outline" as const,
         color: "bg-purple-100 text-purple-800",
       },
-      CARD: {
-        label: "Card",
-        variant: "destructive" as const,
-        color: "bg-orange-100 text-orange-800",
-      },
+      CARD: { label: "Card", color: "bg-orange-100 text-orange-800" },
     };
 
     const { label, color } = config[method];
@@ -428,14 +442,7 @@ export default function PaymentManager() {
       },
     };
 
-    // Default configuration for unknown status
-    const defaultConfig = {
-      label: "Unknown",
-      color: "bg-gray-100 text-gray-800",
-      icon: <AlertCircle className="h-3 w-3 mr-1" />,
-    };
-
-    const statusConfig = config[status] || defaultConfig;
+    const statusConfig = config[status];
     const { label, color, icon } = statusConfig;
     return (
       <Badge variant="secondary" className={`flex items-center ${color}`}>
@@ -464,7 +471,10 @@ export default function PaymentManager() {
       customer.name
         .toLowerCase()
         .includes(formData.customerName.toLowerCase()) ||
-      customer.number.includes(formData.customerName)
+      customer.number.includes(formData.customerName) ||
+      customer.email
+        ?.toLowerCase()
+        .includes(formData.customerName.toLowerCase())
   );
 
   return (
@@ -501,51 +511,51 @@ export default function PaymentManager() {
 
         {/* Status Count Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="bg-green-50 border-green-200">
-            <CardContent className="p-6">
+          <Card className="bg-green-50 border-green-200 py-1">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-green-600">
+                  <p className="text-xs font-medium text-green-600">
                     Completed
                   </p>
-                  <p className="text-2xl font-bold text-green-900">
+                  <p className="text-xl font-bold text-green-900">
                     {statusCounts.COMPLETED}
                   </p>
                 </div>
-                <div className="p-3 bg-green-100 rounded-full">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
+                <div className="p-2 bg-green-100 rounded-full">
+                  <CheckCircle className="h-4=2 w-4 text-green-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-yellow-50 border-yellow-200">
-            <CardContent className="p-6">
+          <Card className="bg-yellow-50 border-yellow-200 py-1">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-yellow-600">Due</p>
-                  <p className="text-2xl font-bold text-yellow-900">
+                  <p className="text-xs font-medium text-yellow-600">Due</p>
+                  <p className="text-xl font-bold text-yellow-900">
                     {statusCounts.DUE}
                   </p>
                 </div>
-                <div className="p-3 bg-yellow-100 rounded-full">
-                  <CalendarClock className="h-6 w-6 text-yellow-600" />
+                <div className="p-2 bg-yellow-100 rounded-full">
+                  <CalendarClock className="h-4 w-4 text-yellow-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-red-50 border-red-200">
-            <CardContent className="p-6">
+          <Card className="bg-red-50 border-red-200 py-1">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-red-600">Overdue</p>
-                  <p className="text-2xl font-bold text-red-900">
+                  <p className="text-xs font-medium text-red-600">Overdue</p>
+                  <p className="text-xl font-bold text-red-900">
                     {statusCounts.OVERDUE}
                   </p>
                 </div>
-                <div className="p-3 bg-red-100 rounded-full">
-                  <AlertTriangle className="h-6 w-6 text-red-600" />
+                <div className="p-2 bg-red-100 rounded-full">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
                 </div>
               </div>
             </CardContent>
@@ -617,8 +627,8 @@ export default function PaymentManager() {
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Customer Name with Dropdown */}
-                  <div className="space-y-2">
+                  {/* Customer Name with Enhanced Dropdown */}
+                  <div className="space-y-2 md:col-span-2">
                     <Label
                       htmlFor="customerName"
                       className="flex items-center gap-2"
@@ -628,39 +638,62 @@ export default function PaymentManager() {
                     </Label>
                     <div className="relative">
                       <Input
+                        ref={customerInputRef}
                         id="customerName"
                         value={formData.customerName}
                         onChange={(e) =>
                           handleInputChange("customerName", e.target.value)
                         }
-                        onFocus={() => setShowCustomerDropdown(true)}
-                        onBlur={() =>
-                          setTimeout(() => setShowCustomerDropdown(false), 200)
-                        }
-                        placeholder="Type customer name or select from list"
+                        onFocus={handleCustomerInputFocus}
+                        onBlur={handleCustomerInputBlur}
+                        placeholder="Start typing customer name or click to see all customers"
                         required
+                        className="pr-10"
                       />
-                      <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
+                      <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400 pointer-events-none" />
 
-                      {/* Customer Dropdown */}
-                      {showCustomerDropdown && filteredCustomers.length > 0 && (
+                      {/* Enhanced Customer Dropdown */}
+                      {showCustomerDropdown && (
                         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                          {filteredCustomers.map((customer) => (
-                            <div
-                              key={customer.id}
-                              className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
-                              onClick={() => handleCustomerSelect(customer)}
-                            >
-                              <div className="font-medium">{customer.name}</div>
-                              <div className="text-sm text-gray-600">
-                                {customer.number}{" "}
-                                {customer.email && `• ${customer.email}`}
+                          {filteredCustomers.length > 0 ? (
+                            filteredCustomers.map((customer) => (
+                              <div
+                                key={customer.id}
+                                className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                                onClick={() => handleCustomerSelect(customer)}
+                              >
+                                <div className="font-medium text-gray-900">
+                                  {customer.name}
+                                </div>
+                                {/* <div className="text-sm text-gray-600 mt-1">
+                                  <div className="flex items-center gap-2">
+                                    <Phone className="h-3 w-3" />
+                                    {customer.number || "No phone"}
+                                  </div>
+                                  {customer.email && (
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <Mail className="h-3 w-3" />
+                                      {customer.email}
+                                    </div>
+                                  )}
+                                </div> */}
                               </div>
+                            ))
+                          ) : (
+                            <div className="px-4 py-3 text-gray-500 text-sm">
+                              {formData.customerName
+                                ? "No customers found"
+                                : "Start typing to search customers"}
                             </div>
-                          ))}
+                          )}
                         </div>
                       )}
                     </div>
+                    <p className="text-xs text-gray-500">
+                      {selectedCustomerFromDropdown
+                        ? "✓ Customer selected from list"
+                        : "Select a customer from dropdown or enter new customer details"}
+                    </p>
                   </div>
 
                   {/* Customer Number */}
@@ -676,10 +709,20 @@ export default function PaymentManager() {
                       id="customerNumber"
                       type="tel"
                       value={formData.customerNumber}
-                      onChange={(e) =>
-                        handleInputChange("customerNumber", e.target.value)
+                      onChange={(e) => {
+                        handleInputChange("customerNumber", e.target.value);
+                        handleManualInput();
+                      }}
+                      placeholder={
+                        selectedCustomerFromDropdown
+                          ? "Auto-filled from selected customer"
+                          : "Enter phone number for new customer"
                       }
-                      placeholder="Enter phone number"
+                      className={
+                        selectedCustomerFromDropdown && formData.customerNumber
+                          ? "bg-green-50 border-green-200"
+                          : ""
+                      }
                     />
                   </div>
 
@@ -696,10 +739,20 @@ export default function PaymentManager() {
                       id="customerEmail"
                       type="email"
                       value={formData.customerEmail}
-                      onChange={(e) =>
-                        handleInputChange("customerEmail", e.target.value)
+                      onChange={(e) => {
+                        handleInputChange("customerEmail", e.target.value);
+                        handleManualInput();
+                      }}
+                      placeholder={
+                        selectedCustomerFromDropdown
+                          ? "Auto-filled from selected customer"
+                          : "Enter email for new customer"
                       }
-                      placeholder="Enter email address"
+                      className={
+                        selectedCustomerFromDropdown && formData.customerEmail
+                          ? "bg-green-50 border-green-200"
+                          : ""
+                      }
                     />
                   </div>
 
@@ -842,7 +895,9 @@ export default function PaymentManager() {
                     ) : (
                       <>
                         <Plus className="h-4 w-4 mr-2" />
-                        Generate Receipt {nextReceiptNumber}
+                        {selectedCustomerFromDropdown
+                          ? "Create Payment"
+                          : "Create New Customer & Payment"}
                       </>
                     )}
                   </Button>
@@ -862,6 +917,8 @@ export default function PaymentManager() {
                         status: "DUE",
                         balanceDue: "",
                       });
+                      setSelectedCustomerFromDropdown(false);
+                      setShowCustomerDropdown(false);
                     }}
                   >
                     Clear Form
@@ -870,6 +927,7 @@ export default function PaymentManager() {
               </form>
             </TabsContent>
 
+            {/* Payment History Tab */}
             <TabsContent value="payment-history" className="p-6">
               <div className="space-y-4">
                 {/* Search Bar */}

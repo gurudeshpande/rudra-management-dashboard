@@ -40,6 +40,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 interface RawMaterial {
   id: number;
@@ -68,6 +69,7 @@ interface Transfer {
   quantityRejected?: number;
   quantityApproved?: number;
   rejectionReason?: string;
+  rejectionImages?: string[];
   createdAt: string;
   updatedAt: string;
   user: {
@@ -136,6 +138,7 @@ export default function UserManufacturingPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [requiredMaterials, setRequiredMaterials] = useState<any[]>([]);
+  const [rejectionImages, setRejectionImages] = useState<string[]>([]);
 
   // Get JWT token from localStorage
   const getToken = () => {
@@ -342,6 +345,7 @@ export default function UserManufacturingPage() {
             quantityReturned: rejectQuantity,
             rejectionType: rejectionType,
             notes: rejectNotes,
+            rejectionImages: rejectionImages, // Add images to the request
           }),
         }
       );
@@ -358,6 +362,7 @@ export default function UserManufacturingPage() {
       setRejectNotes("");
       setRejectQuantity(0);
       setRejectionType("damaged");
+      setRejectionImages([]); // Reset images
       setSelectedTransfer(null);
       await fetchData();
 
@@ -495,9 +500,9 @@ export default function UserManufacturingPage() {
     setRejectNotes("");
     setRejectQuantity(0);
     setRejectionType("damaged");
+    setRejectionImages([]); // Reset images
     setSelectedTransfer(null);
   };
-
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -2121,6 +2126,20 @@ export default function UserManufacturingPage() {
                   <span>Required for audit trail</span>
                   <span>{rejectNotes.length}/500</span>
                 </div>
+              </div>
+
+              {/* Image Upload Section */}
+              <div className="space-y-3">
+                <ImageUpload
+                  onImagesChange={setRejectionImages}
+                  maxImages={5}
+                  maxSize={5}
+                />
+                {rejectionImages.length > 0 && (
+                  <p className="text-xs text-green-600">
+                    {rejectionImages.length} image(s) attached as evidence
+                  </p>
+                )}
               </div>
 
               {/* Final Summary */}

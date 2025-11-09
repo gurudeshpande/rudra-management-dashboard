@@ -49,7 +49,13 @@ export async function PUT(
     const { id } = await params;
     const transferId = parseInt(id);
     const body = await request.json();
-    const { status, notes, quantityReturned, rejectionType } = body;
+    const {
+      status,
+      notes,
+      quantityReturned,
+      rejectionType,
+      rejectionImages, // Add this field
+    } = body;
 
     // Update valid statuses to include REPAIRING and FINISHED
     const validStatuses = [
@@ -117,6 +123,7 @@ export async function PUT(
             notes: notes || "Material approved and marked as used",
             quantityApproved: existingTransfer.quantityIssued,
             quantityRejected: 0,
+            rejectionImages: [], // Clear any rejection images for approved transfers
           },
           include: {
             user: { select: { name: true, email: true } },
@@ -186,6 +193,7 @@ export async function PUT(
             quantityRejected: returnQuantity,
             quantityApproved: approvedQuantity,
             rejectionReason: rejectionType,
+            rejectionImages: rejectionImages || [], // Store the rejection images
           },
           include: {
             user: { select: { name: true, email: true } },
@@ -221,6 +229,7 @@ export async function PUT(
           notes,
           quantityRejected: 0,
           quantityApproved: 0,
+          rejectionImages: [], // Clear images for cancelled transfers
         },
         include: {
           user: { select: { name: true, email: true } },
