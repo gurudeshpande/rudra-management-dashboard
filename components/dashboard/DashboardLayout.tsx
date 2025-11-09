@@ -29,6 +29,10 @@ import {
   AlertTriangle,
   Wrench,
   CheckCircle,
+  ImageIcon,
+  History,
+  DollarSign,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
@@ -163,9 +167,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         icon: BarChart2Icon,
       },
       {
-        name: "Payment Receipt",
-        href: "/super-admin/payment",
-        icon: LucidePlaySquare,
+        name: "Payment",
+        href: "#",
+        icon: DollarSign,
+        subItems: [
+          {
+            name: "Create Payment",
+            href: "/super-admin/payment",
+            icon: PlusCircle,
+          },
+          {
+            name: "Payment History",
+            href: "/super-admin/payment/history",
+            icon: History,
+          },
+        ],
       },
     ],
     ADMIN: [
@@ -180,6 +196,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         icon: Package,
       },
       { name: "Invoices", href: "/admin/invoices", icon: FileText },
+      {
+        name: "Payment",
+        href: "#",
+        icon: DollarSign,
+        subItems: [
+          {
+            name: "Create Payment",
+            href: "/admin/payment/create",
+            icon: PlusCircle,
+          },
+          {
+            name: "Payment History",
+            href: "/admin/payment/history",
+            icon: History,
+          },
+        ],
+      },
     ],
     USER: [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -188,6 +221,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         name: "Manifacturing",
         href: "/user/manifacturing",
         icon: ShoppingCart,
+      },
+      {
+        name: "Payment",
+        href: "#",
+        icon: DollarSign,
+        subItems: [
+          {
+            name: "Create Payment",
+            href: "/user/payment/create",
+            icon: PlusCircle,
+          },
+          {
+            name: "Payment History",
+            href: "/user/payment/history",
+            icon: History,
+          },
+        ],
       },
     ],
   };
@@ -447,19 +497,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
 
             <div className="flex items-center space-x-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative"
-                onClick={() => setShowReturnedItemsPopup(true)}
-              >
-                <AlertTriangle className="h-5 w-5" />
-                {pendingRepairCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
-                    {pendingRepairCount}
-                  </span>
-                )}
-              </Button>
+              {userData?.role === "SUPER_ADMIN" ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative"
+                  onClick={() => setShowReturnedItemsPopup(true)}
+                >
+                  <AlertTriangle className="h-5 w-5" />
+                  {pendingRepairCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
+                      {pendingRepairCount}
+                    </span>
+                  )}
+                </Button>
+              ) : (
+                ""
+              )}
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -527,13 +581,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </main>
       </div>
       {/* Returned Items Popup */}
-      <ReturnedItemsPopup />
+      {userData?.role === "SUPER_ADMIN" ? <ReturnedItemsPopup /> : ""}
     </div>
   );
 }
 
 // Returned Items Popup Component
-// In your DashboardLayout component, update the ReturnedItemsPopup:
 const ReturnedItemsPopup = () => {
   const {
     returnedItems,
@@ -548,11 +601,10 @@ const ReturnedItemsPopup = () => {
     Record<number, "repairing" | "finishing" | null>
   >({});
 
-  console.log(returnedItems, "returenedItems");
+  console.log(returnedItems, "returnedItems");
 
   const handleClosePopup = () => {
     setShowReturnedItemsPopup(false);
-    // Mark that user has seen the popup for this session
     localStorage.setItem("hasSeenReturnedItemsPopup", "true");
   };
 
@@ -563,7 +615,6 @@ const ReturnedItemsPopup = () => {
     setLoadingStates((prev) => ({ ...prev, [itemId]: "repairing" }));
     try {
       await markAsRepairing(itemId);
-      // The fetchReturnedItems will be called automatically by markAsRepairing
     } catch (error) {
       alert(error instanceof Error ? error.message : "Failed to start repair");
     } finally {
@@ -578,7 +629,6 @@ const ReturnedItemsPopup = () => {
     setLoadingStates((prev) => ({ ...prev, [itemId]: "finishing" }));
     try {
       await markAsFinished(itemId);
-      // The fetchReturnedItems will be called automatically by markAsFinished
     } catch (error) {
       alert(error instanceof Error ? error.message : "Failed to finish repair");
     } finally {
@@ -614,99 +664,153 @@ const ReturnedItemsPopup = () => {
         </div>
 
         <div className="max-h-[60vh] overflow-y-auto">
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-6">
             {returnedItems.map((item) => (
               <div
                 key={item.id}
-                className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+                className="border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow bg-white"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Package className="h-6 w-6 text-red-600" />
-                      <div>
-                        <h3 className="font-semibold text-lg text-gray-900">
-                          {item.rawMaterialName}
-                        </h3>
-                        <p className="text-sm text-gray-600">
-                          Returned by: {item.userName}
-                        </p>
+                <div className="flex flex-col lg:flex-row gap-5">
+                  {/* Left Section - Item Details */}
+                  <div className="flex-1 space-y-4">
+                    {/* Header with basic info */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <Package className="h-6 w-6 text-red-600 flex-shrink-0" />
+                        <div>
+                          <h3 className="font-semibold text-lg text-gray-900">
+                            {item.rawMaterialName}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            Returned by: {item.userName}
+                          </p>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm mb-3">
-                      <div>
-                        <span className="font-medium">Quantity Returned:</span>
-                        <Badge variant="outline" className="ml-2">
-                          {item.quantityRejected} {item.unit}
-                        </Badge>
-                      </div>
-                      <div>
-                        <span className="font-medium">Returned:</span>
-                        <span className="text-gray-600 ml-2">
-                          {new Date(item.returnedAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      {/* {item.quantityApproved && item.quantityApproved > 0 && (
-                        <div>
-                          <span className="font-medium text-green-600">
-                            Approved:
+                    {/* Details Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-700">
+                            Quantity Returned:
                           </span>
-                          <span className="text-green-600 ml-2">
-                            {item.quantityApproved} {item.unit}
+                          <Badge variant="outline" className="bg-amber-50">
+                            {item.quantityRejected} {item.unit}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-600">
+                            {new Date(item.returnedAt).toLocaleDateString()}
                           </span>
                         </div>
-                      )} */}
+                      </div>
                       {item.rejectionReason && (
-                        <div>
-                          <span className="font-medium">Reason:</span>
-                          <span className="text-gray-600 ml-2 capitalize">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-700">
+                            Reason:
+                          </span>
+                          <span className="text-gray-600 capitalize">
                             {item.rejectionReason.replace("_", " ")}
                           </span>
                         </div>
                       )}
                     </div>
 
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <span className="font-medium text-sm">Notes: </span>
-                      <span className="text-gray-600 text-sm">
-                        {item.reason}
-                      </span>
-                    </div>
+                    {/* Notes */}
+                    {item.reason && (
+                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                        <div className="flex items-start gap-2">
+                          <FileText className="h-4 w-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <span className="font-medium text-sm text-gray-700">
+                              Notes:{" "}
+                            </span>
+                            <span className="text-gray-600 text-sm">
+                              {item.reason}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Images Section */}
+                    {item.rejectionImages &&
+                      item.rejectionImages.length > 0 && (
+                        <div className="border-t pt-4 mt-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <ImageIcon className="h-4 w-4 text-gray-500" />
+                            <span className="text-sm font-medium text-gray-700">
+                              Evidence Images ({item.rejectionImages.length})
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                            {item.rejectionImages.map((imageUrl, index) => (
+                              <div
+                                key={index}
+                                className="group relative aspect-square rounded-lg border border-gray-200 overflow-hidden bg-gray-100 hover:shadow-md transition-all cursor-pointer"
+                                onClick={() => window.open(imageUrl, "_blank")}
+                              >
+                                <img
+                                  src={imageUrl}
+                                  alt={`Rejection evidence ${index + 1}`}
+                                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                                />
+                                {/* <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all flex items-center justify-center">
+                                  <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-50 px-2 py-1 rounded">
+                                    View
+                                  </span>
+                                </div> */}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                   </div>
 
-                  <div className="flex flex-col gap-2 ml-4 min-w-[140px]">
-                    <Button
-                      size="sm"
-                      onClick={() => handleStartRepair(item.id)}
-                      // disabled={loadingStates[item.id] !== null}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      {loadingStates[item.id] === "repairing" ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />
-                      ) : (
-                        <Wrench className="h-4 w-4 mr-1" />
-                      )}
-                      {loadingStates[item.id] === "repairing"
-                        ? "Starting..."
-                        : "Start Repair"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleFinishRepair(item.id)}
-                      // disabled={loadingStates[item.id] !== null}
-                      className="text-green-600 border-green-200 hover:bg-green-50"
-                    >
-                      {loadingStates[item.id] === "finishing" ? (
-                        <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin mr-1" />
-                      ) : (
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                      )}
-                      {loadingStates[item.id] === "finishing"
-                        ? "Finishing..."
-                        : "Mark Complete"}
-                    </Button>
+                  {/* Right Section - Action Buttons */}
+                  <div className="lg:w-48 flex-shrink-0">
+                    <div className="space-y-3">
+                      <Button
+                        size="sm"
+                        onClick={() => handleStartRepair(item.id)}
+                        // disabled={loadingStates[item.id] !== null}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        {loadingStates[item.id] === "repairing" ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                            Starting...
+                          </>
+                        ) : (
+                          <>
+                            <Wrench className="h-4 w-4 mr-2" />
+                            Start Repair
+                          </>
+                        )}
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleFinishRepair(item.id)}
+                        // disabled={loadingStates[item.id] !== null}
+                        className="w-full text-green-600 border-green-200 hover:bg-green-50 hover:border-green-300"
+                      >
+                        {loadingStates[item.id] === "finishing" ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin mr-2" />
+                            Finishing...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Mark Complete
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -715,14 +819,20 @@ const ReturnedItemsPopup = () => {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
-          <p className="text-sm text-gray-600">
-            These items were returned by manufacturing teams and require your
-            attention.
-          </p>
-          <Button onClick={handleClosePopup} variant="outline">
-            Close
-          </Button>
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+            <p className="text-sm text-gray-600 text-center sm:text-left">
+              These items were returned by manufacturing teams and require your
+              attention.
+            </p>
+            <Button
+              onClick={handleClosePopup}
+              variant="outline"
+              className="whitespace-nowrap"
+            >
+              Close
+            </Button>
+          </div>
         </div>
       </div>
     </div>
