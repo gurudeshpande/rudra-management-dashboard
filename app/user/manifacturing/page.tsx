@@ -722,12 +722,12 @@ export default function UserManufacturingPage() {
             )}
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="bg-white rounded-xl p-4 shadow-sm border">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">
-                      Pending Materials
+                      Pending Transfers
                     </p>
                     <p className="text-2xl font-bold mt-1 text-amber-600">
                       {pendingTransfers.length}
@@ -741,7 +741,7 @@ export default function UserManufacturingPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">
-                      Approved Materials
+                      Approved Transfers
                     </p>
                     <p className="text-2xl font-bold mt-1 text-green-600">
                       {approvedTransfers.length}
@@ -755,7 +755,7 @@ export default function UserManufacturingPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">
-                      Rejected Materials
+                      Rejected Transfers
                     </p>
                     <p className="text-2xl font-bold mt-1 text-red-600">
                       {rejectedTransfers.length}
@@ -793,7 +793,7 @@ export default function UserManufacturingPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl p-4 shadow-sm border">
+              {/* <div className="bg-white rounded-xl p-4 shadow-sm border">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">
@@ -811,7 +811,7 @@ export default function UserManufacturingPage() {
                   </div>
                   <Package className="h-8 w-8" style={{ color: themeLight }} />
                 </div>
-              </div>
+              </div> */}
             </div>
           </div>
 

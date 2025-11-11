@@ -222,23 +222,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         href: "/user/manifacturing",
         icon: ShoppingCart,
       },
-      {
-        name: "Payment",
-        href: "#",
-        icon: DollarSign,
-        subItems: [
-          {
-            name: "Create Payment",
-            href: "/user/payment/create",
-            icon: PlusCircle,
-          },
-          {
-            name: "Payment History",
-            href: "/user/payment/history",
-            icon: History,
-          },
-        ],
-      },
+      // {
+      //   name: "Payment",
+      //   href: "#",
+      //   icon: DollarSign,
+      //   subItems: [
+      //     {
+      //       name: "Create Payment",
+      //       href: "/user/payment/create",
+      //       icon: PlusCircle,
+      //     },
+      //     {
+      //       name: "Payment History",
+      //       href: "/user/payment/history",
+      //       icon: History,
+      //     },
+      //   ],
+      // },
     ],
   };
 
