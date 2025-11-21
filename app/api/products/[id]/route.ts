@@ -36,13 +36,14 @@ export async function PUT(
   try {
     const { id } = await context.params;
     const body = await req.json();
-    const { name, price, size, category, quantity } = body;
+    const { name, price, size, category, quantity, costPrice } = body;
 
     const updatedProduct = await prisma.product.update({
       where: { id: Number(id) },
       data: {
         name,
         price,
+        costPrice,
         size,
         category,
         quantity: quantity ? parseInt(quantity) : undefined,
