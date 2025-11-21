@@ -157,6 +157,51 @@ const Invoices = () => {
     }
   }, [productsData]);
 
+  type CustomerType = "CUSTOMER" | "FRANCHISE" | "RESELLER";
+
+  const [customerType, setCustomerType] = useState<CustomerType>("CUSTOMER");
+
+  const handleCustomerTypeChange = (type: CustomerType) => {
+    setCustomerType(type);
+
+    // Apply automatic discounts to all items based on customer type
+    const updatedItems = items.map((item) => {
+      if (item.originalPrice > 0) {
+        let discountPercentage = 0;
+        switch (type) {
+          case "RESELLER":
+            discountPercentage = 40;
+            break;
+          case "FRANCHISE":
+            discountPercentage = 30;
+            break;
+          case "CUSTOMER":
+          default:
+            discountPercentage = 0;
+            break;
+        }
+
+        const finalTotal = calculateItemTotal(
+          item.originalPrice,
+          item.quantity,
+          discountPercentage,
+          applyOverallDiscount ? overallDiscountPercentage : 0
+        );
+
+        return {
+          ...item,
+          discount: discountPercentage,
+          total: finalTotal,
+          discountedPrice: item.originalPrice * item.quantity - finalTotal,
+          price: item.originalPrice,
+        };
+      }
+      return item;
+    });
+
+    setItems(updatedItems);
+  };
+
   // Filter customers based on search
   const filteredCustomers = existingCustomers.filter(
     (customer) =>
@@ -590,12 +635,26 @@ const Invoices = () => {
 
   // Handle product selection for a row
   const handleProductSelect = (index: number, product: Product) => {
+    let discountPercentage = 0;
+    switch (customerType) {
+      case "RESELLER":
+        discountPercentage = 40;
+        break;
+      case "FRANCHISE":
+        discountPercentage = 30;
+        break;
+      case "CUSTOMER":
+      default:
+        discountPercentage = 0;
+        break;
+    }
+
     const updatedItems = items.map((item, i) => {
       if (i === index) {
         const finalTotal = calculateItemTotal(
           product.price,
           item.quantity,
-          item.discount,
+          discountPercentage,
           applyOverallDiscount ? overallDiscountPercentage : 0
         );
 
@@ -603,9 +662,10 @@ const Invoices = () => {
           ...item,
           productId: product.id,
           name: `${product.name} ${product.size}`,
-          price: product.price, // Show original price
+          price: product.price,
           originalPrice: product.price,
           total: finalTotal,
+          discount: discountPercentage,
           discountedPrice: product.price * item.quantity - finalTotal,
           searchQuery: `${product.name} ${product.size}`,
           showDropdown: false,
@@ -676,23 +736,43 @@ const Invoices = () => {
       return;
     }
 
-    const newItems = selectedProducts.map((bp) => ({
-      productId: bp.product.id,
-      name: `${bp.product.name} ${bp.product.size}`,
-      quantity: bp.quantity,
-      price: bp.product.price,
-      originalPrice: bp.product.price,
-      total: bp.product.price * bp.quantity,
-      discount: 0,
-      discountedPrice: 0,
-      searchQuery: `${bp.product.name} ${bp.product.size}`,
-      showDropdown: false,
-    }));
+    let discountPercentage = 0;
+    switch (customerType) {
+      case "RESELLER":
+        discountPercentage = 40;
+        break;
+      case "FRANCHISE":
+        discountPercentage = 30;
+        break;
+      case "CUSTOMER":
+      default:
+        discountPercentage = 0;
+        break;
+    }
 
-    // Add new items to existing items
+    const newItems = selectedProducts.map((bp) => {
+      const finalTotal = calculateItemTotal(
+        bp.product.price,
+        bp.quantity,
+        discountPercentage,
+        applyOverallDiscount ? overallDiscountPercentage : 0
+      );
+
+      return {
+        productId: bp.product.id,
+        name: `${bp.product.name} ${bp.product.size}`,
+        quantity: bp.quantity,
+        price: bp.product.price,
+        originalPrice: bp.product.price,
+        total: finalTotal,
+        discount: discountPercentage,
+        discountedPrice: bp.product.price * bp.quantity - finalTotal,
+        searchQuery: `${bp.product.name} ${bp.product.size}`,
+        showDropdown: false,
+      };
+    });
+
     setItems((prevItems) => [...prevItems, ...newItems]);
-
-    // Reset bulk selection
     setBulkProducts((prev) =>
       prev.map((bp) => ({ ...bp, selected: false, quantity: 1 }))
     );
@@ -1183,6 +1263,63 @@ const Invoices = () => {
                   <CardDescription>
                     Add products and services to the invoice
                   </CardDescription>
+
+                  {/* Customer Type Radio Buttons */}
+                  <div className="flex items-center space-x-4 mt-3">
+                    <Label className="font-medium text-sm">
+                      Customer Type:
+                    </Label>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="customer-type-customer"
+                        name="customerType"
+                        checked={customerType === "CUSTOMER"}
+                        onChange={() => handleCustomerTypeChange("CUSTOMER")}
+                        className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label
+                        htmlFor="customer-type-customer"
+                        className="cursor-pointer text-sm"
+                      >
+                        Customer
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="customer-type-franchise"
+                        name="customerType"
+                        checked={customerType === "FRANCHISE"}
+                        onChange={() => handleCustomerTypeChange("FRANCHISE")}
+                        className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label
+                        htmlFor="customer-type-franchise"
+                        className="cursor-pointer text-sm"
+                      >
+                        Franchise (30%)
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="customer-type-reseller"
+                        name="customerType"
+                        checked={customerType === "RESELLER"}
+                        onChange={() => handleCustomerTypeChange("RESELLER")}
+                        className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label
+                        htmlFor="customer-type-reseller"
+                        className="cursor-pointer text-sm"
+                      >
+                        Reseller (40%)
+                      </Label>
+                    </div>
+                  </div>
                 </div>
                 <Button
                   onClick={() => setShowBulkUpload(true)}
@@ -1480,6 +1617,104 @@ const Invoices = () => {
                 <CardTitle className="text-lg">Invoice Settings</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Customer Type */}
+                {/* <div className="space-y-3">
+                  <Label className="font-semibold">Customer Type *</Label>
+                  <div className="flex flex-col space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="customer-type-customer"
+                        name="customerType"
+                        checked={customerType === "CUSTOMER"}
+                        onChange={() => handleCustomerTypeChange("CUSTOMER")}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label
+                        htmlFor="customer-type-customer"
+                        className="cursor-pointer"
+                      >
+                        Customer (0% Discount)
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="customer-type-franchise"
+                        name="customerType"
+                        checked={customerType === "FRANCHISE"}
+                        onChange={() => handleCustomerTypeChange("FRANCHISE")}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label
+                        htmlFor="customer-type-franchise"
+                        className="cursor-pointer"
+                      >
+                        Franchise (30% Discount)
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="customer-type-reseller"
+                        name="customerType"
+                        checked={customerType === "RESELLER"}
+                        onChange={() => handleCustomerTypeChange("RESELLER")}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <Label
+                        htmlFor="customer-type-reseller"
+                        className="cursor-pointer"
+                      >
+                        Reseller (40% Discount)
+                      </Label>
+                    </div>
+                  </div>
+                </div> */}
+
+                {/* Overall Discount - Now editable */}
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="applyOverallDiscount"
+                      checked={applyOverallDiscount}
+                      onCheckedChange={handleOverallDiscountChange}
+                    />
+                    <Label
+                      htmlFor="applyOverallDiscount"
+                      className="cursor-pointer"
+                    >
+                      Apply Overall Discount
+                    </Label>
+                  </div>
+
+                  {applyOverallDiscount && (
+                    <div className="flex items-center gap-2 pl-6">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={overallDiscountPercentage}
+                        onChange={(e) =>
+                          setOverallDiscountPercentage(
+                            parseFloat(e.target.value) || 0
+                          )
+                        }
+                        className="w-24"
+                        placeholder="0"
+                      />
+                      <span className="text-sm text-gray-500">%</span>
+                      <Badge variant="secondary" className="ml-2">
+                        {customerType === "RESELLER" && "Auto: 40%"}
+                        {customerType === "FRANCHISE" && "Auto: 30%"}
+                        {customerType === "CUSTOMER" && "Auto: 0%"}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+
                 {/* GST Settings */}
                 <div className="flex items-center space-x-3">
                   <Checkbox

@@ -32,6 +32,7 @@ import {
   Wrench,
   Hammer,
 } from "lucide-react";
+import Link from "next/link";
 
 interface User {
   id: string;
@@ -546,6 +547,14 @@ export default function ManufacturingPage() {
         color: "text-red-600",
         bgColor: "bg-red-100 text-red-800",
       },
+      UNUSED: {
+        // NEW: Add UNUSED status
+        variant: "destructive" as const,
+        label: "Unused - Too Damaged",
+        icon: XCircle,
+        color: "text-red-600",
+        bgColor: "bg-red-100 text-red-800",
+      },
     };
 
     const config =
@@ -561,6 +570,50 @@ export default function ManufacturingPage() {
         {config.label}
       </Badge>
     );
+  };
+
+  const handleMarkAsUnused = async (transferId: number) => {
+    if (
+      !confirm(
+        "Are you sure you want to mark this as unused? The product is too damaged and cannot be repaired."
+      )
+    )
+      return;
+
+    setRepairLoading(transferId);
+    try {
+      const response = await fetch(
+        `/api/raw-material-transfers/${transferId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            status: "UNUSED",
+            notes: "Product is too damaged and cannot be repaired",
+            rejectionReason: "Product is too damaged",
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to mark as unused");
+      }
+
+      await fetchData();
+      alert("Item marked as unused successfully!");
+    } catch (error) {
+      console.error("Error marking item as unused:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Error marking as unused. Please try again."
+      );
+    } finally {
+      setRepairLoading(null);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -618,7 +671,7 @@ export default function ManufacturingPage() {
 
             {/* Quick Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-6">
-              <div className="bg-white rounded-xl p-4 shadow-sm border">
+              <div className="bg-white rounded-xl p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">
@@ -635,7 +688,7 @@ export default function ManufacturingPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl p-4 shadow-sm border">
+              <div className="bg-white rounded-xl p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">
@@ -649,7 +702,7 @@ export default function ManufacturingPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl p-4 shadow-sm border">
+              <div className="bg-white rounded-xl p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">
@@ -663,7 +716,7 @@ export default function ManufacturingPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl p-4 shadow-sm border">
+              <div className="bg-white rounded-xl p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">
@@ -677,7 +730,7 @@ export default function ManufacturingPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl p-4 shadow-sm border">
+              <div className="bg-white rounded-xl p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">
@@ -691,19 +744,24 @@ export default function ManufacturingPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl p-4 shadow-sm border">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Under Repair
-                    </p>
-                    <p className="text-2xl font-bold mt-1 text-blue-600">
-                      {repairingTransfers.length}
-                    </p>
+              <Link
+                href="/super-admin/manufacturing/transfer-history"
+                className="bg-white rounded-xl p-4 shadow-sm border hover:shadow-md transition-shadow"
+              >
+                <div className="bg-white rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">
+                        Under Repair
+                      </p>
+                      <p className="text-2xl font-bold mt-1 text-blue-600">
+                        {repairingTransfers.length}
+                      </p>
+                    </div>
+                    <Wrench className="h-8 w-8 text-blue-200" />
                   </div>
-                  <Wrench className="h-8 w-8 text-blue-200" />
                 </div>
-              </div>
+              </Link>
             </div>
           </div>
 
@@ -1328,13 +1386,13 @@ export default function ManufacturingPage() {
                                           Status
                                         </th>
                                         <th className="text-center p-3 text-sm font-medium">
-                                          Actions
-                                        </th>
-                                        <th className="text-center p-3 text-sm font-medium">
                                           Comments
                                         </th>
                                         <th className="text-right p-3 text-sm font-medium">
                                           Date & Time
+                                        </th>
+                                        <th className="text-center p-3 text-sm font-medium">
+                                          Actions
                                         </th>
                                       </tr>
                                     </thead>
@@ -1360,59 +1418,6 @@ export default function ManufacturingPage() {
                                           </td>
                                           <td className="p-3 text-center">
                                             {getStatusBadge(transfer.status)}
-                                          </td>
-                                          <td className="p-3 text-center">
-                                            {transfer.status === "RETURNED" && (
-                                              <Button
-                                                size="sm"
-                                                onClick={() =>
-                                                  handleStartRepair(transfer.id)
-                                                }
-                                                disabled={
-                                                  repairLoading === transfer.id
-                                                }
-                                                className="bg-blue-600 hover:bg-blue-700 text-white"
-                                              >
-                                                {repairLoading ===
-                                                transfer.id ? (
-                                                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                ) : (
-                                                  <Wrench className="h-3 w-3 mr-1" />
-                                                )}
-                                                Repair
-                                              </Button>
-                                            )}
-                                            {transfer.status ===
-                                              "REPAIRING" && (
-                                              <Button
-                                                size="sm"
-                                                onClick={() =>
-                                                  handleFinishRepair(
-                                                    transfer.id
-                                                  )
-                                                }
-                                                disabled={
-                                                  repairLoading === transfer.id
-                                                }
-                                                className="bg-green-600 hover:bg-green-700 text-white"
-                                              >
-                                                {repairLoading ===
-                                                transfer.id ? (
-                                                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                ) : (
-                                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                                )}
-                                                Finish
-                                              </Button>
-                                            )}
-                                            {(transfer.status === "SENT" ||
-                                              transfer.status === "USED" ||
-                                              transfer.status ===
-                                                "FINISHED") && (
-                                              <span className="text-sm text-gray-500">
-                                                No actions
-                                              </span>
-                                            )}
                                           </td>
                                           <td className="p-3 max-w-xs">
                                             {transfer.notes ? (
@@ -1445,6 +1450,88 @@ export default function ManufacturingPage() {
                                                 ).toLocaleTimeString()}
                                               </div>
                                             </div>
+                                          </td>
+                                          <td className="p-3 text-center">
+                                            {transfer.status === "RETURNED" && (
+                                              <div className="flex flex-col gap-2">
+                                                <Button
+                                                  size="sm"
+                                                  onClick={() =>
+                                                    handleStartRepair(
+                                                      transfer.id
+                                                    )
+                                                  }
+                                                  disabled={
+                                                    repairLoading ===
+                                                    transfer.id
+                                                  }
+                                                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                                                >
+                                                  {repairLoading ===
+                                                  transfer.id ? (
+                                                    <div className="w-2 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                  ) : (
+                                                    <Wrench className="h-3 w-3 mr-1" />
+                                                  )}
+                                                  Repair
+                                                </Button>
+
+                                                {/* NEW: Unused Button */}
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  onClick={() =>
+                                                    handleMarkAsUnused(
+                                                      transfer.id
+                                                    )
+                                                  }
+                                                  disabled={
+                                                    repairLoading ===
+                                                    transfer.id
+                                                  }
+                                                  className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                                                >
+                                                  {repairLoading ===
+                                                  transfer.id ? (
+                                                    <div className="w-3 h-3 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                                                  ) : (
+                                                    <XCircle className="h-3 w-3 mr-1" />
+                                                  )}
+                                                  Unused
+                                                </Button>
+                                              </div>
+                                            )}
+                                            {transfer.status ===
+                                              "REPAIRING" && (
+                                              <Button
+                                                size="sm"
+                                                onClick={() =>
+                                                  handleFinishRepair(
+                                                    transfer.id
+                                                  )
+                                                }
+                                                disabled={
+                                                  repairLoading === transfer.id
+                                                }
+                                                className="bg-green-600 hover:bg-green-700 text-white"
+                                              >
+                                                {repairLoading ===
+                                                transfer.id ? (
+                                                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                                )}
+                                                Finish
+                                              </Button>
+                                            )}
+                                            {(transfer.status === "SENT" ||
+                                              transfer.status === "USED" ||
+                                              transfer.status === "FINISHED" ||
+                                              transfer.status === "UNUSED") && ( // UPDATED: Include UNUSED status
+                                              <span className="text-sm text-gray-500">
+                                                No actions
+                                              </span>
+                                            )}
                                           </td>
                                         </tr>
                                       ))}

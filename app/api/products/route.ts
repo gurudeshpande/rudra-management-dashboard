@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
-      orderBy: { id: "asc" }, // Changed to sort by ID
+      orderBy: { id: "asc" },
     });
     return NextResponse.json(products);
   } catch (error) {
@@ -23,17 +23,27 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, price, description, size, category, quantity } = body;
+    const { name, price, costPrice, description, size, category, quantity } =
+      body;
 
-    if (!name || !price || !category) {
+    console.log(body, "body");
+
+    if (!name || !price || !costPrice || !category) {
       return NextResponse.json(
-        { error: "Name, price, and category are required" },
+        { error: "Name, price, costPrice, and category are required" },
         { status: 400 }
       );
     }
 
     const newProduct = await prisma.product.create({
-      data: { name, price, size, category, quantity: quantity || 0 },
+      data: {
+        name,
+        price, // selling price
+        costPrice,
+        size,
+        category,
+        quantity: quantity || 0,
+      },
     });
 
     return NextResponse.json(newProduct, { status: 201 });
@@ -41,6 +51,38 @@ export async function POST(req: Request) {
     console.error("Error creating product:", error);
     return NextResponse.json(
       { error: "Failed to create product" },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT /api/products/[id] → update a product
+export async function PUT(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params;
+    const body = await req.json();
+    const { name, price, costPrice, size, category, quantity } = body;
+
+    const updatedProduct = await prisma.product.update({
+      where: { id: parseInt(id) },
+      data: {
+        name,
+        price, // selling price
+        costPrice,
+        size,
+        category,
+        quantity: quantity ? parseInt(quantity) : undefined,
+      },
+    });
+
+    return NextResponse.json(updatedProduct);
+  } catch (error) {
+    console.error("Error updating product:", error);
+    return NextResponse.json(
+      { error: "Failed to update product" },
       { status: 500 }
     );
   }

@@ -40,7 +40,7 @@ export async function GET(
   }
 }
 
-// PUT update transfer status (approve/reject/repair)
+// PUT update transfer status (approve/reject/repair/unused)
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -54,16 +54,18 @@ export async function PUT(
       notes,
       quantityReturned,
       rejectionType,
-      rejectionImages, // Add this field
+      rejectionImages,
+      rejectionReason,
     } = body;
 
-    // Update valid statuses to include REPAIRING and FINISHED
+    // Update valid statuses to include UNUSED
     const validStatuses = [
       "USED",
       "RETURNED",
       "CANCELLED",
       "REPAIRING",
       "FINISHED",
+      "UNUSED", // NEW: Added UNUSED status
     ];
 
     if (!status || !validStatuses.includes(status)) {
@@ -123,7 +125,7 @@ export async function PUT(
             notes: notes || "Material approved and marked as used",
             quantityApproved: existingTransfer.quantityIssued,
             quantityRejected: 0,
-            rejectionImages: [], // Clear any rejection images for approved transfers
+            rejectionImages: [],
           },
           include: {
             user: { select: { name: true, email: true } },
@@ -193,7 +195,7 @@ export async function PUT(
             quantityRejected: returnQuantity,
             quantityApproved: approvedQuantity,
             rejectionReason: rejectionType,
-            rejectionImages: rejectionImages || [], // Store the rejection images
+            rejectionImages: rejectionImages || [],
           },
           include: {
             user: { select: { name: true, email: true } },
@@ -203,22 +205,73 @@ export async function PUT(
 
         return transfer;
       });
-    } else if (status === "REPAIRING" || status === "FINISHED") {
-      // For REPAIRING and FINISHED statuses - simple status update without inventory changes
+    } else if (status === "FINISHED") {
+      // When finishing repair, add materials back to main inventory
+      updatedTransfer = await prisma.$transaction(async (tx) => {
+        // Add the repaired materials back to main inventory
+        await tx.rawMaterial.update({
+          where: { id: existingTransfer.rawMaterialId },
+          data: {
+            quantity: {
+              increment: existingTransfer.quantityIssued,
+            },
+          },
+        });
+
+        // Update transfer status
+        const transfer = await tx.rawMaterialTransfer.update({
+          where: { id: transferId },
+          data: {
+            status: "FINISHED",
+            notes:
+              notes || "Repair completed - materials returned to inventory",
+          },
+          include: {
+            user: { select: { name: true, email: true } },
+            rawMaterial: true,
+          },
+        });
+
+        return transfer;
+      });
+    } else if (status === "REPAIRING") {
+      // For REPAIRING status - simple status update without inventory changes
       updatedTransfer = await prisma.rawMaterialTransfer.update({
         where: { id: transferId },
         data: {
           status,
-          notes:
-            notes ||
-            (status === "REPAIRING"
-              ? "Material under repair"
-              : "Repair completed"),
+          notes: notes || "Material under repair",
         },
         include: {
           user: { select: { name: true, email: true } },
           rawMaterial: true,
         },
+      });
+    } else if (status === "UNUSED") {
+      // NEW: Handle UNUSED status - materials are too damaged and cannot be used
+      updatedTransfer = await prisma.$transaction(async (tx) => {
+        // For UNUSED items, we don't return them to inventory since they're too damaged
+        // We simply mark them as unusable and record the reason
+
+        // Update transfer status with UNUSED details
+        const transfer = await tx.rawMaterialTransfer.update({
+          where: { id: transferId },
+          data: {
+            status: "UNUSED",
+            notes: notes || "Product is too damaged and cannot be repaired",
+            rejectionReason: rejectionReason || "Product is too damaged",
+            quantityRejected: existingTransfer.quantityIssued, // All quantity is rejected
+            quantityApproved: 0, // No quantity is approved
+            rejectionImages:
+              rejectionImages || existingTransfer.rejectionImages || [],
+          },
+          include: {
+            user: { select: { name: true, email: true } },
+            rawMaterial: true,
+          },
+        });
+
+        return transfer;
       });
     } else {
       // For CANCELLED status
@@ -229,7 +282,7 @@ export async function PUT(
           notes,
           quantityRejected: 0,
           quantityApproved: 0,
-          rejectionImages: [], // Clear images for cancelled transfers
+          rejectionImages: [],
         },
         include: {
           user: { select: { name: true, email: true } },
@@ -325,6 +378,18 @@ export async function DELETE(
         await tx.rawMaterialTransfer.delete({
           where: { id: transferId },
         });
+      });
+    } else if (existingTransfer.status === "FINISHED") {
+      // If it was FINISHED, the materials were already returned to main inventory
+      // Just delete the transfer record
+      await prisma.rawMaterialTransfer.delete({
+        where: { id: transferId },
+      });
+    } else if (existingTransfer.status === "UNUSED") {
+      // NEW: For UNUSED status, materials were not returned to inventory (too damaged)
+      // Just delete the transfer record
+      await prisma.rawMaterialTransfer.delete({
+        where: { id: transferId },
       });
     } else {
       // For other statuses, just delete the transfer

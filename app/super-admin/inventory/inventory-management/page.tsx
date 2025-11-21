@@ -75,6 +75,7 @@ const ProductManagement = () => {
     name: "",
     size: "",
     price: "",
+    costPrice: "",
     category: "",
     quantity: "0",
   });
@@ -84,6 +85,7 @@ const ProductManagement = () => {
     name: "",
     size: "",
     price: "",
+    costPrice: "",
     category: "",
     quantity: "0",
   });
@@ -210,6 +212,7 @@ const ProductManagement = () => {
       name: product.name,
       size: product.size || "",
       price: product.price.toString(),
+      costPrice: product.costPrice?.toString() || "",
       category: product.category,
       quantity: product.quantity.toString(),
     });
@@ -268,6 +271,7 @@ const ProductManagement = () => {
           name: editFormData.name,
           size: editFormData.size,
           price: parseFloat(editFormData.price),
+          costPrice: parseFloat(editFormData.costPrice),
           category: editFormData.category,
           quantity: parseInt(editFormData.quantity) || 0,
         }),
@@ -306,6 +310,7 @@ const ProductManagement = () => {
           name: addFormData.name,
           size: addFormData.size,
           price: parseFloat(addFormData.price),
+          costPrice: parseFloat(addFormData.costPrice),
           category: addFormData.category,
           quantity: parseInt(addFormData.quantity) || 0,
         }),
@@ -319,6 +324,7 @@ const ProductManagement = () => {
           name: "",
           size: "",
           price: "",
+          costPrice: "",
           category: "",
           quantity: "0",
         });
@@ -730,6 +736,29 @@ const ProductManagement = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="add-costPrice" className="text-sm font-medium">
+                  Cost Price
+                </Label>
+                <Input
+                  id="add-costPrice"
+                  type="number"
+                  name="costPrice"
+                  required
+                  min="0"
+                  step="0.01"
+                  value={addFormData.costPrice}
+                  onChange={(e) => {
+                    const { name, value } = e.target;
+                    setAddFormData({
+                      ...addFormData,
+                      [name]: value,
+                    });
+                  }}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="add-price" className="text-sm font-medium">
                   Price
                 </Label>
@@ -855,6 +884,28 @@ const ProductManagement = () => {
                   type="text"
                   name="size"
                   value={editFormData.size}
+                  onChange={(e) => {
+                    const { name, value } = e.target;
+                    setEditFormData({
+                      ...editFormData,
+                      [name]: value,
+                    });
+                  }}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-costPrice" className="text-sm font-medium">
+                  Cost Price
+                </Label>
+                <Input
+                  id="edit-costPrice"
+                  type="number"
+                  name="costPrice"
+                  required
+                  min="0"
+                  step="0.01"
+                  value={editFormData.costPrice}
                   onChange={(e) => {
                     const { name, value } = e.target;
                     setEditFormData({
