@@ -56,34 +56,4 @@ export async function POST(req: Request) {
   }
 }
 
-// PUT /api/products/[id] → update a product
-export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const { id } = params;
-    const body = await req.json();
-    const { name, price, costPrice, size, category, quantity } = body;
-
-    const updatedProduct = await prisma.product.update({
-      where: { id: parseInt(id) },
-      data: {
-        name,
-        price, // selling price
-        costPrice,
-        size,
-        category,
-        quantity: quantity ? parseInt(quantity) : undefined,
-      },
-    });
-
-    return NextResponse.json(updatedProduct);
-  } catch (error) {
-    console.error("Error updating product:", error);
-    return NextResponse.json(
-      { error: "Failed to update product" },
-      { status: 500 }
-    );
-  }
-}
+// REMOVE THE PUT HANDLER FROM THIS FILE
