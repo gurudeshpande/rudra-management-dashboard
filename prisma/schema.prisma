@@ -59,7 +59,8 @@ model Product {
   id        Int            @id @default(autoincrement())
   name      String
   size      String?
-  price     Float
+  costPrice Float?          // NEW: Cost price field
+  price     Float          // This becomes selling price
   category  String
   quantity  Int            @default(0) 
   items     InvoiceItem[]
@@ -173,6 +174,7 @@ enum TransferStatus {
   RETURNED
   CANCELLED
   REPAIRING // Materials under repair
+  UNUSED
   FINISHED
 }
 

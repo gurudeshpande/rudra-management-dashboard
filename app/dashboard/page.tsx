@@ -180,11 +180,11 @@ export default function DashboardPage() {
           </h2>
           <p className="mt-2 text-gray-600">
             {user.role === "SUPER_ADMIN" &&
-              "You have full access to all system modules and administrative functions."}
+              "Full access to all system modules and administrative functions."}
             {user.role === "ADMIN" &&
-              "You can manage inventory, invoices, and generate reports."}
+              "Manage inventory, invoices, and generate reports."}
             {user.role === "USER" &&
-              "You can track products, view invoices, and manage your profile."}
+              "Track products, view invoices, and manage your profile."}
           </p>
         </div>
 

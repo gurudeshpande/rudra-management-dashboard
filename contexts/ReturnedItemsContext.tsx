@@ -19,7 +19,7 @@ interface ReturnedItem {
   userName: string;
   reason: string;
   returnedAt: string;
-  status: "PENDING_REPAIR" | "REPAIRING" | "FINISHED";
+  status: "PENDING_REPAIR" | "REPAIRING" | "FINISHED" | "UNUSED";
   quantityRejected?: number;
   quantityApproved?: number;
   rejectionReason?: string;
@@ -34,6 +34,7 @@ interface ReturnedItemsContextType {
   fetchReturnedItems: () => Promise<void>;
   markAsRepairing: (id: number) => Promise<boolean>;
   markAsFinished: (id: number) => Promise<boolean>;
+  markAsUnused: (id: number) => Promise<boolean>; // NEW
 }
 
 const ReturnedItemsContext = createContext<
@@ -162,6 +163,37 @@ export const ReturnedItemsProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  // NEW: Mark as Unused function
+  const markAsUnused = async (id: number) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/raw-material-transfers/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          status: "UNUSED",
+          notes: "Product is too damaged and cannot be repaired",
+          rejectionReason: "Product is too damaged",
+        }),
+      });
+
+      if (response.ok) {
+        await fetchReturnedItems();
+        return true;
+      } else {
+        console.error("Failed to mark as unused:", response.status);
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to mark as unused");
+      }
+    } catch (error) {
+      console.error("Error marking item as unused:", error);
+      throw error;
+    }
+  };
+
   // Fetch returned items on component mount
   useEffect(() => {
     fetchReturnedItems();
@@ -182,6 +214,7 @@ export const ReturnedItemsProvider: React.FC<{ children: ReactNode }> = ({
         fetchReturnedItems,
         markAsRepairing,
         markAsFinished,
+        markAsUnused, // NEW: Add to context value
       }}
     >
       {children}

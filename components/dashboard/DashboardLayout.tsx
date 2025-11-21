@@ -594,12 +594,33 @@ const ReturnedItemsPopup = () => {
     setShowReturnedItemsPopup,
     markAsRepairing,
     markAsFinished,
+    markAsUnused, // NEW: Add this
     fetchReturnedItems,
   } = useReturnedItems();
 
   const [loadingStates, setLoadingStates] = useState<
-    Record<number, "repairing" | "finishing" | null>
+    Record<number, "repairing" | "finishing" | "unused" | null> // UPDATED: Add "unused"
   >({});
+
+  const handleMarkAsUnused = async (itemId: number) => {
+    if (
+      !confirm(
+        "Are you sure you want to mark this as unused? The product is too damaged and cannot be repaired."
+      )
+    )
+      return;
+
+    setLoadingStates((prev) => ({ ...prev, [itemId]: "unused" }));
+    try {
+      await markAsUnused(itemId);
+    } catch (error) {
+      alert(
+        error instanceof Error ? error.message : "Failed to mark as unused"
+      );
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, [itemId]: null }));
+    }
+  };
 
   console.log(returnedItems, "returnedItems");
 
@@ -772,6 +793,7 @@ const ReturnedItemsPopup = () => {
                   {/* Right Section - Action Buttons */}
                   <div className="lg:w-48 flex-shrink-0">
                     <div className="space-y-3">
+                      {/* Start Repair Button */}
                       <Button
                         size="sm"
                         onClick={() => handleStartRepair(item.id)}
@@ -791,6 +813,7 @@ const ReturnedItemsPopup = () => {
                         )}
                       </Button>
 
+                      {/* Mark Complete Button */}
                       <Button
                         size="sm"
                         variant="outline"
@@ -807,6 +830,27 @@ const ReturnedItemsPopup = () => {
                           <>
                             <CheckCircle className="h-4 w-4 mr-2" />
                             Mark Complete
+                          </>
+                        )}
+                      </Button>
+
+                      {/* NEW: Mark as Unused Button */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleMarkAsUnused(item.id)}
+                        // disabled={loadingStates[item.id] !== null}
+                        className="w-full text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                      >
+                        {loadingStates[item.id] === "unused" ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin mr-2" />
+                            Marking...
+                          </>
+                        ) : (
+                          <>
+                            <X className="h-4 w-4 mr-2" />
+                            Unused - Too Damaged
                           </>
                         )}
                       </Button>
