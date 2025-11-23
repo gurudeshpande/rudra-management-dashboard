@@ -545,7 +545,15 @@ const ProductManagement = () => {
                         initial="hidden"
                         animate="visible"
                         exit="hidden"
-                        className="hover:bg-gray-50"
+                        className="hover:bg-gray-50 cursor-pointer"
+                        // onClick={() =>
+                        //   router.push(`/dashboard/products/${product.id}`)
+                        // }
+                        onClick={() =>
+                          router.push(
+                            `/super-admin/inventory/ProductDetailsPage/${product.id}`
+                          )
+                        }
                       >
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">
                           {product.id}
@@ -563,7 +571,10 @@ const ProductManagement = () => {
                           {product.quantity || 0}
                         </td>
                         <td className="px-4 py-3 text-sm font-medium">
-                          <div className="flex space-x-2">
+                          <div
+                            className="flex space-x-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <Button
                               variant="ghost"
                               size="icon"
@@ -610,7 +621,10 @@ const ProductManagement = () => {
                         </td>
                         <td className="px-4 py-3 text-sm font-medium">
                           <Button
-                            onClick={() => setAddQuantityDialog(product.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAddQuantityDialog(product.id);
+                            }}
                             variant="outline"
                             size="sm"
                             style={{
