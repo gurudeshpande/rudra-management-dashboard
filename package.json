@@ -33,7 +33,7 @@
     "jspdf": "^3.0.2",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.542.0",
-    "next": "15.5.2",
+    "next": "15.5.9",
     "next-rate-limit": "^0.0.3",
     "pdf-lib": "^1.17.1",
     "pdfkit": "^0.17.1",
