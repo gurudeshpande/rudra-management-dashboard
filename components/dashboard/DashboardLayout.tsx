@@ -183,6 +183,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           },
         ],
       },
+      {
+        name: "Credit Notes",
+        href: "/super-admin/vendors",
+        icon: CreditCard,
+      },
     ],
     ADMIN: [
       {

@@ -72,14 +72,21 @@ const InvoiceManagement = () => {
   const [selectedInvoice, setSelectedInvoice] =
     useState<InvoiceWithRelations | null>(null);
   const [mode, setMode] = useState<"view" | "edit" | null>(null);
+  const [entityFilter, setEntityFilter] = useState("ALL");
 
   const router = useRouter();
+  // Add entity filter options
+  const entityFilterOptions = [
+    { value: "ALL", label: "All Entities" },
+    { value: "RUDRA", label: "Rudra Arts & Handicrafts" },
+    { value: "YADNYASENI", label: "Yadnyaseni Creations" },
+  ];
 
   // Theme colors
   const themeColor = "#954C2E";
   const themeLight = "#F5E9E4";
 
-  // Fetch invoices from API
+  // Update your fetchInvoices function
   const fetchInvoices = async () => {
     try {
       setLoading(true);
@@ -93,6 +100,10 @@ const InvoiceManagement = () => {
         queryParams.append("status", statusFilter);
       }
 
+      if (entityFilter !== "ALL") {
+        queryParams.append("entity", entityFilter); // Add entity filter
+      }
+
       const response = await fetch(
         `/api/allinvoices/getallinvoices?${queryParams.toString()}`
       );
@@ -103,10 +114,9 @@ const InvoiceManagement = () => {
 
       const data = await response.json();
       setInvoices(data);
-      setFilteredInvoices(data); // Initialize filtered invoices with all invoices
+      setFilteredInvoices(data);
     } catch (error) {
       console.error("Error fetching invoices:", error);
-      // Set empty array instead of showing error for better UX
       setInvoices([]);
       setFilteredInvoices([]);
       toast.error("Failed to fetch invoices", {
@@ -119,7 +129,7 @@ const InvoiceManagement = () => {
 
   useEffect(() => {
     fetchInvoices();
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, entityFilter]); // Add entityFilter here
 
   const statusFilterOptions = [
     { value: "ALL", label: "All Statuses" },
@@ -224,6 +234,7 @@ const InvoiceManagement = () => {
 
   // Export filtered invoices to Excel
   // Export filtered invoices to Excel with additional summary row
+  // Update the exportToExcel function
   const exportToExcel = () => {
     if (filteredInvoices.length === 0) {
       toast.info("No data to export", {
@@ -235,7 +246,7 @@ const InvoiceManagement = () => {
     try {
       // Create CSV content
       let csvContent =
-        "Invoice Number,Customer Name,Customer Phone,Date,Due Date,Total Amount,Advance Paid,Balance Due,Status\n";
+        "Invoice Number,Customer Name,Customer Phone,Date,Due Date,Total Amount,Advance Paid,Balance Due,Status,Billing Entity\n";
 
       // Calculate overall totals
       let overallTotal = 0;
@@ -264,6 +275,7 @@ const InvoiceManagement = () => {
           `"${invoice.advancePaid}"`,
           `"${balanceDue}"`,
           `"${invoice.status}"`,
+          `"${invoice.companyType || "RUDRA"}"`, // Add Billing Entity column
         ].join(",");
 
         csvContent += row + "\n";
@@ -271,7 +283,14 @@ const InvoiceManagement = () => {
 
       // Add summary row
       csvContent += "\n";
-      csvContent += `"","","","","","TOTAL: ${overallTotal}","ADVANCE: ${overallAdvancePaid}","BALANCE: ${overallBalanceDue}",""\n`;
+      csvContent += `"","","","","","TOTAL: ${overallTotal}","ADVANCE: ${overallAdvancePaid}","BALANCE: ${overallBalanceDue}","",""\n`;
+
+      // Add filter information
+      csvContent += "\n";
+      csvContent += `"Filter Information:",,,,,,,,,,\n`;
+      csvContent += `"Search Term:","${searchTerm}",,,,,,,,,,\n`;
+      csvContent += `"Status Filter:","${statusFilter}",,,,,,,,,,\n`;
+      csvContent += `"Entity Filter:","${entityFilter}",,,,,,,,,,\n`;
 
       // Create blob and download
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -345,6 +364,27 @@ const InvoiceManagement = () => {
                   </SelectTrigger>
                   <SelectContent className="bg-white">
                     {statusFilterOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="w-full md:w-48">
+                <label
+                  htmlFor="entity"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Billing Entity
+                </label>
+                <Select value={entityFilter} onValueChange={setEntityFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by entity" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {entityFilterOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>
@@ -433,6 +473,7 @@ const InvoiceManagement = () => {
                     <TableHead>Due Date</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Billing Entity</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -480,6 +521,7 @@ const InvoiceManagement = () => {
                         <TableCell>
                           {getStatusDisplay(invoice.status)}
                         </TableCell>
+                        <TableCell>{invoice.companyType || "RUDRA"}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end space-x-2">
                             <Button

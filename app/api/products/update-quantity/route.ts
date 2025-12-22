@@ -9,6 +9,8 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { productId, quantityToDeduct } = body;
 
+    console.log(quantityToDeduct, "quantity");
+
     if (!productId || quantityToDeduct === undefined || quantityToDeduct < 0) {
       return NextResponse.json(
         { error: "Product ID and valid quantity are required" },

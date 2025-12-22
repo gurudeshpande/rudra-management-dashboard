@@ -9,30 +9,26 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
 
-    // Get all payments and group by customer
+    // Get all payments with customer details
     const payments = await prisma.payment.findMany({
-      where: {
-        OR: [
-          { customerName: { contains: search, mode: "insensitive" } },
-          { customerNumber: { contains: search, mode: "insensitive" } },
-          { customerEmail: { contains: search, mode: "insensitive" } },
-        ],
+      include: {
+        customer: true,
       },
       orderBy: { createdAt: "desc" },
     });
 
-    // Group payments by customer (using name + number as unique identifier)
+    // Group payments by customer (using customerId as unique identifier)
     const customerMap = new Map();
 
     payments.forEach((payment) => {
-      const customerKey = `${payment.customerName}-${payment.customerNumber}`;
+      const customerKey = payment.customerId;
 
       if (!customerMap.has(customerKey)) {
         customerMap.set(customerKey, {
-          id: customerMap.size + 1, // Generate unique ID
-          name: payment.customerName,
-          number: payment.customerNumber,
-          email: payment.customerEmail,
+          id: payment.customer.id,
+          name: payment.customer.name,
+          number: payment.customer.number,
+          email: payment.customer.email,
           totalPayments: 0,
           totalAmount: 0,
           lastPaymentDate: payment.createdAt,

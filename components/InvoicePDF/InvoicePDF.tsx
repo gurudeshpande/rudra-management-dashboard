@@ -351,11 +351,16 @@ const formatIndianCurrency = (amount: number): string => {
 interface InvoicePDFProps {
   invoiceData: InvoiceData;
   logoUrl?: string;
+  // companyType?: "RUDRA" | "YADNYASENI"; // Add this
 }
 
 // Create Invoice Document component with proper typing
 // Create Invoice Document component with proper typing
-const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoiceData, logoUrl }) => {
+const InvoicePDF: React.FC<InvoicePDFProps> = ({
+  invoiceData,
+  logoUrl,
+  // companyType = "RUDRA",
+}) => {
   const {
     invoiceNumber,
     invoiceDate,
@@ -370,11 +375,44 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoiceData, logoUrl }) => {
     notes,
     deliveryDate,
     advancePaid,
+    companyType = "RUDRA",
   } = invoiceData;
 
   console.log(advancePaid, "advancePaid");
 
   console.log(invoiceData, "invoiceData in pdf");
+
+  // Company-specific details
+  const getCompanyDetails = () => {
+    const companies = {
+      YADNYASENI: {
+        name: "Yadnyaseni Creations",
+        address:
+          "Samata Nagar, Ganesh Nagar Lane No 1, Famous Chowk, New Sangavi, Pune Maharashtra 411061, India", // Add actual address
+        gstin: "27AMWPV8148A1ZE", // Add actual GSTIN
+        phone: "9595221296", // Add actual phone
+        email: "rudraarts30@gmail.com", // Add actual email
+        signature: "Yadnyaseni Creations",
+        watermark: "Yadnyaseni Creations",
+      },
+      RUDRA: {
+        name: "Rudra Arts & Handicrafts",
+        address:
+          "Samata Nagar, Ganesh Nagar Lane No 1, Famous Chowk, New Sangavi, Pune Maharashtra 411061, India",
+        gstin: "27AMWPV8148A1ZE",
+        phone: "9595221296",
+        email: "rudraarts30@gmail.com",
+        signature: "Rudra Arts & Handicrafts",
+        watermark: "Rudra Arts & Handicrafts",
+      },
+    };
+
+    return companies[companyType] || companies.RUDRA;
+  };
+
+  const company = getCompanyDetails();
+
+  console.log(company, "company");
 
   // Table Header Component (to be repeated on each page)
   const TableHeader = () => (
@@ -418,25 +456,20 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoiceData, logoUrl }) => {
         <View style={styles.pageBorder} fixed />
 
         {/* Watermark */}
-        <Text style={styles.watermark}>Rudra Arts & Handicrafts</Text>
+        <Text style={styles.watermark}>{company.watermark}</Text>
 
         {/* Header with centered logo and company name */}
         <View style={styles.header}>
           <View style={styles.logoAndTitle}>
             {logoUrl && <Image style={styles.logo} src={logoUrl} />}
-            <Text style={styles.companyName}>Rudra Arts & Handicrafts</Text>
+            <Text style={styles.companyName}>{company.name}</Text>
           </View>
 
           <View>
-            {/* First line of address */}
-            <Text style={styles.companyDetails}>
-              {" "}
-              Samata Nagar, Ganesh Nagar Lane No 1, Famous Chowk, New Sangavi,
-              Pune Maharashtra 411061, India
-            </Text>
+            <Text style={styles.companyDetails}>{company.address}</Text>
 
             <Text style={styles.companyDetails}>
-              GSTIN: 27AMWPV8148A1ZE | 9595221296 | rudraarts30@gmail.com
+              GSTIN: {company.gstin} | {company.phone} | {company.email}
             </Text>
           </View>
         </View>
@@ -665,7 +698,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoiceData, logoUrl }) => {
             <View style={styles.signature}>
               <Text>Authorized Signature</Text>
               <Text>_________________________</Text>
-              <Text>Rudra Arts & Handicrafts</Text>
+              <Text>{company.signature}</Text>
             </View>
           </View>
         </View>

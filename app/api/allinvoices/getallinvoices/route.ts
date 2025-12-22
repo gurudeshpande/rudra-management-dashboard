@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
     const status = searchParams.get("status");
+    const entity = searchParams.get("entity");
 
     let whereClause: any = {};
 
@@ -28,6 +29,10 @@ export async function GET(request: NextRequest) {
     // Add status filter if provided
     if (status && status !== "ALL") {
       whereClause.status = status;
+    }
+
+    if (entity && entity !== "ALL") {
+      whereClause.companyType = entity;
     }
 
     const invoices = await prisma.invoice.findMany({
