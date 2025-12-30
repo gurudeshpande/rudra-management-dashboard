@@ -479,7 +479,7 @@ const InvoiceAnalytics: React.FC = () => {
                   />
                   <YAxis yAxisId="right" orientation="right" />
                   <Tooltip
-                    formatter={(value: any, name: string) => {
+                    formatter={(value: any, name: string | undefined) => {
                       if (name === "Revenue") {
                         return [formatCurrency(Number(value)), "Revenue"];
                       }
@@ -520,8 +520,10 @@ const InvoiceAnalytics: React.FC = () => {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ product, revenue }) =>
-                      `${product}: ${formatCurrency(Number(revenue))}`
+                    label={({ payload }): string =>
+                      `${payload?.product}: ${formatCurrency(
+                        Number(payload?.revenue)
+                      )}`
                     }
                     outerRadius={80}
                     fill="#8884d8"
@@ -565,7 +567,7 @@ const InvoiceAnalytics: React.FC = () => {
                     tick={{ fontSize: 12 }}
                   />
                   <Tooltip
-                    formatter={(value: any, name: string) => {
+                    formatter={(value: any, name: string | undefined) => {
                       if (name === "Revenue") {
                         return [formatCurrency(Number(value)), "Revenue"];
                       }

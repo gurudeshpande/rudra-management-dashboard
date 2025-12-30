@@ -13,6 +13,7 @@ async function getPaymentData(paymentId: string) {
   try {
     const payment = await prisma.payment.findUnique({
       where: { id: paymentId },
+      include: { customer: true },
     });
     return payment;
   } catch (error) {
@@ -37,8 +38,8 @@ export default async function PaymentReceiptPage({ searchParams }: PageProps) {
 
   const paymentData = {
     id: payment.id,
-    customerName: payment.customerName,
-    customerNumber: payment.customerNumber,
+    customerName: payment.customer?.name || "N/A",
+    customerNumber: payment.customer?.number || "N/A",
     amount: payment.amount,
     paymentMethod: payment.paymentMethod as
       | "UPI"
