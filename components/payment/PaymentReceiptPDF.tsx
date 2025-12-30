@@ -132,7 +132,13 @@ const styles = StyleSheet.create({
 });
 
 interface PaymentReceiptPDFProps {
-  payment: Payment;
+  payment: Payment & {
+    customer?: {
+      name: string;
+      email: string | null;
+      phone: string | null;
+    };
+  };
 }
 
 // Helper function to format currency
@@ -329,18 +335,19 @@ const PaymentReceiptPDF: React.FC<PaymentReceiptPDFProps> = ({ payment }) => {
           <View style={styles.column}>
             <Text style={styles.sectionTitle}>Customer Details</Text>
             <Text style={styles.infoText}>
-              <Text style={styles.boldText}>Name:</Text> {payment.customerName}
+              <Text style={styles.boldText}>Name:</Text>{" "}
+              {payment.customer?.name || "N/A"}
             </Text>
-            {payment.customerNumber && (
+            {payment.customer?.phone && (
               <Text style={styles.infoText}>
                 <Text style={styles.boldText}>Phone:</Text>{" "}
-                {payment.customerNumber}
+                {payment.customer.phone}
               </Text>
             )}
-            {payment.customerEmail && (
+            {payment.customer?.email && (
               <Text style={styles.infoText}>
                 <Text style={styles.boldText}>Email:</Text>{" "}
-                {payment.customerEmail}
+                {payment.customer.email}
               </Text>
             )}
           </View>
