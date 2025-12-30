@@ -36,6 +36,7 @@ export interface InvoiceData {
   dueDate: string;
   customerInfo: CustomerInfo;
   shippingInfo: CustomerInfo;
+  companyType?: "RUDRA" | "YADNYASENI";
   items: InvoiceItem[];
   subtotal: number;
   notes: string;

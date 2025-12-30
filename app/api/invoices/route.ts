@@ -64,6 +64,7 @@ export async function POST(req: Request) {
       totalInWords,
       deliveryDate,
       status,
+      companyType = "RUDRA", // <-- Add companyType here with default value
     } = data;
 
     // Generate invoice number
@@ -100,7 +101,7 @@ export async function POST(req: Request) {
       await updateProductQuantities(items);
     }
 
-    // Create Invoice
+    // Create Invoice with companyType
     const invoice = await prisma.invoice.create({
       data: {
         invoiceNumber,
@@ -117,6 +118,7 @@ export async function POST(req: Request) {
         totalInWords,
         deliveryDate: new Date(deliveryDate),
         status,
+        companyType, // <-- Add companyType here
         items: {
           create: items.map((item: any) => ({
             productId: item.productId,
@@ -239,7 +241,7 @@ export async function PUT(req: Request) {
     }
 
     const body = await req.json();
-    const { customer, remaining, status } = body;
+    const { customer, remaining, status, companyType } = body; // <-- Add companyType here
 
     // Get the current invoice to check status changes
     const currentInvoice = await prisma.invoice.findUnique({
@@ -298,20 +300,20 @@ export async function PUT(req: Request) {
       }
     }
 
+    // Prepare update data
+    const updateData: any = {
+      balanceDue: remaining,
+      status,
+    };
+
+    // Add companyType if provided
+    if (companyType) {
+      updateData.companyType = companyType;
+    }
+
     const updatedInvoice = await prisma.invoice.update({
       where: { id: Number(id) },
-      data: {
-        balanceDue: remaining,
-        status,
-        customer: customer
-          ? {
-              update: {
-                name: customer.name,
-                number: customer.number,
-              },
-            }
-          : undefined,
-      },
+      data: updateData,
       include: { customer: true, items: true },
     });
 

@@ -171,7 +171,7 @@ export default function PaymentManager() {
 
   const fetchCustomers = async () => {
     try {
-      const response = await fetch("/api/payments/customers");
+      const response = await fetch("/api/customers");
       if (response.ok) {
         const customersData = await response.json();
         setCustomers(customersData);
@@ -325,6 +325,12 @@ export default function PaymentManager() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          customerId:
+            customers.find(
+              (c) =>
+                c.name === formData.customerName &&
+                c.number === formData.customerNumber
+            )?.id || null,
           customerName: formData.customerName.trim(),
           customerNumber: formData.customerNumber.trim() || null,
           customerEmail: formData.customerEmail.trim() || null,

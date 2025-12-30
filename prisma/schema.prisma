@@ -26,9 +26,7 @@ model User {
 
   RawMaterialTransfer RawMaterialTransfer[]
   ProductTransfer    ProductTransfer[]
-
   UserInventory UserInventory[]
-
   RawMaterialConsumption RawMaterialConsumption[]
 }
 
@@ -37,11 +35,190 @@ model Customer {
   id        Int       @id @default(autoincrement())
   name      String
   number    String    @unique
+  email     String?
   address   String?
-  invoices  Invoice[]
-  shipping  ShippingInfo[]
+  
+  // Relations
+  invoices    Invoice[]
+  shipping    ShippingInfo[]
+  payments    Payment[]
+  creditNotes CreditNote[]
+  
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+}
+
+// ====================== VENDOR ======================
+model Vendor {
+  id          Int       @id @default(autoincrement())
+  name        String
+  phone       String?
+  email       String?
+  companyName String?   // Company name if different
+  gstin       String?   @unique // GST number
+  address     String?
+  
+  // Financial (Optional - can be added later)
+  openingBalance Float? @default(0)
+  creditLimit    Float?
+  
+  // Relations
+  creditNotes VendorCreditNote[]
+  payments    VendorPayment[]
+  bills       Bill[]           // For vendor bills/invoices
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([name])
+  @@index([gstin])
+}
+
+// ====================== VENDOR CREDIT NOTE ======================
+enum VendorCreditNoteStatus {
+  DRAFT
+  ISSUED
+  APPLIED
+  CANCELLED
+}
+
+model VendorCreditNote {
+  id              String         @id @default(cuid())
+  creditNoteNumber String        @unique
+  vendor          Vendor         @relation(fields: [vendorId], references: [id])
+  vendorId        Int
+  
+  // Reference to original bill/invoice if applicable
+  billNumber      String?
+  
+  issueDate       DateTime       @default(now())
+  reason          String         // Return, Discount, Adjustment, Cancellation
+  amount          Float
+  taxAmount       Float          @default(0)
+  totalAmount     Float
+  notes           String?
+  status          VendorCreditNoteStatus @default(DRAFT)
+  
+  // For tracking application to bills
+  appliedToBill   Boolean        @default(false)
+  appliedDate     DateTime?
+  
+  // Relation to the bill where this credit note is applied (one-to-one)
+  appliedBill     Bill?          @relation(fields: [appliedBillId], references: [id])
+  appliedBillId   Int?           @unique // Bill ID where credit was applied - ADD @unique
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  @@map("vendor_credit_notes")
+}
+
+// ====================== VENDOR PAYMENT ======================
+enum VendorPaymentStatus {
+  DUE
+  PAID
+  OVERDUE
+  PARTIAL
+}
+
+enum VendorPaymentMethod {
+  UPI
+  CASH
+  BANK_TRANSFER
+  CARD
+  CHEQUE
+  ONLINE
+}
+
+model VendorPayment {
+  id              String   @id @default(cuid())
+  vendor          Vendor   @relation(fields: [vendorId], references: [id])
+  vendorId        Int
+  
+  amount          Float
+  paymentMethod   VendorPaymentMethod
+  transactionId   String?
+  referenceNumber String   @unique // Payment reference/cheque number
+  paymentDate     DateTime @default(now())
+  
+  // Bill references (can pay for multiple bills)
+  billNumbers     String[] // Array of bill numbers paid
+  
+  status          VendorPaymentStatus @default(DUE)
+  dueDate         DateTime?
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("vendor_payments")
+}
+
+// ====================== BILL (Vendor Invoice) ======================
+enum BillStatus {
+  DRAFT
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Bill {
+  id              Int           @id @default(autoincrement())
+  billNumber      String        @unique
+  vendor          Vendor        @relation(fields: [vendorId], references: [id])
+  vendorId        Int
+  billDate        DateTime
+  dueDate         DateTime
+  
+  // Financials
+  subtotal        Float
+  taxAmount       Float
+  totalAmount     Float
+  amountPaid      Float         @default(0)
+  balanceDue      Float
+  paymentTerms    String?       // Payment terms description
+  
+  // Status
+  status          BillStatus    @default(DRAFT)
+  notes           String?
+  
+  // Items (optional - can be added later as a separate model)
+  itemsDescription String?      // Description of items/services
+  
+  // Credit note applied to this bill (one-to-one)
+  appliedCreditNote VendorCreditNote? // Remove the array, make it singular
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@map("bills")
+}
+
+// ====================== COUNTERS ======================
+model VendorCreditNoteCounter {
+  id        String @id @default(cuid())
+  financialYear String @unique // Format: "2024-2025"
+  lastNumber Int    @default(0)
+  
+  @@map("vendor_credit_note_counters")
+}
+
+model VendorPaymentCounter {
+  id        String @id @default(cuid())
+  financialYear String @unique // Format: "2024-2025"
+  lastNumber Int    @default(0)
+  
+  @@map("vendor_payment_counters")
+}
+
+model BillCounter {
+  id        String @id @default(cuid())
+  financialYear String @unique // Format: "2024-2025"
+  lastNumber Int    @default(0)
+  
+  @@map("bill_counters")
 }
 
 // ====================== SHIPPING ======================
@@ -49,8 +226,10 @@ model ShippingInfo {
   id         Int       @id @default(autoincrement())
   name       String
   address    String
+  
   customer   Customer? @relation(fields: [customerId], references: [id])
   customerId Int?
+  
   invoice    Invoice[]
 }
 
@@ -59,18 +238,19 @@ model Product {
   id        Int            @id @default(autoincrement())
   name      String
   size      String?
-  costPrice Float?          // NEW: Cost price field
-  price     Float          // This becomes selling price
+  costPrice Float?         // Cost price field
+  price     Float          // Selling price
   category  String
   quantity  Int            @default(0) 
+  
+  // Relations
   items     InvoiceItem[]
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-
   ProductStructure ProductStructure[]
   ProductTransfer ProductTransfer[]
-
   RawMaterialConsumption RawMaterialConsumption[]
+  
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 }
 
 // ====================== INVOICE ======================
@@ -79,11 +259,15 @@ model Invoice {
   invoiceNumber String        @unique
   invoiceDate   DateTime
   dueDate       DateTime
+  
   customer      Customer      @relation(fields: [customerId], references: [id])
   customerId    Int
+  
   shipping      ShippingInfo? @relation(fields: [shippingId], references: [id])
   shippingId    Int?
+  
   items         InvoiceItem[]
+  
   subtotal      Float
   cgst          Float
   sgst          Float
@@ -92,19 +276,24 @@ model Invoice {
   balanceDue    Float
   totalInWords  String
   deliveryDate  DateTime
-  status        String        @default("DRAFT") // NEW
+  status        String        @default("DRAFT")
+
+  companyType   String?      @default("RUDRA")
+  
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 }
 
-
 // ====================== INVOICE ITEM ======================
 model InvoiceItem {
   id          Int      @id @default(autoincrement())
+  
   invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   invoiceId   Int
+  
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId   Int
+  
   name        String
   quantity    Int
   price       Float
@@ -113,34 +302,37 @@ model InvoiceItem {
   description String?
 }
 
-
+// ====================== RAW MATERIAL ======================
 model RawMaterial {
   id        Int       @id @default(autoincrement())
   name      String
   quantity  Float     @default(0)
   unit      String?   @default("pcs")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
   
   // Relations
   productStructures ProductStructure[]
   transfers        RawMaterialTransfer[]
-
   UserInventory UserInventory[]
-
   RawMaterialConsumption RawMaterialConsumption[]
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
+// ====================== PRODUCT STRUCTURE ======================
 model ProductStructure {
   id              Int          @id @default(autoincrement())
+  
   product         Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId       Int
-  productName     String?      // Make optional first
+  productName     String?
+  
   rawMaterial     RawMaterial  @relation(fields: [rawMaterialId], references: [id], onDelete: Cascade)
   rawMaterialId   Int
-  materialName    String?      // Make optional first
+  materialName    String?
+  
   quantityRequired Float
-  unit            String?      // Make optional first
+  unit            String?
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -148,17 +340,20 @@ model ProductStructure {
   @@unique([productId, rawMaterialId])
 }
 
+// ====================== RAW MATERIAL TRANSFER ======================
 model RawMaterialTransfer {
   id             Int           @id @default(autoincrement())
+  
   user           User          @relation(fields: [userId], references: [id])
   userId         String
+  
   rawMaterial    RawMaterial   @relation(fields: [rawMaterialId], references: [id])
   rawMaterialId  Int
+  
   quantityIssued Float
   status         TransferStatus @default(SENT)
   notes          String?
   
-  // New fields for partial rejection tracking
   quantityRejected Float?      @default(0)
   quantityApproved Float?      @default(0)
   rejectionReason  String?
@@ -173,11 +368,12 @@ enum TransferStatus {
   USED
   RETURNED
   CANCELLED
-  REPAIRING // Materials under repair
+  REPAIRING
   UNUSED
   FINISHED
 }
 
+// ====================== PRODUCT TRANSFER ======================
 enum ProductTransferStatus {
   SENT
   RECEIVED
@@ -185,67 +381,83 @@ enum ProductTransferStatus {
   CANCELLED
 }
 
-// Add this new model for Product Transfers
 model ProductTransfer {
   id             Int                   @id @default(autoincrement())
+  
   user           User                  @relation(fields: [userId], references: [id])
   userId         String
+  
   product        Product               @relation(fields: [productId], references: [id])
   productId      Int
+  
   quantitySent   Int
   status         ProductTransferStatus @default(SENT)
   notes          String?
-  receivedBy     String?               // Super admin who received it
+  receivedBy     String?
   receivedAt     DateTime?
+  
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
 }
 
+// ====================== USER INVENTORY ======================
 model UserInventory {
   id            Int       @id @default(autoincrement())
+  
   user          User      @relation(fields: [userId], references: [id])
   userId        String
+  
   rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id])
   rawMaterialId Int
+  
   quantity      Float     @default(0)
   unit          String    @default("pcs")
+  
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   @@unique([userId, rawMaterialId])
 }
 
+// ====================== RAW MATERIAL CONSUMPTION ======================
 model RawMaterialConsumption {
   id                      Int       @id @default(autoincrement())
+  
   userId                  String
   productId               Int
   rawMaterialId           Int
+  
   quantityUsed            Float
   unit                    String
-  productTransferQuantity Int       // Number of products transferred
+  productTransferQuantity Int
   notes                   String?
-  createdAt               DateTime  @default(now())
   
   // Relations
   user        User        @relation(fields: [userId], references: [id])
   product     Product     @relation(fields: [productId], references: [id])
   rawMaterial RawMaterial @relation(fields: [rawMaterialId], references: [id])
   
+  createdAt               DateTime  @default(now())
+  
   @@map("raw_material_consumption")
 }
 
+// ====================== PAYMENT ======================
 model Payment {
   id              String   @id @default(cuid())
-  customerName    String
-  customerNumber  String?
-  customerEmail   String?
+  
+  customer        Customer @relation(fields: [customerId], references: [id])
+  customerId      Int
+  
   amount          Float
   paymentMethod   PaymentMethod
   transactionId   String?
   receiptNumber   String   @unique
+  
   status          PaymentStatus @default(DUE)
   dueDate         DateTime?
   balanceDue      Float?
+  
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -258,17 +470,60 @@ enum PaymentStatus {
   OVERDUE
 }
 
+// ====================== RECEIPT COUNTER ======================
 model ReceiptCounter {
   id        String @id @default(cuid())
-  financialYear String @unique // Format: "2024-2025"
+  financialYear String @unique
   lastNumber Int    @default(0)
   
   @@map("receipt_counters")
 }
 
+// ====================== PAYMENT METHOD ======================
 enum PaymentMethod {
   UPI
   CASH
   BANK_TRANSFER
   CARD
+}
+
+// ====================== CREDIT NOTE (Customer) ======================
+enum CreditNoteStatus {
+  DRAFT
+  ISSUED
+  CANCELLED
+  APPLIED
+}
+
+model CreditNote {
+  id              String         @id @default(cuid())
+  creditNoteNumber String        @unique
+  invoiceNumber   String?        // Reference to original invoice if applicable
+  customer        Customer       @relation(fields: [customerId], references: [id])
+  customerId      Int
+  issueDate       DateTime       @default(now())
+  reason          String         // Reason for credit note (Return, Discount, Adjustment, etc.)
+  amount          Float
+  taxAmount       Float          @default(0)
+  totalAmount     Float
+  notes           String?
+  status          CreditNoteStatus @default(DRAFT)
+  
+  // For tracking application to invoices
+  appliedToInvoice Boolean       @default(false)
+  appliedDate      DateTime?
+  appliedInvoiceId String?       // Invoice ID where credit was applied
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  @@map("credit_notes")
+}
+
+model CreditNoteCounter {
+  id        String @id @default(cuid())
+  financialYear String @unique // Format: "2024-2025"
+  lastNumber Int    @default(0)
+  
+  @@map("credit_note_counters")
 }

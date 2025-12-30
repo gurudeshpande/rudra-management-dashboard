@@ -127,6 +127,7 @@ const Invoices = () => {
   const [invoiceStatus, setInvoiceStatus] = useState<
     "PAID" | "UNPAID" | "ADVANCE"
   >("UNPAID");
+  const [company, setCompany] = useState<"RUDRA" | "YADNYASENI">("RUDRA");
 
   // Fetch existing customers from API
   useEffect(() => {
@@ -440,6 +441,7 @@ const Invoices = () => {
         invoiceDate: new Date().toISOString(),
         dueDate: new Date().toISOString(),
         customerInfo,
+        companyType: company,
         shippingInfo: customerInfo,
         items: items.filter((item) => item.name && item.price > 0),
         subtotal,
@@ -514,7 +516,8 @@ const Invoices = () => {
         const error = await res.json();
         throw new Error(error.error || "Failed to update product quantity");
       }
-
+      // const data = res.json();
+      // console.log(data, "data not");
       return await res.json();
     } catch (error) {
       console.error(`Error updating quantity for product ${productId}:`, error);
@@ -795,13 +798,26 @@ const Invoices = () => {
 
   // Company details
   const companyDetails = {
-    name: "Rudra Arts and Handicrafts",
-    address: "Samata Nagar, Ganesh Nagar Lane No 1, Famous Chowk, New Sangavi",
-    city: "Pune, Maharashtra 411061, India",
-    gstin: "GSTIN 27AMWPV8148A1ZE",
-    phone: "9595221296",
-    email: "rudraarts30@gmail.com",
+    RUDRA: {
+      name: "Rudra Arts and Handicrafts",
+      address:
+        "Samata Nagar, Ganesh Nagar Lane No 1, Famous Chowk, New Sangavi",
+      city: "Pune, Maharashtra 411061, India",
+      gstin: "GSTIN 27AMWPV8148A1ZE",
+      phone: "9595221296",
+      email: "rudraarts30@gmail.com",
+    },
+    YADNYASENI: {
+      name: "Yadnyaseni Creations",
+      address: "Your address for Yadnyaseni Creations", // Add actual address
+      city: "City, State, Pincode", // Add actual city details
+      gstin: "GSTIN NUMBER HERE", // Add actual GSTIN
+      phone: "PHONE NUMBER HERE", // Add actual phone
+      email: "EMAIL HERE", // Add actual email
+    },
   };
+
+  const currentCompany = companyDetails[company];
 
   // Handle final invoice generation
   const handleGenerateInvoice = async () => {
@@ -856,10 +872,11 @@ const Invoices = () => {
       const blob = await pdf(
         <InvoicePDF
           invoiceData={{
-            companyDetails,
+            companyDetails: currentCompany, // Pass the selected company
             invoiceNumber: result.invoice.invoiceNumber,
             invoiceDate,
             dueDate: invoiceDate,
+            companyType: company, // Pass company type
             customerInfo: {
               name: customerInfo.name || "",
               address: customerInfo.address || "",
@@ -1131,6 +1148,54 @@ const Invoices = () => {
         {/* Header */}
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-900">Create Invoice</h1>
+          <div className="space-y-3">
+            <Label className="font-semibold">Company *</Label>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Rudra */}
+              <label
+                htmlFor="company-rudra"
+                className={`flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer transition
+        ${
+          company === "RUDRA"
+            ? "border-blue-600 bg-blue-50"
+            : "border-gray-300 hover:border-gray-400"
+        }`}
+              >
+                <input
+                  type="radio"
+                  id="company-rudra"
+                  name="company"
+                  checked={company === "RUDRA"}
+                  onChange={() => setCompany("RUDRA")}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="font-medium">Rudra Arts & Handicrafts</span>
+              </label>
+
+              {/* Yadnyaseni */}
+              <label
+                htmlFor="company-yadnyaseni"
+                className={`flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer transition
+        ${
+          company === "YADNYASENI"
+            ? "border-blue-600 bg-blue-50"
+            : "border-gray-300 hover:border-gray-400"
+        }`}
+              >
+                <input
+                  type="radio"
+                  id="company-yadnyaseni"
+                  name="company"
+                  checked={company === "YADNYASENI"}
+                  onChange={() => setCompany("YADNYASENI")}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="font-medium">Yadnyaseni Creations</span>
+              </label>
+            </div>
+          </div>
+
           <div className="flex space-x-2">
             <Button
               variant="outline"
