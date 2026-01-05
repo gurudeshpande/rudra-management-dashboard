@@ -388,7 +388,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
       YADNYASENI: {
         name: "Yadnyaseni Creations",
         address:
-          "Samata Nagar, Ganesh Nagar Lane No 1, Famous Chowk, New Sangavi, Pune Maharashtra 411061, India", // Add actual address
+          "Samata Nagar, Ganesh Nagar Lane No 1, Above Rudra arts & Handicrafts LLP, Famous Chowk, New Sangavi, Pune Maharashtra 411027, India", // Add actual address
         gstin: "27AMWPV8148A1ZE", // Add actual GSTIN
         phone: "9595221296", // Add actual phone
         email: "rudraarts30@gmail.com", // Add actual email
@@ -398,7 +398,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
       RUDRA: {
         name: "Rudra Arts & Handicrafts",
         address:
-          "Samata Nagar, Ganesh Nagar Lane No 1, Famous Chowk, New Sangavi, Pune Maharashtra 411061, India",
+          "Samata Nagar, Ganesh Nagar Lane No 1, Famous Chowk, New Sangavi, Pune Maharashtra 411027, India",
         gstin: "27AMWPV8148A1ZE",
         phone: "9595221296",
         email: "rudraarts30@gmail.com",
@@ -423,9 +423,9 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
       <View style={styles.tableColLarge}>
         <Text style={styles.tableCellHeader}>Item & Description</Text>
       </View>
-      <View style={styles.tableColMedium}>
+      {/* <View style={styles.tableColMedium}>
         <Text style={styles.tableCellHeader}>HSN /SAC</Text>
-      </View>
+      </View> */}
       <View style={styles.tableColSmall}>
         <Text style={styles.tableCellHeader}>Qty</Text>
       </View>
@@ -552,9 +552,9 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
                   </Text>
                 )}
               </View>
-              <View style={styles.tableColMedium}>
+              {/* <View style={styles.tableColMedium}>
                 <Text style={styles.tableCell}>{item.hsn}</Text>
-              </View>
+              </View> */}
               <View style={styles.tableColSmall}>
                 <Text style={styles.tableCell}>
                   {item.quantity} {item.unit}

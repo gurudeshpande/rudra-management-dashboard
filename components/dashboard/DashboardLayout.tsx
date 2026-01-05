@@ -192,32 +192,49 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     ADMIN: [
       {
         name: "Dashboard",
-        href: "/admin/dashboard",
+        href: "/dashboard",
         icon: LayoutDashboard,
       },
       {
         name: "Inventory",
-        href: "/admin/inventory",
+        href: "/admin/inventory/inventory-management",
         icon: Package,
       },
-      { name: "Invoices", href: "/admin/invoices", icon: FileText },
       {
-        name: "Payment",
+        name: "Billing & Invoices",
         href: "#",
-        icon: DollarSign,
+        icon: FileText,
         subItems: [
           {
-            name: "Create Payment",
-            href: "/admin/payment/create",
+            name: "Create Invoice",
+            href: "/admin/invoices",
             icon: PlusCircle,
           },
           {
-            name: "Payment History",
-            href: "/admin/payment/history",
-            icon: History,
+            name: "All Invoices",
+            href: "/admin/invoicemanagement",
+            icon: List,
           },
         ],
       },
+      // { name: "Invoices", href: "/admin/invoices", icon: FileText },
+      // {
+      //   name: "Payment",
+      //   href: "#",
+      //   icon: DollarSign,
+      //   subItems: [
+      //     {
+      //       name: "Create Payment",
+      //       href: "/admin/payment/create",
+      //       icon: PlusCircle,
+      //     },
+      //     {
+      //       name: "Payment History",
+      //       href: "/admin/payment/history",
+      //       icon: History,
+      //     },
+      //   ],
+      // },
     ],
     USER: [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
