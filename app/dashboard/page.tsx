@@ -75,7 +75,7 @@ export default function DashboardPage() {
       description: "Generate and view detailed reports",
       icon: <TrendingUp className="h-8 w-8" />,
       href: "/super-admin/analysis",
-      role: ["SUPER_ADMIN", "ADMIN"],
+      role: ["SUPER_ADMIN"],
       badge: "Analysis",
     },
     {
@@ -83,7 +83,7 @@ export default function DashboardPage() {
       description: "Track and manage product inventory",
       icon: <List className="h-8 w-8" />,
       href: "/super-admin/inventory/inventory-management",
-      role: ["SUPER_ADMIN"],
+      role: ["SUPER_ADMIN", "ADMIN"],
       badge: "Management",
     },
     {
@@ -91,7 +91,7 @@ export default function DashboardPage() {
       description: "Track and manage Raw Material product inventory",
       icon: <Package className="h-8 w-8" />,
       href: "/super-admin/manufacturing",
-      role: ["SUPER_ADMIN", "ADMIN"],
+      role: ["SUPER_ADMIN"],
       badge: "Management",
     },
     // {
