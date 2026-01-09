@@ -115,6 +115,7 @@ const ProductManagement = () => {
     "Historical Legends",
     "Badges",
     "Taxidermy",
+    "Mudra",
   ];
 
   const router = useRouter();
