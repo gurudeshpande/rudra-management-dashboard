@@ -66,6 +66,9 @@ const ProductManagement = () => {
   const [editProduct, setEditProduct] = useState<ProductWithRelations | null>(
     null
   );
+  const [categories, setCategories] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState("");
+  const [categoryLoading, setCategoryLoading] = useState(false);
   const [addQuantityDialog, setAddQuantityDialog] = useState<number | null>(
     null
   );
@@ -296,6 +299,20 @@ const ProductManagement = () => {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("/api/categories");
+      const data = await res.json();
+      setCategories(data.map((c: any) => c.name));
+    } catch (err) {
+      console.error("Failed to load categories");
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
   // Handle add form submission
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -354,9 +371,9 @@ const ProductManagement = () => {
   };
 
   // Get unique categories for filter
-  const categories = Array.from(
-    new Set(products.map((product) => product.category))
-  );
+  // const categories = Array.from(
+  //   new Set(products.map((product) => product.category))
+  // );
 
   // Animation variants
   const itemVariants = {
@@ -830,13 +847,49 @@ const ProductManagement = () => {
                     <SelectValue placeholder="Select Category" />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    {categoryOptions.map((category) => (
+                    {categories.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  placeholder="New category name"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                />
+                <Button
+                  type="button"
+                  disabled={categoryLoading}
+                  className="bg-green-700 text-white"
+                  onClick={async () => {
+                    if (!newCategory.trim()) return;
+
+                    setCategoryLoading(true);
+                    const res = await fetch("/api/categories", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ name: newCategory }),
+                    });
+
+                    if (res.ok) {
+                      setNewCategory("");
+                      await fetchCategories();
+                      showAlert("success", "Success", "Category added");
+                    } else {
+                      const data = await res.json();
+                      showAlert("error", "Error", data.error);
+                    }
+
+                    setCategoryLoading(false);
+                  }}
+                >
+                  Add
+                </Button>
               </div>
 
               <div className="flex justify-end space-x-3 pt-4">
@@ -986,7 +1039,7 @@ const ProductManagement = () => {
                     <SelectValue placeholder="Select Category" />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    {categoryOptions.map((category) => (
+                    {categories.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
                       </SelectItem>
@@ -994,7 +1047,6 @@ const ProductManagement = () => {
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="flex justify-end space-x-3 pt-4">
                 <Button
                   type="button"

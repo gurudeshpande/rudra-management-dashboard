@@ -223,16 +223,22 @@ const Invoices = () => {
 
   // Filter products for custom dropdown search
   const filteredProducts = (index: number) => {
-    const searchQuery = items[index].searchQuery.toLowerCase();
+    const searchQuery = items[index]?.searchQuery?.toLowerCase() || "";
     if (!searchQuery) return productsData;
 
-    return productsData.filter(
-      (product) =>
-        product.name.toLowerCase().includes(searchQuery) ||
-        product.size.toLowerCase().includes(searchQuery) ||
-        product.category.toLowerCase().includes(searchQuery) ||
-        product.id.toString().includes(searchQuery)
-    );
+    return productsData.filter((product) => {
+      const productName = product?.name?.toLowerCase() || "";
+      const productSize = product?.size?.toLowerCase() || "";
+      const productCategory = product?.category?.toLowerCase() || "";
+      const productId = product?.id?.toString() || "";
+
+      return (
+        productName.includes(searchQuery) ||
+        productSize.includes(searchQuery) ||
+        productCategory.includes(searchQuery) ||
+        productId.includes(searchQuery)
+      );
+    });
   };
 
   // Handle search change for product dropdown
