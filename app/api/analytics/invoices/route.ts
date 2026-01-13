@@ -21,6 +21,7 @@ const PRODUCT_CATEGORIES = [
   "Historical Legends",
   "Badges",
   "Taxidermy",
+  "Mudra",
 ];
 
 export async function GET(request: NextRequest) {

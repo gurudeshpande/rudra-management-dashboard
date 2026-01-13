@@ -137,6 +137,7 @@ const InvoiceAnalytics: React.FC = () => {
     "Historical Legends",
     "Badges",
     "Taxidermy",
+    "Mudra",
   ];
 
   // Fetch analytics data

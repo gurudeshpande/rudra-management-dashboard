@@ -233,6 +233,19 @@ model ShippingInfo {
   invoice    Invoice[]
 }
 
+// ====================== CATEGORY ======================
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  slug      String   @unique // URL-friendly version
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("categories")
+}
+
+
 // ====================== PRODUCT ======================
 model Product {
   id        Int            @id @default(autoincrement())

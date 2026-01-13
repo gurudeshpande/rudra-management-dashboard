@@ -12,6 +12,7 @@ import {
   FileText,
   Plus,
   Download,
+  MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -73,6 +74,7 @@ const InvoiceManagement = () => {
     useState<InvoiceWithRelations | null>(null);
   const [mode, setMode] = useState<"view" | "edit" | null>(null);
   const [entityFilter, setEntityFilter] = useState("ALL");
+  const [sendingWhatsApp, setSendingWhatsApp] = useState<number | null>(null);
 
   const router = useRouter();
   // Add entity filter options
@@ -130,6 +132,84 @@ const InvoiceManagement = () => {
   useEffect(() => {
     fetchInvoices();
   }, [searchTerm, statusFilter, entityFilter]); // Add entityFilter here
+
+  const sendWhatsAppInvoice = async (invoiceId: number) => {
+    try {
+      setSendingWhatsApp(invoiceId);
+
+      const response = await fetch(`/api/invoices/${invoiceId}/send-whatsapp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Show success toast with clickable link
+        toast.custom(
+          (t) => (
+            <div className="bg-white border border-green-200 rounded-lg shadow-lg p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                    <MessageCircle className="w-5 h-5 text-green-600" />
+                  </div>
+                </div>
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-medium text-gray-900">
+                    WhatsApp Link Generated
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Click to open WhatsApp and send invoice to customer
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => {
+                        window.open(data.data.whatsappUrl, "_blank");
+                        toast.dismiss(t);
+                      }}
+                    >
+                      <MessageCircle className="w-4 h-4 mr-2" />
+                      Open WhatsApp
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(data.data.invoiceUrl);
+                        toast.success("Invoice link copied to clipboard");
+                        toast.dismiss(t);
+                      }}
+                    >
+                      Copy Invoice Link
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ),
+          {
+            duration: 10000, // Show for 10 seconds
+          }
+        );
+      } else {
+        toast.error("Failed to generate WhatsApp link", {
+          description: data.error || "Please try again",
+        });
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Failed to generate WhatsApp link", {
+        description: "An unexpected error occurred",
+      });
+    } finally {
+      setSendingWhatsApp(null);
+    }
+  };
 
   const statusFilterOptions = [
     { value: "ALL", label: "All Statuses" },
@@ -556,6 +636,23 @@ const InvoiceManagement = () => {
                               className="cursor-pointer"
                             >
                               <Trash2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                sendWhatsAppInvoice(invoice.id);
+                              }}
+                              disabled={sendingWhatsApp === invoice.id}
+                              title="Send via WhatsApp"
+                              className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                            >
+                              {sendingWhatsApp === invoice.id ? (
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-green-600 border-t-transparent" />
+                              ) : (
+                                <MessageCircle className="h-4 w-4" />
+                              )}
                             </Button>
                           </div>
                         </TableCell>
