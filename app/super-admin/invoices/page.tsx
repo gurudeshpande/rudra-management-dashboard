@@ -88,6 +88,9 @@ const Invoices = () => {
   );
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState<string>(
+    new Date().toISOString().split("T")[0]
+  );
 
   // State for invoice items
   const [items, setItems] = useState<InvoiceItem[]>([
@@ -109,6 +112,8 @@ const Invoices = () => {
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [bulkSearch, setBulkSearch] = useState("");
   const [bulkProducts, setBulkProducts] = useState<BulkProduct[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
+  const [invoicePreviewData, setInvoicePreviewData] = useState<any>(null);
 
   // State for advance payment
   const [advancePayment, setAdvancePayment] = useState<number>(0);
@@ -444,7 +449,7 @@ const Invoices = () => {
     try {
       const invoiceData = {
         invoiceNumber,
-        invoiceDate: new Date().toISOString(),
+        invoiceDate: new Date(invoiceDate).toISOString(), // Use selected date, not current date
         dueDate: new Date().toISOString(),
         customerInfo,
         companyType: company,
@@ -571,6 +576,124 @@ const Invoices = () => {
     };
     fetchProducts();
   }, []);
+
+  const handlePreviewInvoice = async () => {
+    try {
+      // Filter out empty items
+      const validItems = items.filter((item) => item.name && item.price > 0);
+
+      if (validItems.length === 0) {
+        alert.error(
+          "No items added",
+          "Please add at least one product to the invoice",
+          { duration: 6000 }
+        );
+        return;
+      }
+
+      if (!customerInfo.name || !customerInfo.number) {
+        alert.error(
+          "Customer information incomplete",
+          "Please fill customer name and phone number",
+          { duration: 6000 }
+        );
+        return;
+      }
+
+      // Prepare preview data
+      const formattedInvoiceDate = new Date(invoiceDate).toLocaleDateString(
+        "en-IN",
+        {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }
+      );
+
+      const mappedItems = validItems.map((item) => ({
+        name: item.name,
+        hsn: item.hsn || "970300",
+        quantity: item.quantity,
+        unit: item.unit || "pcs",
+        rate: item.price,
+        originalPrice: item.originalPrice,
+        discount: item.discount || 0,
+        cgst: 2.5,
+        sgst: 2.5,
+        amount: item.total,
+        description: "",
+      }));
+
+      const previewData = {
+        companyDetails: currentCompany,
+        invoiceNumber: `PREVIEW-${Date.now().toString().slice(-6)}`,
+        invoiceDate: formattedInvoiceDate,
+        dueDate: formattedInvoiceDate,
+        companyType: company,
+        customerInfo: {
+          name: customerInfo.name || "",
+          address: customerInfo.address || "",
+          city: customerInfo.city || "",
+          pincode: customerInfo.pincode || "",
+          gstin: customerInfo.gstin || "",
+        },
+        shippingInfo: {
+          name: customerInfo.name || "",
+          address: customerInfo.address || "",
+          city: customerInfo.city || "",
+          pincode: customerInfo.pincode || "",
+          gstin: customerInfo.gstin || "",
+        },
+        items: mappedItems,
+        subtotal,
+        cgst,
+        sgst,
+        total,
+        totalInWords: `${convertToWords(total)} Only`,
+        deliveryDate: new Date().toLocaleDateString("en-IN", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+        advancePaid: advancePayment,
+        notes: "",
+        previousDue: 0,
+        discountDetails: {
+          hasDiscount: validItems.some(
+            (item) => item.discount && item.discount > 0
+          ),
+          totalDiscount: validItems.reduce(
+            (sum, item) => sum + (item.discountedPrice || 0),
+            0
+          ),
+          itemsWithDiscount: validItems
+            .filter((item) => item.discount && item.discount > 0)
+            .map((item) => ({
+              name: item.name,
+              hsn: item.hsn || "970300",
+              quantity: item.quantity,
+              unit: item.unit || "pcs",
+              rate: item.price,
+              originalPrice: item.originalPrice,
+              discount: item.discount || 0,
+              cgst: 2.5,
+              sgst: 2.5,
+              amount: item.total,
+            })),
+        },
+      };
+
+      setInvoicePreviewData(previewData);
+      setShowPreview(true);
+    } catch (error) {
+      console.error("Failed to prepare preview:", error);
+      alert.error(
+        "Failed to prepare preview",
+        "Please check your inputs and try again",
+        { duration: 6000 }
+      );
+    }
+  };
 
   // Handle status change
   const handleStatusChange = (status: "PAID" | "UNPAID" | "ADVANCE") => {
@@ -794,12 +917,12 @@ const Invoices = () => {
     );
   };
 
-  // Get current date
-  const invoiceDate = new Date().toLocaleDateString("en-IN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  // // Get current date
+  // const invoiceDate = new Date().toLocaleDateString("en-IN", {
+  //   year: "numeric",
+  //   month: "long",
+  //   day: "numeric",
+  // });
 
   // Company details
   const companyDetails = {
@@ -814,11 +937,12 @@ const Invoices = () => {
     },
     YADNYASENI: {
       name: "Yadnyaseni Creations",
-      address: "Your address for Yadnyaseni Creations", // Add actual address
-      city: "City, State, Pincode", // Add actual city details
-      gstin: "GSTIN NUMBER HERE", // Add actual GSTIN
-      phone: "PHONE NUMBER HERE", // Add actual phone
-      email: "EMAIL HERE", // Add actual email
+      address:
+        "Samata Nagar, Ganesh Nagar Lane No 1, Above Rudra arts & Handicrafts LLP,Famous Chowk, New Sangavi, Pune Maharashtra 411027, India", // Add actual address
+      city: "Pune, Maharashtra 411061, India", // Add actual city details
+      gstin: "GSTIN 27AMWPV8148A1ZE",
+      phone: "9595221296",
+      email: "rudraarts30@gmail.com",
     },
   };
 
@@ -849,12 +973,12 @@ const Invoices = () => {
       }
 
       // First, update product quantities in inventory
-      const quantityUpdatePromises = validItems.map((item) =>
-        updateProductQuantity(item.productId, item.quantity)
-      );
+      // const quantityUpdatePromises = validItems.map((item) =>
+      //   updateProductQuantity(item.productId, item.quantity)
+      // );
 
-      // Wait for all quantity updates to complete
-      await Promise.all(quantityUpdatePromises);
+      // // Wait for all quantity updates to complete
+      // await Promise.all(quantityUpdatePromises);
 
       // Proceed with invoice generation
       const result = await saveInvoice(invoiceStatus);
@@ -1215,9 +1339,9 @@ const Invoices = () => {
             <CardContent className="space-y-4">
               {/* Customer Search and Dropdown */}
               <div className="space-y-2">
-                <Label htmlFor="customer-search">
+                {/* <Label htmlFor="customer-search">
                   Search Existing Customers
-                </Label>
+                </Label> */}
                 <div className="relative">
                   <Input
                     id="customer-search"
@@ -1292,6 +1416,17 @@ const Invoices = () => {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="invoiceDate">Date *</Label>
+                  <Input
+                    id="invoiceDate"
+                    type="date"
+                    value={invoiceDate}
+                    onChange={(e) => setInvoiceDate(e.target.value)}
+                    required
+                    className="w-1/2"
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="address">Billing Address</Label>
                   <Textarea
                     id="address"
@@ -1300,6 +1435,7 @@ const Invoices = () => {
                     onChange={handleCustomerInfoChange}
                     placeholder="Customer Billing Address"
                     rows={3}
+                    className="w-full"
                   />
                 </div>
               </div>
@@ -1865,9 +2001,17 @@ const Invoices = () => {
                 <Save className="mr-2 h-4 w-4" />
                 Save Draft
               </Button>
+              {/* <Button
+                variant="outline"
+                className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                onClick={handlePreviewInvoice}
+              >
+                <ReceiptIndianRupee className="mr-2 h-4 w-4" />
+                Preview Invoice
+              </Button> */}
               <Button
                 className="bg-orange-800 hover:bg-orange-900 text-white"
-                onClick={handleGenerateInvoice}
+                onClick={handlePreviewInvoice}
               >
                 <IndianRupee className="mr-2 h-4 w-4" />
                 Generate Invoice
@@ -1876,6 +2020,250 @@ const Invoices = () => {
           </div>
         </div>
       </div>
+
+      {/* PDF Preview Modal */}
+      {showPreview && invoicePreviewData && (
+        <div className="fixed inset-0 bg-black/60 bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  Invoice Preview
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Review your invoice before saving or downloading
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setShowPreview(false);
+                  setInvoicePreviewData(null);
+                }}
+                className="h-8 w-8"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-auto p-4">
+              <div className="border border-gray-300 rounded-lg overflow-hidden h-[70vh]">
+                {/* PDF Preview Container */}
+                <div className="w-full h-full overflow-auto bg-gray-100">
+                  <div className="flex flex-col items-center justify-center min-h-full p-4">
+                    {/* Static Preview (Looks like PDF) */}
+                    <div className="bg-white p-8 w-full max-w-4xl shadow-lg border border-gray-200">
+                      {/* Company Header */}
+                      <div className="text-center mb-6">
+                        <div className="flex items-center justify-center mb-2">
+                          {/* <div className="w-8 h-10 bg-orange-800 mr-3"></div> */}
+                          <h1 className="text-xl font-bold text-gray-900 uppercase">
+                            {currentCompany.name}
+                          </h1>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          {currentCompany.address}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          GSTIN: {currentCompany.gstin} | {currentCompany.phone}
+                        </p>
+                      </div>
+
+                      {/* Invoice Title */}
+                      <div className="text-center mb-4">
+                        <h2 className="text-lg font-bold text-gray-900">
+                          TAX INVOICE
+                        </h2>
+                      </div>
+
+                      {/* Invoice Info */}
+                      <div className="flex justify-between mb-6 p-3 border border-gray-300 rounded">
+                        <div>
+                          <p className="text-sm">
+                            <span className="font-medium">Invoice No:</span>{" "}
+                            PREVIEW
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm">
+                            <span className="font-medium">Invoice Date:</span>{" "}
+                            {new Date(invoiceDate).toLocaleDateString("en-IN")}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Customer Info */}
+                      <div className="grid grid-cols-2 gap-4 mb-6 p-3 border border-gray-300 rounded">
+                        <div>
+                          <h3 className="font-bold text-gray-800 mb-2">
+                            Bill To:
+                          </h3>
+                          <p className="text-sm">{customerInfo.name}</p>
+                          <p className="text-sm">{customerInfo.address}</p>
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-800 mb-2">
+                            Ship To:
+                          </h3>
+                          <p className="text-sm">{customerInfo.name}</p>
+                          <p className="text-sm">{customerInfo.address}</p>
+                        </div>
+                      </div>
+
+                      {/* Items Table */}
+                      <div className="mb-6 border border-gray-300 rounded overflow-hidden">
+                        <div className="grid grid-cols-12 bg-gray-50 p-2 border-b border-gray-300 text-xs font-bold">
+                          <div className="col-span-6">Item & Description</div>
+                          <div className="col-span-2 text-center">Qty</div>
+                          <div className="col-span-2 text-right">Rate (₹)</div>
+                          <div className="col-span-2 text-right">
+                            Amount (₹)
+                          </div>
+                        </div>
+                        {items
+                          .filter((item) => item.name && item.price > 0)
+                          .slice(0, 3) // Show only first 3 items in preview
+                          .map((item, index) => (
+                            <div
+                              key={index}
+                              className="grid grid-cols-12 p-2 border-b border-gray-100 text-sm"
+                            >
+                              <div className="col-span-6">{item.name}</div>
+                              <div className="col-span-2 text-center">
+                                {item.quantity}
+                              </div>
+                              <div className="col-span-2 text-right">
+                                ₹{item.price.toFixed(2)}
+                              </div>
+                              <div className="col-span-2 text-right font-medium">
+                                ₹{item.total.toFixed(2)}
+                              </div>
+                            </div>
+                          ))}
+                        {items.filter((item) => item.name && item.price > 0)
+                          .length > 3 && (
+                          <div className="p-2 text-center text-sm text-gray-500 bg-gray-50">
+                            ... and{" "}
+                            {items.filter((item) => item.name && item.price > 0)
+                              .length - 3}{" "}
+                            more items
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Summary */}
+                      <div className="flex justify-end mb-4">
+                        <div className="w-64 border border-gray-300 rounded overflow-hidden">
+                          <div className="bg-gray-50 p-2 text-center font-bold border-b border-gray-300">
+                            Summary
+                          </div>
+                          <div className="divide-y divide-gray-200">
+                            <div className="flex justify-between p-2">
+                              <span>Subtotal:</span>
+                              <span>₹{subtotal.toFixed(2)}</span>
+                            </div>
+                            {includeGst && (
+                              <>
+                                <div className="flex justify-between p-2">
+                                  <span>CGST (2.5%):</span>
+                                  <span>₹{cgst.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between p-2">
+                                  <span>SGST (2.5%):</span>
+                                  <span>₹{sgst.toFixed(2)}</span>
+                                </div>
+                              </>
+                            )}
+                            <div className="flex justify-between p-2 bg-gray-50 font-bold">
+                              <span>Total:</span>
+                              <span>₹{total.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Watermark */}
+                      <div className="text-center mt-8">
+                        <div className="text-gray-300 text-4xl font-bold opacity-20 transform -rotate-12">
+                          PREVIEW
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 text-center text-sm text-gray-500">
+                      This is a preview. The actual PDF will be generated when
+                      you click "Generate Invoice & PDF"
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center p-6 border-t bg-gray-50">
+              <div>
+                <p className="text-sm text-gray-600">
+                  Invoice Total:{" "}
+                  <span className="font-bold">₹{total.toFixed(2)}</span>
+                </p>
+                <p className="text-xs text-gray-500">
+                  Items:{" "}
+                  {items.filter((item) => item.name && item.price > 0).length}
+                </p>
+              </div>
+              <div className="flex space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowPreview(false);
+                    setInvoicePreviewData(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      // Save as draft
+                      await saveInvoice("UNPAID");
+                      setShowPreview(false);
+                      setInvoicePreviewData(null);
+                      alert.success(
+                        "Invoice saved as draft",
+                        "You can find it in the invoice management section",
+                        { duration: 5000 }
+                      );
+                    } catch (error) {
+                      console.error("Failed to save draft:", error);
+                    }
+                  }}
+                  className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  Save as Draft
+                </Button>
+                <Button
+                  onClick={async () => {
+                    try {
+                      // Generate PDF directly
+                      await handleGenerateInvoice();
+                      setShowPreview(false);
+                      setInvoicePreviewData(null);
+                    } catch (error) {
+                      console.error("Failed to generate invoice:", error);
+                    }
+                  }}
+                  className="bg-orange-800 hover:bg-orange-900 text-white"
+                >
+                  <IndianRupee className="mr-2 h-4 w-4" />
+                  Generate Invoice & PDF
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };

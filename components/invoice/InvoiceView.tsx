@@ -532,14 +532,14 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice }) => {
         </div>
 
         {/* Security Note */}
-        <div className="mt-8 text-center">
+        {/* <div className="mt-8 text-center">
           <p className="text-sm text-gray-500">
             🔒 This invoice is securely shared. The link will expire in 30 days.
           </p>
           <p className="text-xs text-gray-400 mt-1">
             Invoice ID: {invoice.id} • Customer ID: {invoice.customerId}
           </p>
-        </div>
+        </div> */}
       </div>
     </div>
   );

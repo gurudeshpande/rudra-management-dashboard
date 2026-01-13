@@ -299,7 +299,7 @@ export default function VendorManager() {
           {!showForm && (
             <Button
               onClick={() => setShowForm(true)}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Vendor
@@ -646,7 +646,10 @@ export default function VendorManager() {
                         ? "Try adjusting your search terms."
                         : "Get started by adding your first vendor."}
                     </p>
-                    <Button onClick={() => setShowForm(true)}>
+                    <Button
+                      onClick={() => setShowForm(true)}
+                      className="bg-blue-600 text-white cursor-pointer hover:bg-blue-700"
+                    >
                       <Plus className="h-4 w-4 mr-2" />
                       Add First Vendor
                     </Button>
