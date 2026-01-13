@@ -97,9 +97,11 @@ export async function POST(req: Request) {
     }
 
     // Update product quantities (only for FINAL or PAID invoices)
-    if (status === "FINAL" || status === "PAID") {
-      await updateProductQuantities(items);
-    }
+    // if (status === "FINAL" || status === "PAID") {
+    //   await updateProductQuantities(items);
+    // }
+
+    await updateProductQuantities(items);
 
     // Create Invoice with companyType
     const invoice = await prisma.invoice.create({
@@ -255,11 +257,8 @@ export async function PUT(req: Request) {
 
     // Handle status changes that affect inventory
     if (currentInvoice.status !== status) {
-      // If changing from DRAFT to FINAL/PAID, deduct quantities
-      if (
-        currentInvoice.status === "DRAFT" &&
-        (status === "FINAL" || status === "PAID")
-      ) {
+      // If changing from DRAFT to ANY status (PAID, UNPAID, ADVANCE), deduct quantities
+      if (currentInvoice.status === "DRAFT") {
         for (const item of currentInvoice.items) {
           const product = await prisma.product.findUnique({
             where: { id: item.productId },
@@ -281,12 +280,8 @@ export async function PUT(req: Request) {
           });
         }
       }
-      // If changing from FINAL/PAID to DRAFT, restore quantities
-      else if (
-        (currentInvoice.status === "FINAL" ||
-          currentInvoice.status === "PAID") &&
-        status === "DRAFT"
-      ) {
+      // If changing from ANY status to DRAFT, restore quantities
+      else if (status === "DRAFT") {
         for (const item of currentInvoice.items) {
           await prisma.product.update({
             where: { id: item.productId },

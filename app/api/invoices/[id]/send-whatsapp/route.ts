@@ -68,7 +68,8 @@ export async function POST(
     // Generate invoice URL
     const invoiceUrl = whatsappService.generateInvoiceUrl(
       invoice.id,
-      invoice.customer.number
+      invoice.customer.number,
+      invoice.customer.name
     );
 
     // Create WhatsApp message
