@@ -72,11 +72,14 @@ export async function POST(request: Request) {
       transactionId,
       referenceNumber,
       paymentDate,
+      productName,
       billNumbers,
       status = VendorPaymentStatus.PAID,
       dueDate,
       notes,
     } = body;
+
+    console.log(body, "body");
 
     // Validate required fields
     if (!vendorId || !amount || !referenceNumber) {
@@ -174,6 +177,7 @@ export async function POST(request: Request) {
         paymentMethod,
         transactionId: transactionId || null,
         referenceNumber,
+        productName: productName || null,
         paymentDate: paymentDateValue,
         billNumbers: billNumbers || [],
         status,

@@ -388,10 +388,10 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
       YADNYASENI: {
         name: "Yadnyaseni Creations",
         address:
-          "Samata Nagar, Ganesh Nagar Lane No 1, Above Rudra arts & Handicrafts LLP, Famous Chowk, New Sangavi, Pune Maharashtra 411027, India", // Add actual address
-        gstin: "27AMWPV8148A1ZE", // Add actual GSTIN
-        phone: "9595221296", // Add actual phone
-        email: "rudraarts30@gmail.com", // Add actual email
+          "Samata Nagar, Ganesh Nagar Lane No 1, Above Rudra arts & Handicrafts LLP, Famous Chowk, New Sangavi, Pune Maharashtra 411027, India",
+        gstin: "",
+        phone: "",
+        email: "",
         signature: "Yadnyaseni Creations",
         watermark: "Yadnyaseni Creations",
       },
@@ -437,12 +437,16 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
           <Text style={styles.tableCellHeader}>Disc.</Text>
         </View>
       )}
-      <View style={styles.tableColSmall}>
-        <Text style={styles.tableCellHeader}>CGST</Text>
-      </View>
-      <View style={styles.tableColSmall}>
-        <Text style={styles.tableCellHeader}>SGST</Text>
-      </View>
+      {companyType === "RUDRA" && (
+        <>
+          <View style={styles.tableColSmall}>
+            <Text style={styles.tableCellHeader}>CGST</Text>
+          </View>
+          <View style={styles.tableColSmall}>
+            <Text style={styles.tableCellHeader}>SGST</Text>
+          </View>
+        </>
+      )}
       <View style={[styles.tableColMedium, { borderRightWidth: 0 }]}>
         <Text style={styles.tableCellHeader}>Amount (Rs.)</Text>
       </View>
@@ -468,9 +472,11 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
           <View>
             <Text style={styles.companyDetails}>{company.address}</Text>
 
-            <Text style={styles.companyDetails}>
-              GSTIN: {company.gstin} | {company.phone} | {company.email}
-            </Text>
+            {company?.gstin && (
+              <Text style={styles.companyDetails}>
+                GSTIN: {company?.gstin} | {company?.phone} | {company?.email}
+              </Text>
+            )}
           </View>
         </View>
 
@@ -572,12 +578,16 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
                   </Text>
                 </View>
               )}
-              <View style={styles.tableColSmall}>
-                <Text style={styles.tableCell}>{item.cgst}%</Text>
-              </View>
-              <View style={styles.tableColSmall}>
-                <Text style={styles.tableCell}>{item.sgst}%</Text>
-              </View>
+              {companyType === "RUDRA" && (
+                <>
+                  <View style={styles.tableColSmall}>
+                    <Text style={styles.tableCell}>{item.cgst}%</Text>
+                  </View>
+                  <View style={styles.tableColSmall}>
+                    <Text style={styles.tableCell}>{item.sgst}%</Text>
+                  </View>
+                </>
+              )}
               <View style={[styles.tableColMedium, { borderRightWidth: 0 }]}>
                 <Text style={styles.tableCell}>
                   {formatIndianCurrency(item.amount)}
@@ -686,12 +696,12 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
                 <Text style={styles.boldText}>State Code:</Text> 27
               </Text>
               <Text style={styles.infoText}>
-                <Text style={styles.boldText}>GSTIN:</Text> 27AMWPV8148A1ZE
+                <Text style={styles.boldText}>GSTIN:</Text> {company.gstin}
               </Text>
             </View>
-            <View style={styles.footerSection}>
+            {/* <View style={styles.footerSection}>
               <Text style={styles.infoText}>A/C QR Code Placeholder</Text>
-            </View>
+            </View> */}
           </View>
 
           <View style={styles.footerRight}>

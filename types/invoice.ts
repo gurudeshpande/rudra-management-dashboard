@@ -49,6 +49,7 @@ export interface InvoiceData {
   status?: string;
   totalInWords: string;
   deliveryDate: string;
+  gstCalculationType: "INCLUDED_IN_PRICE" | "ADDED_ON_TOP";
   discountDetails: {
     hasDiscount: boolean;
     totalDiscount: number;
