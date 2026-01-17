@@ -680,8 +680,10 @@ export default function VendorManager() {
 }
 
 // Vendor Credit Note Tab Component
+// Vendor Credit Note Tab Component
 function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
   const [creditNotes, setCreditNotes] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]); // Add products state
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -695,11 +697,28 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
     taxAmount: "",
     notes: "",
     status: "DRAFT",
+    productName: "", // Add productName field
+    productId: "", // Add productId field
+    quantity: "1", // Add quantity field
   });
 
   useEffect(() => {
     fetchCreditNotes();
+    fetchProducts(); // Fetch products on component mount
   }, []);
+
+  // Add fetchProducts function
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch("/api/products");
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data);
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    }
+  };
 
   const fetchCreditNotes = async () => {
     try {
@@ -718,6 +737,45 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
       ...prev,
       [field]: value,
     }));
+  };
+
+  // Function to handle product selection
+  const handleProductSelect = (productId: string) => {
+    const selectedProduct = products.find((p) => p.id === parseInt(productId));
+    if (selectedProduct) {
+      // Calculate amount based on product price and quantity
+      const quantity = parseInt(formData.quantity) || 1;
+      const amount = selectedProduct.price * quantity;
+      setFormData((prev) => ({
+        ...prev,
+        productId,
+        productName: `${selectedProduct.name} ${selectedProduct.size}`, // Store product name
+        amount: amount.toString(),
+      }));
+    }
+  };
+
+  // Function to handle quantity change
+  const handleQuantityChange = (quantity: string) => {
+    const qty = parseInt(quantity) || 1;
+    if (formData.productId) {
+      const selectedProduct = products.find(
+        (p) => p.id === parseInt(formData.productId)
+      );
+      if (selectedProduct) {
+        const amount = selectedProduct.price * qty;
+        setFormData((prev) => ({
+          ...prev,
+          quantity,
+          amount: amount.toString(),
+        }));
+      }
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        quantity,
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -746,7 +804,7 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
       const counterData = await counterResponse.json();
       const creditNoteNumber = counterData.receiptNumber;
 
-      // Create credit note
+      // Create credit note with product info
       const response = await fetch("/api/vendor-credit-notes", {
         method: "POST",
         headers: {
@@ -754,6 +812,9 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
         },
         body: JSON.stringify({
           vendorId: parseInt(formData.vendorId),
+          productId: formData.productId ? parseInt(formData.productId) : null, // Send productId
+          productName: formData.productName || null, // Send productName
+          quantity: formData.quantity ? parseInt(formData.quantity) : null, // Send quantity
           billNumber: formData.billNumber.trim() || null,
           reason: formData.reason,
           amount: parseFloat(formData.amount),
@@ -781,6 +842,44 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
     }
   };
 
+  const handleIssueCreditNote = async (creditNoteId: number) => {
+    if (
+      !confirm(
+        "Are you sure you want to issue this credit note? This action cannot be undone."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await fetch("/api/vendor-credit-notes", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: creditNoteId,
+          status: "ISSUED",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to issue credit note");
+      }
+
+      // Refresh the credit notes list
+      await fetchCreditNotes();
+      alert("Credit note issued successfully!");
+    } catch (error) {
+      console.error("Error issuing credit note:", error);
+      alert("Failed to issue credit note");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       vendorId: "",
@@ -790,6 +889,9 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
       taxAmount: "",
       notes: "",
       status: "DRAFT",
+      productName: "", // Reset productName
+      productId: "", // Reset productId
+      quantity: "1", // Reset quantity
     });
     setShowForm(false);
   };
@@ -808,6 +910,23 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
         {label}
       </Badge>
     );
+  };
+
+  const handleViewCreditNote = (creditNote: any) => {
+    // You can implement a modal or detailed view here
+    const details = `
+    Credit Note: ${creditNote.creditNoteNumber}
+    Vendor: ${creditNote.vendor?.name}
+    Reason: ${creditNote.reason}
+    Amount: ₹${creditNote.amount.toFixed(2)}
+    Tax: ₹${creditNote.taxAmount.toFixed(2)}
+    Total: ₹${creditNote.totalAmount.toFixed(2)}
+    Status: ${creditNote.status}
+    Created: ${new Date(creditNote.issueDate).toLocaleDateString()}
+    ${creditNote.notes ? `Notes: ${creditNote.notes}` : ""}
+  `;
+
+    alert(details);
   };
 
   const filteredNotes = creditNotes.filter(
@@ -870,6 +989,50 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
                   </div>
 
                   <div className="space-y-2">
+                    <Label htmlFor="productId">Product (Optional)</Label>
+                    <Select
+                      value={formData.productId}
+                      onValueChange={handleProductSelect}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select product" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white max-h-60 overflow-y-auto">
+                        {products.map((product) => (
+                          <SelectItem
+                            key={product.id}
+                            value={product.id.toString()}
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium">
+                                {product.name} {product.size}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                Price: ₹{product.price} | Category:{" "}
+                                {product.category}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {formData.productId && (
+                    <div className="space-y-2">
+                      <Label htmlFor="quantity">Quantity</Label>
+                      <Input
+                        id="quantity"
+                        type="number"
+                        min="1"
+                        value={formData.quantity}
+                        onChange={(e) => handleQuantityChange(e.target.value)}
+                        placeholder="Enter quantity"
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
                     <Label htmlFor="billNumber">Bill Number (Optional)</Label>
                     <Input
                       id="billNumber"
@@ -880,7 +1043,9 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
                       placeholder="Reference bill number"
                     />
                   </div>
+                </div>
 
+                <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="reason">Reason *</Label>
                     <Select
@@ -905,9 +1070,7 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
 
-                <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="amount">Amount *</Label>
                     <Input
@@ -1029,7 +1192,7 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
                       Vendor
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Bill & Amount
+                      Product & Amount
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status & Dates
@@ -1059,6 +1222,12 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-1">
+                          {note.productName && (
+                            <div className="text-sm font-medium">
+                              {note.productName}
+                              {note.quantity && ` (Qty: ${note.quantity})`}
+                            </div>
+                          )}
                           {note.billNumber && (
                             <div className="text-sm text-gray-600">
                               Bill: {note.billNumber}
@@ -1091,16 +1260,22 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewCreditNote(note)}
+                          >
                             View
                           </Button>
                           {note.status === "DRAFT" && (
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-blue-600"
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 cursor-pointer"
+                              onClick={() => handleIssueCreditNote(note.id)}
+                              disabled={loading}
                             >
-                              Issue
+                              {loading ? "Processing..." : "Issue"}
                             </Button>
                           )}
                         </div>
@@ -1120,7 +1295,10 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
                 Create your first vendor credit note for returns, discounts, or
                 adjustments.
               </p>
-              <Button onClick={() => setShowForm(true)}>
+              <Button
+                onClick={() => setShowForm(true)}
+                className="bg-blue-600 text-white"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Create First Credit Note
               </Button>
@@ -1135,6 +1313,7 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
 // Vendor Payment Tab Component
 function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
   const [payments, setPayments] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]); // Add products state
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -1150,11 +1329,28 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
     status: "PAID",
     dueDate: "",
     notes: "",
+    productId: "", // Add productId field
+    productName: "", // Add productName field
+    quantity: "1", // Add quantity field
   });
 
   useEffect(() => {
     fetchPayments();
+    fetchProducts(); // Fetch products on component mount
   }, []);
+
+  // Add fetchProducts function
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch("/api/products");
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data);
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    }
+  };
 
   const fetchPayments = async () => {
     try {
@@ -1173,6 +1369,45 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
       ...prev,
       [field]: value,
     }));
+  };
+
+  // Function to handle product selection
+  const handleProductSelect = (productId: string) => {
+    const selectedProduct = products.find((p) => p.id === parseInt(productId));
+    if (selectedProduct) {
+      // Calculate amount based on product price and quantity
+      const quantity = parseInt(formData.quantity) || 1;
+      const amount = selectedProduct.price * quantity;
+      setFormData((prev) => ({
+        ...prev,
+        productId,
+        productName: `${selectedProduct.name} ${selectedProduct.size}`, // Store product name
+        amount: amount.toString(),
+      }));
+    }
+  };
+
+  // Function to handle quantity change
+  const handleQuantityChange = (quantity: string) => {
+    const qty = parseInt(quantity) || 1;
+    if (formData.productId) {
+      const selectedProduct = products.find(
+        (p) => p.id === parseInt(formData.productId)
+      );
+      if (selectedProduct) {
+        const amount = selectedProduct.price * qty;
+        setFormData((prev) => ({
+          ...prev,
+          quantity,
+          amount: amount.toString(),
+        }));
+      }
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        quantity,
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1201,7 +1436,7 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
       const counterData = await counterResponse.json();
       const referenceNumber = counterData.receiptNumber;
 
-      // Create payment
+      // Create payment with product info
       const response = await fetch("/api/vendor-payments", {
         method: "POST",
         headers: {
@@ -1222,6 +1457,9 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
           status: formData.status,
           dueDate: formData.dueDate || null,
           notes: formData.notes.trim() || null,
+          productId: formData.productId ? parseInt(formData.productId) : null, // Send productId
+          productName: formData.productName || null, // Send productName
+          quantity: formData.quantity ? parseInt(formData.quantity) : null, // Send quantity
         }),
       });
 
@@ -1254,6 +1492,9 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
       status: "PAID",
       dueDate: "",
       notes: "",
+      productId: "", // Reset productId
+      productName: "", // Reset productName
+      quantity: "1", // Reset quantity
     });
     setShowForm(false);
   };
@@ -1293,7 +1534,7 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
         {!showForm && (
           <Button
             onClick={() => setShowForm(true)}
-            className="bg-green-600 hover:bg-green-700"
+            className="bg-green-600 hover:bg-green-700 text-white"
           >
             <Plus className="h-4 w-4 mr-2" />
             Record Payment
@@ -1335,6 +1576,51 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
                     </Select>
                   </div>
 
+                  {/* Product Selection Section */}
+                  <div className="space-y-2">
+                    <Label htmlFor="productId">Product (Optional)</Label>
+                    <Select
+                      value={formData.productId}
+                      onValueChange={handleProductSelect}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select product" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white max-h-60 overflow-y-auto">
+                        {products.map((product) => (
+                          <SelectItem
+                            key={product.id}
+                            value={product.id.toString()}
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium">
+                                {product.name} {product.size}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                Price: ₹{product.price} | Category:{" "}
+                                {product.category}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {formData.productId && (
+                    <div className="space-y-2">
+                      <Label htmlFor="quantity">Quantity</Label>
+                      <Input
+                        id="quantity"
+                        type="number"
+                        min="1"
+                        value={formData.quantity}
+                        onChange={(e) => handleQuantityChange(e.target.value)}
+                        placeholder="Enter quantity"
+                      />
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label htmlFor="amount">Amount *</Label>
                     <Input
@@ -1350,7 +1636,9 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
                       required
                     />
                   </div>
+                </div>
 
+                <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="paymentMethod">Payment Method</Label>
                     <Select
@@ -1386,9 +1674,7 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
                       }
                     />
                   </div>
-                </div>
 
-                <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="transactionId">Transaction ID</Label>
                     <Input
@@ -1414,7 +1700,9 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
                       placeholder="BILL-001, BILL-002"
                     />
                   </div>
+                </div>
 
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="status">Status</Label>
                     <Select
@@ -1464,7 +1752,7 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-green-600 hover:bg-green-700 text-white"
                 >
                   {loading ? (
                     <>
@@ -1473,7 +1761,7 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
                     </>
                   ) : (
                     <>
-                      <DollarSign className="h-4 w-4 mr-2" />
+                      <Plus className="h-4 w-4 mr-2" />
                       Record Payment
                     </>
                   )}
@@ -1519,7 +1807,7 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
                       Vendor
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Payment Details
+                      Product & Payment Details
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status & Date
@@ -1544,6 +1832,13 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-1">
+                          {payment.productName && (
+                            <div className="text-sm font-medium">
+                              {payment.productName}
+                              {payment.quantity &&
+                                ` (Qty: ${payment.quantity})`}
+                            </div>
+                          )}
                           <div className="text-lg font-bold text-green-600">
                             ₹{payment.amount.toFixed(2)}
                           </div>
@@ -1598,7 +1893,10 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
               <p className="text-gray-600 mb-4">
                 Start recording payments made to your vendors.
               </p>
-              <Button onClick={() => setShowForm(true)}>
+              <Button
+                onClick={() => setShowForm(true)}
+                className="bg-blue-600 text-white"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Record First Payment
               </Button>

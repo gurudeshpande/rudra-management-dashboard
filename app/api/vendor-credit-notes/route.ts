@@ -63,6 +63,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       vendorId,
+      productName,
       billNumber,
       reason,
       amount,
@@ -71,6 +72,8 @@ export async function POST(request: Request) {
       status = VendorCreditNoteStatus.DRAFT,
       creditNoteNumber,
     } = body;
+
+    console.log(body, "body");
 
     // Validate required fields
     if (!vendorId || !reason || !amount || !creditNoteNumber) {
@@ -120,6 +123,7 @@ export async function POST(request: Request) {
         billNumber: billNumber || null,
         creditNoteNumber,
         reason,
+        productName: productName || null,
         amount: amountValue,
         taxAmount: taxAmountValue,
         totalAmount,

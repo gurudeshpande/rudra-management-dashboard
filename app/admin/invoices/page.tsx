@@ -56,6 +56,7 @@ interface InvoiceItem {
   unit?: string;
   searchQuery: string;
   showDropdown: boolean;
+  gstIncluded?: boolean; // New field to track if GST is included in price
 }
 
 interface CustomerInfo {
@@ -105,6 +106,7 @@ const Invoices = () => {
       discountedPrice: 0,
       searchQuery: "",
       showDropdown: false,
+      gstIncluded: false,
     },
   ]);
 
@@ -191,7 +193,8 @@ const Invoices = () => {
           item.originalPrice,
           item.quantity,
           discountPercentage,
-          applyOverallDiscount ? overallDiscountPercentage : 0
+          applyOverallDiscount ? overallDiscountPercentage : 0,
+          item.gstIncluded || false
         );
 
         return {
@@ -200,6 +203,7 @@ const Invoices = () => {
           total: finalTotal,
           discountedPrice: item.originalPrice * item.quantity - finalTotal,
           price: item.originalPrice,
+          gstIncluded: item.gstIncluded || false,
         };
       }
       return item;
@@ -322,28 +326,70 @@ const Invoices = () => {
     setShowCustomerDropdown(false);
   };
 
-  // Calculate item total with discounts applied on total amount
+  // Calculate item total with discounts and GST logic
   const calculateItemTotal = (
     originalPrice: number,
     quantity: number,
     itemDiscount: number,
-    overallDiscount: number
+    overallDiscount: number,
+    gstIncluded: boolean = false
   ) => {
-    // Calculate base total without any discounts
-    const baseTotal = originalPrice * quantity;
-    let finalTotal = baseTotal;
+    // For YADNYASENI company, show price exactly as entered
+    if (company === "YADNYASENI") {
+      // Calculate base total without any GST calculations
+      const baseTotal = originalPrice * quantity;
+      let finalTotal = baseTotal;
 
-    // Apply item discount on the total amount
-    if (itemDiscount > 0) {
-      finalTotal = baseTotal - (baseTotal * itemDiscount) / 100;
+      // Apply item discount on the total amount
+      if (itemDiscount > 0) {
+        finalTotal = baseTotal - (baseTotal * itemDiscount) / 100;
+      }
+
+      // Then apply overall discount on the discounted total
+      if (overallDiscount > 0) {
+        finalTotal = finalTotal - (finalTotal * overallDiscount) / 100;
+      }
+
+      return finalTotal;
+    } else {
+      // For RUDRA company
+      // Calculate base total without any discounts
+      const baseTotal = originalPrice * quantity;
+      let finalTotal = baseTotal;
+
+      // Apply item discount on the total amount
+      if (itemDiscount > 0) {
+        finalTotal = baseTotal - (baseTotal * itemDiscount) / 100;
+      }
+
+      // Then apply overall discount on the discounted total
+      if (overallDiscount > 0) {
+        finalTotal = finalTotal - (finalTotal * overallDiscount) / 100;
+      }
+
+      return finalTotal;
     }
+  };
 
-    // Then apply overall discount on the discounted total
-    if (overallDiscount > 0) {
-      finalTotal = finalTotal - (finalTotal * overallDiscount) / 100;
-    }
+  // Calculate GST amount for YADNYASENI company
+  const calculateYadnyaseniGST = (subtotal: number) => {
+    // For YADNYASENI, GST is already included in the product price
+    // We need to calculate 5% GST from the subtotal
+    const gstAmount = subtotal * 0.05; // 5% GST
+    const cgst = gstAmount / 2; // 2.5% CGST
+    const sgst = gstAmount / 2; // 2.5% SGST
 
-    return finalTotal;
+    return { cgst, sgst, total: subtotal + gstAmount };
+  };
+
+  // Calculate GST amount for RUDRA company
+  const calculateRudraGST = (subtotal: number) => {
+    // For RUDRA, GST is added on top of subtotal
+    const cgst = subtotal * 0.025; // 2.5% CGST
+    const sgst = subtotal * 0.025; // 2.5% SGST
+    const gstTotal = cgst + sgst;
+
+    return { cgst, sgst, total: subtotal + gstTotal };
   };
 
   // Apply overall discount to all items
@@ -354,7 +400,8 @@ const Invoices = () => {
           item.originalPrice,
           item.quantity,
           item.discount,
-          percentage
+          percentage,
+          item.gstIncluded || false
         );
         const discountAmount = item.originalPrice * item.quantity - finalTotal;
 
@@ -364,6 +411,7 @@ const Invoices = () => {
           discountedPrice: discountAmount,
           // Price remains the original price, only total gets discounted
           price: item.originalPrice,
+          gstIncluded: item.gstIncluded || false,
         };
       }
       return item;
@@ -383,7 +431,8 @@ const Invoices = () => {
             item.originalPrice,
             item.quantity,
             item.discount,
-            0
+            0,
+            item.gstIncluded || false
           );
           const discountAmount =
             item.originalPrice * item.quantity - finalTotal;
@@ -393,6 +442,7 @@ const Invoices = () => {
             total: finalTotal,
             discountedPrice: discountAmount,
             price: item.originalPrice,
+            gstIncluded: item.gstIncluded || false,
           };
         }
         return item;
@@ -414,7 +464,8 @@ const Invoices = () => {
             item.originalPrice,
             item.quantity,
             item.discount,
-            0
+            0,
+            item.gstIncluded || false
           );
           const discountAmount =
             item.originalPrice * item.quantity - finalTotal;
@@ -424,6 +475,7 @@ const Invoices = () => {
             total: finalTotal,
             discountedPrice: discountAmount,
             price: item.originalPrice,
+            gstIncluded: item.gstIncluded || false,
           };
         }
         return item;
@@ -432,17 +484,43 @@ const Invoices = () => {
     }
   }, [overallDiscountPercentage, applyOverallDiscount]);
 
-  // Calculate totals
-  const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-  const totalDiscount = items.reduce(
-    (sum, item) => sum + (item.discountedPrice || 0),
-    0
-  );
-  const cgst = includeGst ? subtotal * 0.025 : 0;
-  const sgst = includeGst ? subtotal * 0.025 : 0;
-  const gstTotal = cgst + sgst;
-  const total = subtotal + gstTotal;
-  const balance = total - advancePayment;
+  // Calculate totals based on company
+  const calculateTotals = () => {
+    const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+    const totalDiscount = items.reduce(
+      (sum, item) => sum + (item.discountedPrice || 0),
+      0
+    );
+
+    let cgst = 0;
+    let sgst = 0;
+    let gstTotal = 0;
+    let total = subtotal;
+
+    // Only calculate GST for RUDRA company
+    if (includeGst && company === "RUDRA") {
+      cgst = subtotal * 0.025; // 2.5% CGST
+      sgst = subtotal * 0.025; // 2.5% SGST
+      gstTotal = cgst + sgst;
+      total = subtotal + gstTotal;
+    }
+    // For YADNYASENI, GST is already included in prices, so no additional GST calculation
+
+    const balance = total - advancePayment;
+
+    return {
+      subtotal,
+      totalDiscount,
+      cgst,
+      sgst,
+      gstTotal,
+      total,
+      balance,
+    };
+  };
+
+  const { subtotal, totalDiscount, cgst, sgst, gstTotal, total, balance } =
+    calculateTotals();
 
   // Save Invoice to API
   const saveInvoice = async (status: "PAID" | "ADVANCE" | "UNPAID") => {
@@ -464,6 +542,8 @@ const Invoices = () => {
         totalInWords: `${convertToWords(total)} Only`,
         deliveryDate: new Date().toISOString(),
         status,
+        gstCalculationType:
+          company === "YADNYASENI" ? "INCLUDED_IN_PRICE" : "ADDED_ON_TOP",
       };
 
       const res = await fetch("/api/invoices", {
@@ -618,10 +698,11 @@ const Invoices = () => {
         rate: item.price,
         originalPrice: item.originalPrice,
         discount: item.discount || 0,
-        cgst: 2.5,
-        sgst: 2.5,
+        cgst: company === "YADNYASENI" ? 2.5 : 2.5, // Both companies have 2.5% CGST
+        sgst: company === "YADNYASENI" ? 2.5 : 2.5, // Both companies have 2.5% SGST
         amount: item.total,
         description: "",
+        gstIncluded: item.gstIncluded || false,
       }));
 
       const previewData = {
@@ -676,11 +757,14 @@ const Invoices = () => {
               rate: item.price,
               originalPrice: item.originalPrice,
               discount: item.discount || 0,
-              cgst: 2.5,
-              sgst: 2.5,
+              cgst: company === "YADNYASENI" ? 2.5 : 2.5,
+              sgst: company === "YADNYASENI" ? 2.5 : 2.5,
               amount: item.total,
+              gstIncluded: item.gstIncluded || false,
             })),
         },
+        gstCalculationType:
+          company === "YADNYASENI" ? "INCLUDED_IN_PRICE" : "ADDED_ON_TOP",
       };
 
       setInvoicePreviewData(previewData);
@@ -715,6 +799,7 @@ const Invoices = () => {
         discountedPrice: 0,
         searchQuery: "",
         showDropdown: false,
+        gstIncluded: false,
       },
     ]);
   };
@@ -747,7 +832,8 @@ const Invoices = () => {
             updatedItem.originalPrice,
             updatedItem.quantity,
             updatedItem.discount,
-            applyOverallDiscount ? overallDiscountPercentage : 0
+            applyOverallDiscount ? overallDiscountPercentage : 0,
+            updatedItem.gstIncluded || false
           );
           updatedItem.total = finalTotal;
           updatedItem.discountedPrice =
@@ -769,10 +855,10 @@ const Invoices = () => {
     let discountPercentage = 0;
     switch (customerType) {
       case "RESELLER":
-        discountPercentage = 40;
+        discountPercentage = 30;
         break;
       case "FRANCHISE":
-        discountPercentage = 30;
+        discountPercentage = 40;
         break;
       case "CUSTOMER":
       default:
@@ -780,26 +866,31 @@ const Invoices = () => {
         break;
     }
 
+    // For YADNYASENI company, use price as-is
+    const gstIncluded = company === "YADNYASENI";
+
     const updatedItems = items.map((item, i) => {
       if (i === index) {
         const finalTotal = calculateItemTotal(
           product.price,
           item.quantity,
           discountPercentage,
-          applyOverallDiscount ? overallDiscountPercentage : 0
+          applyOverallDiscount ? overallDiscountPercentage : 0,
+          gstIncluded
         );
 
         return {
           ...item,
           productId: product.id,
           name: `${product.name} ${product.size}`,
-          price: product.price,
-          originalPrice: product.price,
+          price: product.price, // Show price exactly as in database
+          originalPrice: product.price, // Store original price
           total: finalTotal,
           discount: discountPercentage,
           discountedPrice: product.price * item.quantity - finalTotal,
           searchQuery: `${product.name} ${product.size}`,
           showDropdown: false,
+          gstIncluded: gstIncluded,
         };
       }
       return item;
@@ -822,7 +913,8 @@ const Invoices = () => {
           item.originalPrice,
           item.quantity,
           validDiscount,
-          applyOverallDiscount ? overallDiscountPercentage : 0
+          applyOverallDiscount ? overallDiscountPercentage : 0,
+          item.gstIncluded || false
         );
 
         return {
@@ -832,6 +924,7 @@ const Invoices = () => {
           discountedPrice: item.originalPrice * item.quantity - finalTotal,
           // Price remains the original price
           price: item.originalPrice,
+          gstIncluded: item.gstIncluded || false,
         };
       }
       return item;
@@ -881,12 +974,16 @@ const Invoices = () => {
         break;
     }
 
+    // For YADNYASENI company, GST is included in the price
+    const gstIncluded = company === "YADNYASENI";
+
     const newItems = selectedProducts.map((bp) => {
       const finalTotal = calculateItemTotal(
         bp.product.price,
         bp.quantity,
         discountPercentage,
-        applyOverallDiscount ? overallDiscountPercentage : 0
+        applyOverallDiscount ? overallDiscountPercentage : 0,
+        gstIncluded
       );
 
       return {
@@ -900,6 +997,7 @@ const Invoices = () => {
         discountedPrice: bp.product.price * bp.quantity - finalTotal,
         searchQuery: `${bp.product.name} ${bp.product.size}`,
         showDropdown: false,
+        gstIncluded: gstIncluded,
       };
     });
 
@@ -917,12 +1015,37 @@ const Invoices = () => {
     );
   };
 
-  // // Get current date
-  // const invoiceDate = new Date().toLocaleDateString("en-IN", {
-  //   year: "numeric",
-  //   month: "long",
-  //   day: "numeric",
-  // });
+  // Handle company change
+  useEffect(() => {
+    // When company changes, update GST inclusion for all items
+    const updatedItems = items.map((item) => {
+      if (item.originalPrice > 0) {
+        const gstIncluded = company === "YADNYASENI";
+
+        // Recalculate total with new GST logic
+        const finalTotal = calculateItemTotal(
+          item.originalPrice,
+          item.quantity,
+          item.discount,
+          applyOverallDiscount ? overallDiscountPercentage : 0,
+          gstIncluded
+        );
+
+        return {
+          ...item,
+          total: finalTotal,
+          discountedPrice: item.originalPrice * item.quantity - finalTotal,
+          gstIncluded: gstIncluded,
+        };
+      }
+      return {
+        ...item,
+        gstIncluded: company === "YADNYASENI",
+      };
+    });
+
+    setItems(updatedItems);
+  }, [company]);
 
   // Company details
   const companyDetails = {
@@ -992,9 +1115,10 @@ const Invoices = () => {
         rate: item.price, // Original price
         originalPrice: item.originalPrice,
         discount: item.discount || 0,
-        cgst: 2.5,
-        sgst: 2.5,
+        cgst: company === "YADNYASENI" ? 2.5 : 2.5,
+        sgst: company === "YADNYASENI" ? 2.5 : 2.5,
         amount: item.total, // Discounted total
+        gstIncluded: item.gstIncluded || false,
       }));
 
       // Generate PDF
@@ -1052,11 +1176,14 @@ const Invoices = () => {
                   rate: item.price,
                   originalPrice: item.originalPrice,
                   discount: item.discount || 0,
-                  cgst: 2.5,
-                  sgst: 2.5,
+                  cgst: company === "YADNYASENI" ? 2.5 : 2.5,
+                  sgst: company === "YADNYASENI" ? 2.5 : 2.5,
                   amount: item.total,
+                  gstIncluded: item.gstIncluded || false,
                 })),
             },
+            gstCalculationType:
+              company === "YADNYASENI" ? "INCLUDED_IN_PRICE" : "ADDED_ON_TOP",
           }}
           logoUrl="/images/logo.png"
         />
@@ -1103,6 +1230,7 @@ const Invoices = () => {
           discountedPrice: 0,
           searchQuery: "",
           showDropdown: false,
+          gstIncluded: false,
         },
       ]);
       setAdvancePayment(0);
@@ -1202,6 +1330,11 @@ const Invoices = () => {
                       </div>
                       <div className="col-span-3 text-center font-medium">
                         ₹{bulkProduct.product.price}
+                        {/* {company === "YADNYASENI" && (
+                          <div className="text-xs text-green-600">
+                            (GST included)
+                          </div>
+                        )} */}
                       </div>
                       <div className="col-span-3">
                         <div className="flex items-center justify-center space-x-2">
@@ -1277,9 +1410,9 @@ const Invoices = () => {
         {/* Header */}
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-900">Create Invoice</h1>
+          {/* Company Selection */}
           <div className="space-y-3">
             <Label className="font-semibold">Company *</Label>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Rudra */}
               <label
@@ -1299,18 +1432,23 @@ const Invoices = () => {
                   onChange={() => setCompany("RUDRA")}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="font-medium">Rudra Arts & Handicrafts</span>
+                <div>
+                  <span className="font-medium">Rudra Arts & Handicrafts</span>
+                  <div className="text-xs text-gray-500 mt-1">
+                    GST added separately
+                  </div>
+                </div>
               </label>
 
               {/* Yadnyaseni */}
               <label
                 htmlFor="company-yadnyaseni"
                 className={`flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer transition
-        ${
-          company === "YADNYASENI"
-            ? "border-blue-600 bg-blue-50"
-            : "border-gray-300 hover:border-gray-400"
-        }`}
+    ${
+      company === "YADNYASENI"
+        ? "border-blue-600 bg-blue-50"
+        : "border-gray-300 hover:border-gray-400"
+    }`}
               >
                 <input
                   type="radio"
@@ -1320,7 +1458,11 @@ const Invoices = () => {
                   onChange={() => setCompany("YADNYASENI")}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="font-medium">Yadnyaseni Creations</span>
+                <div>
+                  <span className="font-medium">Yadnyaseni Creations</span>
+                  {/* Remove GST comment */}
+                  <div className="text-xs text-gray-500 mt-1">Flat pricing</div>
+                </div>
               </label>
             </div>
           </div>
@@ -1339,9 +1481,6 @@ const Invoices = () => {
             <CardContent className="space-y-4">
               {/* Customer Search and Dropdown */}
               <div className="space-y-2">
-                {/* <Label htmlFor="customer-search">
-                  Search Existing Customers
-                </Label> */}
                 <div className="relative">
                   <Input
                     id="customer-search"
@@ -1601,6 +1740,7 @@ const Invoices = () => {
                                       </div>
                                       <div className="text-xs text-gray-500">
                                         ₹{product.price}
+                                        {/* Remove GST comment for YADNYASENI */}
                                       </div>
                                     </div>
                                     <div className="text-xs text-gray-500">
@@ -1626,27 +1766,14 @@ const Invoices = () => {
                         )}
                       </div>
 
-                      {/* Selected Product Info */}
-                      {/* {item.productId && (
-                        <div className="mt-2 p-2 bg-gray-50 rounded-md border">
-                          <div className="flex justify-between items-center text-sm">
-                            <div>
-                              <span className="font-medium">
-                                {
-                                  productsData.find(
-                                    (p) => p.id === item.productId
-                                  )?.name
-                                }
-                              </span>
-                              <span className="text-gray-600 ml-2">
-                                {
-                                  productsData.find(
-                                    (p) => p.id === item.productId
-                                  )?.size
-                                }
-                              </span>
-                            </div>
-                            <div className="text-gray-600">₹{item.price}</div>
+                      {/* GST Info for YADNYASENI */}
+                      {/* {company === "YADNYASENI" && item.originalPrice > 0 && (
+                        <div className="mt-1 text-xs text-green-600">
+                          GST (5%) included in price
+                          <div className="text-gray-500">
+                            Base: ₹{(item.originalPrice / 1.05).toFixed(2)} +
+                            GST: ₹
+                            {((item.originalPrice * 0.05) / 1.05).toFixed(2)}
                           </div>
                         </div>
                       )} */}
@@ -1670,7 +1797,7 @@ const Invoices = () => {
                             if (quantity === 0) {
                               return (
                                 <div className="text-xs text-red-600 font-medium">
-                                  Out of Quantity
+                                  Out of Stock
                                 </div>
                               );
                             } else if (required > quantity) {
@@ -1682,13 +1809,13 @@ const Invoices = () => {
                             } else if (quantity < 10) {
                               return (
                                 <div className="text-xs text-blue-600">
-                                  Low Quantity: {quantity} left
+                                  Low Stock: {quantity} left
                                 </div>
                               );
                             } else {
                               return (
                                 <div className="text-xs text-green-600">
-                                  {quantity} in Quantity
+                                  {quantity} in stock
                                 </div>
                               );
                             }
@@ -1847,18 +1974,20 @@ const Invoices = () => {
                 </div>
 
                 {/* GST Settings */}
-                <div className="flex items-center space-x-3">
-                  <Checkbox
-                    id="includeGst"
-                    checked={includeGst}
-                    onCheckedChange={(checked) =>
-                      setIncludeGst(checked === true)
-                    }
-                  />
-                  <Label htmlFor="includeGst" className="cursor-pointer">
-                    Include GST (5%)
-                  </Label>
-                </div>
+                {company === "RUDRA" && (
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="includeGst"
+                      checked={includeGst}
+                      onCheckedChange={(checked) =>
+                        setIncludeGst(checked === true)
+                      }
+                    />
+                    <Label htmlFor="includeGst" className="cursor-pointer">
+                      Include GST (5%)
+                    </Label>
+                  </div>
+                )}
 
                 {/* Invoice Status */}
                 <div className="space-y-3">
@@ -1951,7 +2080,8 @@ const Invoices = () => {
                   </div>
                 )}
 
-                {includeGst && (
+                {/* Only show GST breakdown for RUDRA when GST is included */}
+                {includeGst && company === "RUDRA" && (
                   <>
                     <div className="flex justify-between">
                       <span className="text-gray-600">CGST (2.5%):</span>
@@ -2001,14 +2131,6 @@ const Invoices = () => {
                 <Save className="mr-2 h-4 w-4" />
                 Save Draft
               </Button>
-              {/* <Button
-                variant="outline"
-                className="border-blue-200 text-blue-700 hover:bg-blue-50"
-                onClick={handlePreviewInvoice}
-              >
-                <ReceiptIndianRupee className="mr-2 h-4 w-4" />
-                Preview Invoice
-              </Button> */}
               <Button
                 className="bg-orange-800 hover:bg-orange-900 text-white"
                 onClick={handlePreviewInvoice}
@@ -2057,7 +2179,6 @@ const Invoices = () => {
                       {/* Company Header */}
                       <div className="text-center mb-6">
                         <div className="flex items-center justify-center mb-2">
-                          {/* <div className="w-8 h-10 bg-orange-800 mr-3"></div> */}
                           <h1 className="text-xl font-bold text-gray-900 uppercase">
                             {currentCompany.name}
                           </h1>
@@ -2163,7 +2284,8 @@ const Invoices = () => {
                               <span>Subtotal:</span>
                               <span>₹{subtotal.toFixed(2)}</span>
                             </div>
-                            {includeGst && (
+                            {/* Remove GST line for YADNYASENI */}
+                            {includeGst && company === "RUDRA" && (
                               <>
                                 <div className="flex justify-between p-2">
                                   <span>CGST (2.5%):</span>
@@ -2210,6 +2332,11 @@ const Invoices = () => {
                   Items:{" "}
                   {items.filter((item) => item.name && item.price > 0).length}
                 </p>
+                {company === "YADNYASENI" && (
+                  <p className="text-xs text-green-600">
+                    GST (5%) included in prices
+                  </p>
+                )}
               </div>
               <div className="flex space-x-3">
                 <Button

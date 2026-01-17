@@ -93,6 +93,7 @@ model VendorCreditNote {
   
   issueDate       DateTime       @default(now())
   reason          String         // Return, Discount, Adjustment, Cancellation
+  productName     String?
   amount          Float
   taxAmount       Float          @default(0)
   totalAmount     Float
@@ -135,6 +136,7 @@ model VendorPayment {
   vendor          Vendor   @relation(fields: [vendorId], references: [id])
   vendorId        Int
   
+  productName     String?
   amount          Float
   paymentMethod   VendorPaymentMethod
   transactionId   String?
@@ -253,7 +255,7 @@ model Product {
   size      String?
   costPrice Float?         // Cost price field
   price     Float          // Selling price
-  category  String
+  category  String?
   quantity  Int            @default(0) 
   
   // Relations
