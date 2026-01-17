@@ -217,7 +217,7 @@ const ProductManagement = () => {
       size: product.size || "",
       price: product.price.toString(),
       costPrice: product.costPrice?.toString() || "",
-      category: product.category,
+      category: product.category || "",
       quantity: product.quantity.toString(),
     });
   };
