@@ -371,6 +371,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
     cgst,
     sgst,
     total,
+    extraCharges,
     totalInWords,
     notes,
     deliveryDate,
@@ -620,32 +621,50 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
             </View>
 
             {/* CGST */}
-            <View style={styles.summaryRow}>
-              <View
-                style={[styles.summaryLabelCell, styles.summaryBorderRight]}
-              >
-                <Text style={styles.summaryLabel}>CGST (2.5%):</Text>
+            {cgst && <>
+              <View style={styles.summaryRow}>
+                <View
+                  style={[styles.summaryLabelCell, styles.summaryBorderRight]}
+                >
+                  <Text style={styles.summaryLabel}>CGST (2.5%):</Text>
+                </View>
+                <View style={styles.summaryValueCell}>
+                  <Text style={styles.summaryValue}>
+                    Rs.{formatIndianCurrency(cgst)}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.summaryValueCell}>
-                <Text style={styles.summaryValue}>
-                  Rs.{formatIndianCurrency(cgst)}
-                </Text>
-              </View>
-            </View>
+            </>}
 
             {/* SGST */}
-            <View style={styles.summaryRow}>
+            {sgst && <>
+              <View style={styles.summaryRow}>
+                <View
+                  style={[styles.summaryLabelCell, styles.summaryBorderRight]}
+                >
+                  <Text style={styles.summaryLabel}>SGST (2.5%):</Text>
+                </View>
+                <View style={styles.summaryValueCell}>
+                  <Text style={styles.summaryValue}>
+                    Rs.{formatIndianCurrency(sgst)}
+                  </Text>
+                </View>
+              </View>
+            </>}
+
+            {/* Extra Charges */}
+            {extraCharges > 0 && <View style={styles.summaryRow}>
               <View
                 style={[styles.summaryLabelCell, styles.summaryBorderRight]}
               >
-                <Text style={styles.summaryLabel}>SGST (2.5%):</Text>
+                <Text style={styles.summaryLabel}>Extra Charges:</Text>
               </View>
               <View style={styles.summaryValueCell}>
                 <Text style={styles.summaryValue}>
-                  Rs.{formatIndianCurrency(sgst)}
+                  Rs.{formatIndianCurrency(extraCharges)}
                 </Text>
               </View>
-            </View>
+            </View>}
 
             {/* Total */}
             <View style={[styles.summaryRow, styles.totalRow]}>

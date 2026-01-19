@@ -286,14 +286,14 @@ model Invoice {
   subtotal      Float
   cgst          Float
   sgst          Float
+  extraCharges  Float         @default(0)  // Add this line
   total         Float
   advancePaid   Float         @default(0)
   balanceDue    Float
   totalInWords  String
   deliveryDate  DateTime
   status        String        @default("DRAFT")
-
-  companyType   String?      @default("RUDRA")
+  companyType   String?       @default("RUDRA")
   
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt

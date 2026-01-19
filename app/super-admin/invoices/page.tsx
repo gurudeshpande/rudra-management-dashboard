@@ -117,6 +117,9 @@ const Invoices = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [invoicePreviewData, setInvoicePreviewData] = useState<any>(null);
 
+  const [applyExtraCharges, setApplyExtraCharges] = useState<boolean>(false);
+  const [extraChargesAmount, setExtraChargesAmount] = useState<number>(0);
+
   // State for advance payment
   const [advancePayment, setAdvancePayment] = useState<number>(0);
 
@@ -504,7 +507,11 @@ const Invoices = () => {
       gstTotal = cgst + sgst;
       total = subtotal + gstTotal;
     }
-    // For YADNYASENI, GST is already included in prices, so no additional GST calculation
+
+    // Add extra charges to total if applicable
+    if (applyExtraCharges) {
+      total += extraChargesAmount;
+    }
 
     const balance = total - advancePayment;
 
@@ -514,13 +521,13 @@ const Invoices = () => {
       cgst,
       sgst,
       gstTotal,
+      extraCharges: applyExtraCharges ? extraChargesAmount : 0,
       total,
       balance,
     };
   };
 
-  const { subtotal, totalDiscount, cgst, sgst, gstTotal, total, balance } =
-    calculateTotals();
+  const { subtotal, totalDiscount, cgst, sgst, gstTotal, extraCharges, total, balance } = calculateTotals();
 
   // Save Invoice to API
   const saveInvoice = async (status: "PAID" | "ADVANCE" | "UNPAID") => {
@@ -534,6 +541,7 @@ const Invoices = () => {
         shippingInfo: customerInfo,
         items: items.filter((item) => item.name && item.price > 0),
         subtotal,
+        extraCharges,
         cgst,
         sgst,
         total,
@@ -1149,6 +1157,7 @@ const Invoices = () => {
             cgst,
             sgst,
             total,
+            extraCharges,
             totalInWords: `${convertToWords(total)} Only`,
             deliveryDate: new Date().toLocaleDateString("en-IN", {
               year: "numeric",
@@ -1418,11 +1427,10 @@ const Invoices = () => {
               <label
                 htmlFor="company-rudra"
                 className={`flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer transition
-        ${
-          company === "RUDRA"
-            ? "border-blue-600 bg-blue-50"
-            : "border-gray-300 hover:border-gray-400"
-        }`}
+        ${company === "RUDRA"
+                    ? "border-blue-600 bg-blue-50"
+                    : "border-gray-300 hover:border-gray-400"
+                  }`}
               >
                 <input
                   type="radio"
@@ -1444,11 +1452,10 @@ const Invoices = () => {
               <label
                 htmlFor="company-yadnyaseni"
                 className={`flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer transition
-    ${
-      company === "YADNYASENI"
-        ? "border-blue-600 bg-blue-50"
-        : "border-gray-300 hover:border-gray-400"
-    }`}
+    ${company === "YADNYASENI"
+                    ? "border-blue-600 bg-blue-50"
+                    : "border-gray-300 hover:border-gray-400"
+                  }`}
               >
                 <input
                   type="radio"
@@ -1528,16 +1535,16 @@ const Invoices = () => {
                         c.name === customerInfo.name &&
                         c.number === customerInfo.number
                     ) && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleClearCustomerSelection}
-                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                      >
-                        Clear
-                      </Button>
-                    )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleClearCustomerSelection}
+                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                        >
+                          Clear
+                        </Button>
+                      )}
                   </div>
                 )}
               </div>
@@ -1728,11 +1735,10 @@ const Invoices = () => {
                                     onClick={() => {
                                       handleProductSelect(index, product);
                                     }}
-                                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 flex justify-between items-center ${
-                                      item.productId === product.id
-                                        ? "bg-blue-50 text-blue-700"
-                                        : ""
-                                    }`}
+                                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 flex justify-between items-center ${item.productId === product.id
+                                      ? "bg-blue-50 text-blue-700"
+                                      : ""
+                                      }`}
                                   >
                                     <div>
                                       <div className="font-medium">
@@ -1750,8 +1756,8 @@ const Invoices = () => {
                                             product.quantity === 0
                                               ? "text-red-600"
                                               : product.quantity < 10
-                                              ? "text-orange-600"
-                                              : "text-green-600"
+                                                ? "text-orange-600"
+                                                : "text-green-600"
                                           }
                                         >
                                           Qty: {product.quantity}
@@ -1934,6 +1940,35 @@ const Invoices = () => {
               <CardContent className="space-y-4">
                 {/* Overall Discount - Now editable */}
                 <div className="space-y-2">
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-3">
+                      <Checkbox
+                        id="applyExtraCharges"
+                        checked={applyExtraCharges}
+                        onCheckedChange={(checked) => setApplyExtraCharges(checked === true)}
+                      />
+                      <Label htmlFor="applyExtraCharges" className="cursor-pointer">
+                        Apply Extra Charges
+                      </Label>
+                    </div>
+
+                    {applyExtraCharges && (
+                      <div className="flex items-center gap-2 pl-6">
+                        <div className="relative">
+                          <span className="absolute left-3 top-2.5 text-gray-500">₹</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={extraChargesAmount}
+                            onChange={(e) => setExtraChargesAmount(parseFloat(e.target.value) || 0)}
+                            className="w-32 pl-8"
+                            placeholder="Amount"
+                          />
+                        </div>
+                        <span className="text-sm text-gray-500">flat charges</span>
+                      </div>
+                    )}
+                  </div>
                   <div className="flex items-center space-x-3">
                     <Checkbox
                       id="applyOverallDiscount"
@@ -2092,6 +2127,13 @@ const Invoices = () => {
                       <span className="text-gray-800">₹{sgst.toFixed(2)}</span>
                     </div>
                   </>
+                )}
+
+                {extraCharges > 0 && (
+                  <div className="flex justify-between text-blue-600">
+                    <span>Extra Charges:</span>
+                    <span>+₹{extraCharges.toFixed(2)}</span>
+                  </div>
                 )}
 
                 <div className="flex justify-between font-bold text-lg pt-3 border-t">
@@ -2264,13 +2306,13 @@ const Invoices = () => {
                           ))}
                         {items.filter((item) => item.name && item.price > 0)
                           .length > 3 && (
-                          <div className="p-2 text-center text-sm text-gray-500 bg-gray-50">
-                            ... and{" "}
-                            {items.filter((item) => item.name && item.price > 0)
-                              .length - 3}{" "}
-                            more items
-                          </div>
-                        )}
+                            <div className="p-2 text-center text-sm text-gray-500 bg-gray-50">
+                              ... and{" "}
+                              {items.filter((item) => item.name && item.price > 0)
+                                .length - 3}{" "}
+                              more items
+                            </div>
+                          )}
                       </div>
 
                       {/* Summary */}
@@ -2297,6 +2339,15 @@ const Invoices = () => {
                                 </div>
                               </>
                             )}
+
+                            {/* Extra Charges */}
+                            {extraCharges > 0 && (
+                              <div className="flex justify-between p-2">
+                                <span>Extra Charges:</span>
+                                <span>₹{extraCharges.toFixed(2)}</span>
+                              </div>
+                            )}
+
                             <div className="flex justify-between p-2 bg-gray-50 font-bold">
                               <span>Total:</span>
                               <span>₹{total.toFixed(2)}</span>
