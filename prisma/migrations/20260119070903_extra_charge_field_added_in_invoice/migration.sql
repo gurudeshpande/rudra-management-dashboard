@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Invoice" ADD COLUMN     "extraCharges" DOUBLE PRECISION NOT NULL DEFAULT 0;

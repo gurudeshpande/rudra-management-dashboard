@@ -20,7 +20,7 @@ const updateProductQuantities = async (items: any[]) => {
       // Check if enough quantity is available
       if (product.quantity < item.quantity) {
         throw new Error(
-          `Insufficient quantity for ${product.name}. Available: ${product.quantity}, Requested: ${item.quantity}`
+          `Insufficient quantity for ${product.name}. Available: ${product.quantity}, Requested: ${item.quantity}`,
         );
       }
 
@@ -36,7 +36,7 @@ const updateProductQuantities = async (items: any[]) => {
     } catch (error) {
       console.error(
         `Error updating quantity for product ${item.productId}:`,
-        error
+        error,
       );
       throw error;
     }
@@ -56,6 +56,7 @@ export async function POST(req: Request) {
       shippingInfo,
       items,
       subtotal,
+      extraCharges = 0,
       cgst,
       sgst,
       total,
@@ -112,6 +113,7 @@ export async function POST(req: Request) {
         customerId: customer.id,
         shippingId: shipping?.id,
         subtotal,
+        extraCharges,
         cgst,
         sgst,
         total,
@@ -143,7 +145,7 @@ export async function POST(req: Request) {
     console.error("❌ Error saving invoice:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -165,7 +167,7 @@ export async function GET() {
     console.error("❌ Error fetching invoices:", error);
     return NextResponse.json(
       { error: "Failed to fetch invoices" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -179,7 +181,7 @@ export async function DELETE(req: Request) {
     if (!id) {
       return NextResponse.json(
         { success: false, error: "Invoice ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -192,7 +194,7 @@ export async function DELETE(req: Request) {
     if (!invoice) {
       return NextResponse.json(
         { success: false, error: "Invoice not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -225,7 +227,7 @@ export async function DELETE(req: Request) {
     console.error("❌ Error deleting invoice:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -238,12 +240,12 @@ export async function PUT(req: Request) {
     if (!id) {
       return NextResponse.json(
         { error: "Invoice ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const body = await req.json();
-    const { customer, remaining, status, companyType } = body; // <-- Add companyType here
+    const { customer, remaining, status, companyType, extraCharges } = body; // <-- Add companyType here
 
     // Get the current invoice to check status changes
     const currentInvoice = await prisma.invoice.findUnique({
@@ -266,7 +268,7 @@ export async function PUT(req: Request) {
 
           if (product && product.quantity < item.quantity) {
             throw new Error(
-              `Insufficient quantity for ${product.name}. Available: ${product.quantity}, Requested: ${item.quantity}`
+              `Insufficient quantity for ${product.name}. Available: ${product.quantity}, Requested: ${item.quantity}`,
             );
           }
 
@@ -299,6 +301,7 @@ export async function PUT(req: Request) {
     const updateData: any = {
       balanceDue: remaining,
       status,
+      extraCharges,
     };
 
     // Add companyType if provided
