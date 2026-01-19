@@ -39,7 +39,7 @@ export interface InvoiceData {
   companyType?: "RUDRA" | "YADNYASENI";
   items: InvoiceItem[];
   subtotal: number;
-  extraCharges: number;
+  extraCharges?: number;
   notes: string;
   previousDue: number;
   cgst: number;

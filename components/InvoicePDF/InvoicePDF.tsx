@@ -653,18 +653,20 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
             </>}
 
             {/* Extra Charges */}
-            {extraCharges > 0 && <View style={styles.summaryRow}>
-              <View
-                style={[styles.summaryLabelCell, styles.summaryBorderRight]}
-              >
-                <Text style={styles.summaryLabel}>Extra Charges:</Text>
+            {(extraCharges || 0) > 0 && (
+              <View style={styles.summaryRow}>
+                <View
+                  style={[styles.summaryLabelCell, styles.summaryBorderRight]}
+                >
+                  <Text style={styles.summaryLabel}>Extra Charges:</Text>
+                </View>
+                <View style={styles.summaryValueCell}>
+                  <Text style={styles.summaryValue}>
+                    Rs.{formatIndianCurrency(extraCharges || 0)}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.summaryValueCell}>
-                <Text style={styles.summaryValue}>
-                  Rs.{formatIndianCurrency(extraCharges)}
-                </Text>
-              </View>
-            </View>}
+            )}
 
             {/* Total */}
             <View style={[styles.summaryRow, styles.totalRow]}>

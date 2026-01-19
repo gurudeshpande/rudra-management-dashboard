@@ -1157,7 +1157,7 @@ const Invoices = () => {
             cgst,
             sgst,
             total,
-            extraCharges,
+            extraCharges: extraCharges || 0,
             totalInWords: `${convertToWords(total)} Only`,
             deliveryDate: new Date().toLocaleDateString("en-IN", {
               year: "numeric",
