@@ -283,7 +283,7 @@ export default function VendorManager() {
       vendor.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vendor.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vendor.phone?.includes(searchTerm) ||
-      vendor.gstin?.toLowerCase().includes(searchTerm.toLowerCase())
+      vendor.gstin?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   return (
@@ -760,7 +760,7 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
     const qty = parseInt(quantity) || 1;
     if (formData.productId) {
       const selectedProduct = products.find(
-        (p) => p.id === parseInt(formData.productId)
+        (p) => p.id === parseInt(formData.productId),
       );
       if (selectedProduct) {
         const amount = selectedProduct.price * qty;
@@ -797,7 +797,7 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
       if (!counterResponse.ok) {
         const errorData = await counterResponse.json().catch(() => ({}));
         throw new Error(
-          errorData.error || "Failed to generate credit note number"
+          errorData.error || "Failed to generate credit note number",
         );
       }
 
@@ -835,7 +835,7 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
     } catch (error) {
       console.error("Error creating credit note:", error);
       alert(
-        error instanceof Error ? error.message : "Failed to create credit note"
+        error instanceof Error ? error.message : "Failed to create credit note",
       );
     } finally {
       setLoading(false);
@@ -845,7 +845,7 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
   const handleIssueCreditNote = async (creditNoteId: number) => {
     if (
       !confirm(
-        "Are you sure you want to issue this credit note? This action cannot be undone."
+        "Are you sure you want to issue this credit note? This action cannot be undone.",
       )
     ) {
       return;
@@ -933,7 +933,7 @@ function VendorCreditNoteTab({ vendors }: { vendors: Vendor[] }) {
     (note) =>
       note.creditNoteNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       note.vendor?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.billNumber?.toLowerCase().includes(searchTerm.toLowerCase())
+      note.billNumber?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   return (
@@ -1392,7 +1392,7 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
     const qty = parseInt(quantity) || 1;
     if (formData.productId) {
       const selectedProduct = products.find(
-        (p) => p.id === parseInt(formData.productId)
+        (p) => p.id === parseInt(formData.productId),
       );
       if (selectedProduct) {
         const amount = selectedProduct.price * qty;
@@ -1429,7 +1429,7 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
       if (!counterResponse.ok) {
         const errorData = await counterResponse.json().catch(() => ({}));
         throw new Error(
-          errorData.error || "Failed to generate payment reference"
+          errorData.error || "Failed to generate payment reference",
         );
       }
 
@@ -1473,7 +1473,7 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
     } catch (error) {
       console.error("Error creating payment:", error);
       alert(
-        error instanceof Error ? error.message : "Failed to create payment"
+        error instanceof Error ? error.message : "Failed to create payment",
       );
     } finally {
       setLoading(false);
@@ -1521,7 +1521,7 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
       payment.vendor?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.transactionId?.toLowerCase().includes(searchTerm.toLowerCase())
+      payment.transactionId?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   return (
@@ -1872,7 +1872,7 @@ function VendorPaymentTab({ vendors }: { vendors: Vendor[] }) {
                                 >
                                   {bill}
                                 </Badge>
-                              )
+                              ),
                             )}
                           </div>
                         ) : (
@@ -2068,8 +2068,8 @@ function VendorBillTab({ vendors }: { vendors: Vendor[] }) {
     if (paymentAmount > selectedBill.balanceDue) {
       alert(
         `Payment amount cannot exceed balance due of ₹${selectedBill.balanceDue.toFixed(
-          2
-        )}`
+          2,
+        )}`,
       );
       return;
     }
@@ -2078,7 +2078,7 @@ function VendorBillTab({ vendors }: { vendors: Vendor[] }) {
       !confirm(
         `Confirm payment of ₹${paymentAmount.toFixed(2)} for bill ${
           selectedBill.billNumber
-        }?`
+        }?`,
       )
     ) {
       return;
@@ -2099,8 +2099,8 @@ function VendorBillTab({ vendors }: { vendors: Vendor[] }) {
             paymentAmount >= selectedBill.balanceDue
               ? "PAID"
               : selectedBill.amountPaid + paymentAmount > 0
-              ? "PARTIAL"
-              : "PENDING",
+                ? "PARTIAL"
+                : "PENDING",
         }),
       });
 
@@ -2152,7 +2152,7 @@ function VendorBillTab({ vendors }: { vendors: Vendor[] }) {
     } catch (error) {
       console.error("Error processing payment:", error);
       alert(
-        error instanceof Error ? error.message : "Failed to process payment"
+        error instanceof Error ? error.message : "Failed to process payment",
       );
     }
   };
@@ -2164,7 +2164,7 @@ function VendorBillTab({ vendors }: { vendors: Vendor[] }) {
     try {
       // Get available credit notes for this vendor
       const response = await fetch(
-        `/api/vendor-credit-notes?vendorId=${bill.vendorId}`
+        `/api/vendor-credit-notes?vendorId=${bill.vendorId}`,
       );
 
       if (!response.ok) {
@@ -2175,7 +2175,7 @@ function VendorBillTab({ vendors }: { vendors: Vendor[] }) {
 
       // Filter for notes that are not already applied
       const unappliedNotes = availableCreditNotes.filter(
-        (note: any) => !note.appliedToBill && !note.appliedBillId
+        (note: any) => !note.appliedToBill && !note.appliedBillId,
       );
 
       if (unappliedNotes.length === 0) {
@@ -2203,7 +2203,7 @@ function VendorBillTab({ vendors }: { vendors: Vendor[] }) {
             note.creditNoteNumber
           }</td>
           <td style="padding: 8px; border: 1px solid #d1d5db;">${note.amount.toFixed(
-            2
+            2,
           )}</td>
           <td style="padding: 8px; border: 1px solid #d1d5db;">
             <input 
@@ -2292,7 +2292,7 @@ function VendorBillTab({ vendors }: { vendors: Vendor[] }) {
 
             unappliedNotes.forEach((note: any, index: number) => {
               const input = document.getElementById(
-                `credit-note-${index}`
+                `credit-note-${index}`,
               ) as HTMLInputElement;
               const applyAmount = parseFloat(input.value) || 0;
 
@@ -2313,8 +2313,8 @@ function VendorBillTab({ vendors }: { vendors: Vendor[] }) {
             if (totalToApply > bill.balanceDue) {
               alert(
                 `Total amount to apply (₹${totalToApply.toFixed(
-                  2
-                )}) cannot exceed bill balance (₹${bill.balanceDue.toFixed(2)})`
+                  2,
+                )}) cannot exceed bill balance (₹${bill.balanceDue.toFixed(2)})`,
               );
               return;
             }
@@ -2324,7 +2324,7 @@ function VendorBillTab({ vendors }: { vendors: Vendor[] }) {
                 bill.billNumber
               }?\n` +
                 `Current balance: ₹${bill.balanceDue.toFixed(2)}\n` +
-                `New balance: ₹${(bill.balanceDue - totalToApply).toFixed(2)}`
+                `New balance: ₹${(bill.balanceDue - totalToApply).toFixed(2)}`,
             );
 
             if (!confirmApply) {
@@ -2391,7 +2391,7 @@ function VendorBillTab({ vendors }: { vendors: Vendor[] }) {
                     appliedToBill: bill.billNumber,
                     appliedBillId: bill.id,
                     notes: `Partial application (₹${applyAmount.toFixed(
-                      2
+                      2,
                     )}) from credit note ${note.creditNoteNumber}`,
                     originalCreditNoteId: note.id,
                   }),
@@ -2416,15 +2416,15 @@ function VendorBillTab({ vendors }: { vendors: Vendor[] }) {
                   newBalance === 0
                     ? "PAID"
                     : newAmountPaid > 0
-                    ? "PARTIAL"
-                    : "PENDING",
+                      ? "PARTIAL"
+                      : "PENDING",
               }),
             });
 
             if (!billResponse.ok) {
               const errorData = await billResponse.json();
               throw new Error(
-                errorData.error || "Failed to update bill with credit"
+                errorData.error || "Failed to update bill with credit",
               );
             }
 
@@ -2434,16 +2434,16 @@ function VendorBillTab({ vendors }: { vendors: Vendor[] }) {
             if (totalToApply > bill.balanceDue) {
               alert(
                 `Credit applied successfully! ₹${bill.balanceDue.toFixed(
-                  2
+                  2,
                 )} used, ₹${(totalToApply - bill.balanceDue).toFixed(
-                  2
-                )} credit remains available.`
+                  2,
+                )} credit remains available.`,
               );
             } else {
               alert(
                 `Credit notes applied successfully! ₹${totalToApply.toFixed(
-                  2
-                )} applied to bill.`
+                  2,
+                )} applied to bill.`,
               );
             }
           } catch (error) {
@@ -2467,8 +2467,8 @@ function VendorBillTab({ vendors }: { vendors: Vendor[] }) {
       `Viewing bill: ${bill.billNumber}\nVendor: ${
         bill.vendor?.name
       }\nTotal: ₹${bill.totalAmount.toFixed(
-        2
-      )}\nDue: ₹${bill.balanceDue.toFixed(2)}`
+        2,
+      )}\nDue: ₹${bill.balanceDue.toFixed(2)}`,
     );
   };
 
@@ -2494,7 +2494,7 @@ function VendorBillTab({ vendors }: { vendors: Vendor[] }) {
     (bill) =>
       bill.billNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       bill.vendor?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bill.paymentTerms?.toLowerCase().includes(searchTerm.toLowerCase())
+      bill.paymentTerms?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   return (
@@ -2895,7 +2895,7 @@ function VendorBillTab({ vendors }: { vendors: Vendor[] }) {
                                   .reduce(
                                     (sum: number, note: any) =>
                                       sum + note.amount,
-                                    0
+                                    0,
                                   )
                                   .toFixed(2)}
                               </div>
