@@ -59,7 +59,15 @@ export default function DashboardPage() {
       description: "Create, view and manage invoices",
       icon: <FileText className="h-8 w-8" />,
       href: "/super-admin/invoices",
-      role: ["SUPER_ADMIN", "ADMIN"],
+      role: ["SUPER_ADMIN"],
+      badge: "All Access",
+    },
+    {
+      title: "Billing & Invoices",
+      description: "Create, view and manage invoices",
+      icon: <FileText className="h-8 w-8" />,
+      href: "/admin/invoices",
+      role: ["ADMIN"],
       badge: "All Access",
     },
     {
