@@ -31,6 +31,7 @@ import InvoicePDF from "@/components/InvoicePDF/InvoicePDF";
 import { convertToWords } from "@/utils/numberToWords";
 import { pdf } from "@react-pdf/renderer";
 import { AlertToaster, alert } from "@/components/ui/alert-toaster";
+import InvoicePreviewPage from "@/components/InvoicePreview/InvoicePreviewPage";
 
 // Define types
 interface Product {
@@ -2154,266 +2155,33 @@ const Invoices = () => {
 
       {/* PDF Preview Modal */}
       {showPreview && invoicePreviewData && (
-        <div className="fixed inset-0 bg-black/60 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex justify-between items-center p-6 border-b">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">
-                  Invoice Preview
-                </h2>
-                <p className="text-sm text-gray-600">
-                  Review your invoice before saving or downloading
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setShowPreview(false);
-                  setInvoicePreviewData(null);
-                }}
-                className="h-8 w-8"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="flex-1 overflow-auto p-4">
-              <div className="border border-gray-300 rounded-lg overflow-hidden h-[70vh]">
-                {/* PDF Preview Container */}
-                <div className="w-full h-full overflow-auto bg-gray-100">
-                  <div className="flex flex-col items-center justify-center min-h-full p-4">
-                    {/* Static Preview (Looks like PDF) */}
-                    <div className="bg-white p-8 w-full max-w-4xl shadow-lg border border-gray-200">
-                      {/* Company Header */}
-                      <div className="text-center mb-6">
-                        <div className="flex items-center justify-center mb-2">
-                          <h1 className="text-xl font-bold text-gray-900 uppercase">
-                            {currentCompany.name}
-                          </h1>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-1">
-                          {currentCompany.address}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          GSTIN: {currentCompany.gstin} | {currentCompany.phone}
-                        </p>
-                      </div>
-
-                      {/* Invoice Title */}
-                      <div className="text-center mb-4">
-                        <h2 className="text-lg font-bold text-gray-900">
-                          TAX INVOICE
-                        </h2>
-                      </div>
-
-                      {/* Invoice Info */}
-                      <div className="flex justify-between mb-6 p-3 border border-gray-300 rounded">
-                        <div>
-                          <p className="text-sm">
-                            <span className="font-medium">Invoice No:</span>{" "}
-                            PREVIEW
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm">
-                            <span className="font-medium">Invoice Date:</span>{" "}
-                            {new Date(invoiceDate).toLocaleDateString("en-IN")}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Customer Info */}
-                      <div className="grid grid-cols-2 gap-4 mb-6 p-3 border border-gray-300 rounded">
-                        <div>
-                          <h3 className="font-bold text-gray-800 mb-2">
-                            Bill To:
-                          </h3>
-                          <p className="text-sm">{customerInfo.name}</p>
-                          <p className="text-sm">{customerInfo.address}</p>
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-gray-800 mb-2">
-                            Ship To:
-                          </h3>
-                          <p className="text-sm">{customerInfo.name}</p>
-                          <p className="text-sm">{customerInfo.address}</p>
-                        </div>
-                      </div>
-
-                      {/* Items Table */}
-                      <div className="mb-6 border border-gray-300 rounded overflow-hidden">
-                        <div className="grid grid-cols-12 bg-gray-50 p-2 border-b border-gray-300 text-xs font-bold">
-                          <div className="col-span-6">Item & Description</div>
-                          <div className="col-span-2 text-center">Qty</div>
-                          <div className="col-span-2 text-right">Rate (₹)</div>
-                          <div className="col-span-2 text-right">
-                            Amount (₹)
-                          </div>
-                        </div>
-                        {items
-                          .filter((item) => item.name && item.price > 0)
-                          .slice(0, 3) // Show only first 3 items in preview
-                          .map((item, index) => (
-                            <div
-                              key={index}
-                              className="grid grid-cols-12 p-2 border-b border-gray-100 text-sm"
-                            >
-                              <div className="col-span-6">{item.name}</div>
-                              <div className="col-span-2 text-center">
-                                {item.quantity}
-                              </div>
-                              <div className="col-span-2 text-right">
-                                ₹{item.price.toFixed(2)}
-                              </div>
-                              <div className="col-span-2 text-right font-medium">
-                                ₹{item.total.toFixed(2)}
-                              </div>
-                            </div>
-                          ))}
-                        {items.filter((item) => item.name && item.price > 0)
-                          .length > 3 && (
-                          <div className="p-2 text-center text-sm text-gray-500 bg-gray-50">
-                            ... and{" "}
-                            {items.filter((item) => item.name && item.price > 0)
-                              .length - 3}{" "}
-                            more items
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Summary */}
-                      <div className="flex justify-end mb-4">
-                        <div className="w-64 border border-gray-300 rounded overflow-hidden">
-                          <div className="bg-gray-50 p-2 text-center font-bold border-b border-gray-300">
-                            Summary
-                          </div>
-                          <div className="divide-y divide-gray-200">
-                            <div className="flex justify-between p-2">
-                              <span>Subtotal:</span>
-                              <span>₹{subtotal.toFixed(2)}</span>
-                            </div>
-                            {/* Show GST breakdown in preview for both companies */}
-                            {company === "RUDRA" && includeGst && (
-                              <>
-                                <div className="flex justify-between p-2">
-                                  <span>CGST (2.5%):</span>
-                                  <span>₹{cgst.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between p-2">
-                                  <span>SGST (2.5%):</span>
-                                  <span>₹{sgst.toFixed(2)}</span>
-                                </div>
-                              </>
-                            )}
-
-                            {company === "YADNYASENI" && (
-                              <div className="p-2 text-xs text-gray-500">
-                                GST (5%) included in prices
-                              </div>
-                            )}
-
-                            {/* Extra Charges */}
-                            {extraCharges > 0 && (
-                              <div className="flex justify-between p-2">
-                                <span>Extra Charges:</span>
-                                <span>₹{extraCharges.toFixed(2)}</span>
-                              </div>
-                            )}
-
-                            <div className="flex justify-between p-2 bg-gray-50 font-bold">
-                              <span>Total:</span>
-                              <span>₹{total.toFixed(2)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Watermark */}
-                      <div className="text-center mt-8">
-                        <div className="text-gray-300 text-4xl font-bold opacity-20 transform -rotate-12">
-                          PREVIEW
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 text-center text-sm text-gray-500">
-                      This is a preview. The actual PDF will be generated when
-                      you click "Generate Invoice & PDF"
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center p-6 border-t bg-gray-50">
-              <div>
-                <p className="text-sm text-gray-600">
-                  Invoice Total:{" "}
-                  <span className="font-bold">₹{total.toFixed(2)}</span>
-                </p>
-                <p className="text-xs text-gray-500">
-                  Items:{" "}
-                  {items.filter((item) => item.name && item.price > 0).length}
-                </p>
-                {company === "YADNYASENI" && (
-                  <p className="text-xs text-green-600">
-                    GST (5%) included in prices
-                  </p>
-                )}
-              </div>
-              <div className="flex space-x-3">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowPreview(false);
-                    setInvoicePreviewData(null);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    try {
-                      // Save as draft
-                      await saveInvoice("UNPAID");
-                      setShowPreview(false);
-                      setInvoicePreviewData(null);
-                      alert.success(
-                        "Invoice saved as draft",
-                        "You can find it in the invoice management section",
-                        { duration: 5000 },
-                      );
-                    } catch (error) {
-                      console.error("Failed to save draft:", error);
-                    }
-                  }}
-                  className="border-blue-200 text-blue-700 hover:bg-blue-50"
-                >
-                  <Save className="mr-2 h-4 w-4" />
-                  Save as Draft
-                </Button>
-                <Button
-                  onClick={async () => {
-                    try {
-                      // Generate PDF directly
-                      await handleGenerateInvoice();
-                      setShowPreview(false);
-                      setInvoicePreviewData(null);
-                    } catch (error) {
-                      console.error("Failed to generate invoice:", error);
-                    }
-                  }}
-                  className="bg-orange-800 hover:bg-orange-900 text-white"
-                >
-                  <IndianRupee className="mr-2 h-4 w-4" />
-                  Generate Invoice & PDF
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <InvoicePreviewPage
+          invoiceData={{
+            ...invoicePreviewData,
+            companyDetails: currentCompany,
+            companyType: company,
+            // Add any other data needed for preview
+          }}
+          onClose={() => {
+            setShowPreview(false);
+            setInvoicePreviewData(null);
+          }}
+          onGenerateInvoice={handleGenerateInvoice}
+          onSaveAsDraft={async () => {
+            try {
+              await saveInvoice("UNPAID");
+              alert.success(
+                "Invoice saved as draft",
+                "You can find it in the invoice management section",
+                { duration: 5000 },
+              );
+            } catch (error) {
+              console.error("Failed to save draft:", error);
+              throw error;
+            }
+          }}
+          // isGenerating={isGenerating} // Add this state if needed
+        />
       )}
     </DashboardLayout>
   );
