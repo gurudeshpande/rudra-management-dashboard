@@ -52,6 +52,9 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Import the new download preview component
+import InvoiceDownloadPreview from "@/components/InvoiceDownload/InvoiceDownloadPreview";
+
 // Define types based on your Prisma schema
 type InvoiceWithRelations = Prisma.InvoiceGetPayload<{
   include: {
@@ -76,7 +79,13 @@ const InvoiceManagement = () => {
   const [entityFilter, setEntityFilter] = useState("ALL");
   const [sendingWhatsApp, setSendingWhatsApp] = useState<number | null>(null);
 
+  // New state for download preview
+  const [showDownloadPreview, setShowDownloadPreview] = useState(false);
+  const [invoiceForDownload, setInvoiceForDownload] =
+    useState<InvoiceWithRelations | null>(null);
+
   const router = useRouter();
+
   // Add entity filter options
   const entityFilterOptions = [
     { value: "ALL", label: "All Entities" },
@@ -107,7 +116,7 @@ const InvoiceManagement = () => {
       }
 
       const response = await fetch(
-        `/api/allinvoices/getallinvoices?${queryParams.toString()}`
+        `/api/allinvoices/getallinvoices?${queryParams.toString()}`,
       );
 
       if (!response.ok) {
@@ -194,7 +203,7 @@ const InvoiceManagement = () => {
           ),
           {
             duration: 10000, // Show for 10 seconds
-          }
+          },
         );
       } else {
         toast.error("Failed to generate WhatsApp link", {
@@ -215,15 +224,13 @@ const InvoiceManagement = () => {
     { value: "ALL", label: "All Statuses" },
     { value: "PAID", label: "Paid" },
     { value: "UNPAID", label: "Unpaid" },
-    { value: "ADVANCE", label: "Advance" }, // DRAFT represents Advance status
+    { value: "ADVANCE", label: "Advance" },
   ];
 
-  // Handle invoice deletion
   // Handle invoice deletion
   const handleDelete = async (id: number) => {
     try {
       const response = await fetch(`/api/allinvoices/${id}`, {
-        // ✅ Use dynamic route
         method: "DELETE",
       });
 
@@ -231,7 +238,7 @@ const InvoiceManagement = () => {
         // Remove the deleted invoice from state
         setInvoices(invoices.filter((invoice) => invoice.id !== id));
         setFilteredInvoices(
-          filteredInvoices.filter((invoice) => invoice.id !== id)
+          filteredInvoices.filter((invoice) => invoice.id !== id),
         );
         setDeleteConfirm(null);
         toast.success("Invoice deleted successfully", {
@@ -271,17 +278,17 @@ const InvoiceManagement = () => {
     }).format(amount);
   };
 
-  // Get status badge variant (restricted to allowed Badge variants)
+  // Get status badge variant
   const getStatusVariant = (
-    status: string
+    status: string,
   ): "default" | "secondary" | "destructive" | "outline" | undefined => {
     switch (status) {
       case "PAID":
-        return "default"; // Green
+        return "default";
       case "UNPAID":
-        return "destructive"; // Red
-      case "ADVANCE": // DRAFT represents Advance status
-        return "secondary"; // Orange/Yellow
+        return "destructive";
+      case "ADVANCE":
+        return "secondary";
       default:
         return "secondary";
     }
@@ -301,7 +308,7 @@ const InvoiceManagement = () => {
             UNPAID
           </Badge>
         );
-      case "ADVANCE": // DRAFT represents Advance status
+      case "ADVANCE":
         return (
           <Badge className="bg-amber-500 text-white hover:bg-amber-600">
             ADVANCE
@@ -313,8 +320,6 @@ const InvoiceManagement = () => {
   };
 
   // Export filtered invoices to Excel
-  // Export filtered invoices to Excel with additional summary row
-  // Update the exportToExcel function
   const exportToExcel = () => {
     if (filteredInvoices.length === 0) {
       toast.info("No data to export", {
@@ -324,11 +329,9 @@ const InvoiceManagement = () => {
     }
 
     try {
-      // Create CSV content
       let csvContent =
         "Invoice Number,Customer Name,Customer Phone,Date,Due Date,Total Amount,Advance Paid,Balance Due,Status,Billing Entity\n";
 
-      // Calculate overall totals
       let overallTotal = 0;
       let overallAdvancePaid = 0;
       let overallBalanceDue = 0;
@@ -340,7 +343,6 @@ const InvoiceManagement = () => {
           balanceDue = 0;
         }
 
-        // Add to overall totals
         overallTotal += invoice.subtotal;
         overallAdvancePaid += invoice.advancePaid;
         overallBalanceDue += balanceDue;
@@ -355,24 +357,20 @@ const InvoiceManagement = () => {
           `"${invoice.advancePaid}"`,
           `"${balanceDue}"`,
           `"${invoice.status}"`,
-          `"${invoice.companyType || "RUDRA"}"`, // Add Billing Entity column
+          `"${invoice.companyType || "RUDRA"}"`,
         ].join(",");
 
         csvContent += row + "\n";
       });
 
-      // Add summary row
       csvContent += "\n";
       csvContent += `"","","","","","TOTAL: ${overallTotal}","ADVANCE: ${overallAdvancePaid}","BALANCE: ${overallBalanceDue}","",""\n`;
-
-      // Add filter information
       csvContent += "\n";
       csvContent += `"Filter Information:",,,,,,,,,,\n`;
       csvContent += `"Search Term:","${searchTerm}",,,,,,,,,,\n`;
       csvContent += `"Status Filter:","${statusFilter}",,,,,,,,,,\n`;
       csvContent += `"Entity Filter:","${entityFilter}",,,,,,,,,,\n`;
 
-      // Create blob and download
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -395,6 +393,12 @@ const InvoiceManagement = () => {
         description: "An error occurred while exporting the data.",
       });
     }
+  };
+
+  // Handle eye button click - show download preview
+  const handleEyeButtonClick = (invoice: InvoiceWithRelations) => {
+    setInvoiceForDownload(invoice);
+    setShowDownloadPreview(true);
   };
 
   return (
@@ -604,18 +608,17 @@ const InvoiceManagement = () => {
                         <TableCell>{invoice.companyType || "RUDRA"}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end space-x-2">
+                            {/* Eye button - opens download preview */}
                             <Button
                               variant="outline"
                               size="icon"
-                              onClick={() => {
-                                setSelectedInvoice(invoice);
-                                setMode("view");
-                              }}
-                              title="View Invoice"
-                              className="cursor-pointer"
+                              onClick={() => handleEyeButtonClick(invoice)}
+                              title="View and Download Invoice"
+                              className="cursor-pointer hover:bg-blue-50 hover:text-blue-600"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
+
                             <Button
                               variant="outline"
                               size="icon"
@@ -628,15 +631,7 @@ const InvoiceManagement = () => {
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => setDeleteConfirm(invoice.id)}
-                              title="Delete Invoice"
-                              className="cursor-pointer"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+
                             <Button
                               variant="outline"
                               size="icon"
@@ -665,103 +660,18 @@ const InvoiceManagement = () => {
           </CardContent>
         </Card>
 
-        {/* View Dialog */}
-        <Dialog open={mode === "view"} onOpenChange={() => setMode(null)}>
-          <DialogContent className="w-7xl bg-white">
-            <DialogHeader>
-              <DialogTitle>Invoice Details</DialogTitle>
-              <DialogDescription>
-                View details for invoice #{selectedInvoice?.invoiceNumber}
-              </DialogDescription>
-            </DialogHeader>
+        {/* Download Preview Modal */}
+        {showDownloadPreview && invoiceForDownload && (
+          <InvoiceDownloadPreview
+            invoiceData={invoiceForDownload}
+            onClose={() => {
+              setShowDownloadPreview(false);
+              setInvoiceForDownload(null);
+            }}
+          />
+        )}
 
-            {selectedInvoice && (
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="font-medium mb-1">Invoice #</h4>
-                    <p>{selectedInvoice.invoiceNumber}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium mb-1">Status</h4>
-                    {selectedInvoice.status === "PAID" ? (
-                      <Badge className="bg-green-600 text-white hover:bg-green-700">
-                        {selectedInvoice.status}
-                      </Badge>
-                    ) : (
-                      <Badge variant={getStatusVariant(selectedInvoice.status)}>
-                        {selectedInvoice.status}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="font-medium mb-1">Date</h4>
-                    <p>{formatDate(selectedInvoice.invoiceDate)}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium mb-1">Due Date</h4>
-                    <p>{formatDate(selectedInvoice.dueDate)}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-medium mb-1">Customer</h4>
-                  <p>{selectedInvoice.customer.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {selectedInvoice.customer.number}
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-medium mb-1">Amount</h4>
-                  <p>{formatCurrency(selectedInvoice.subtotal)}</p>
-                  {selectedInvoice.advancePaid > 0 && (
-                    <p className="text-sm text-gray-500">
-                      Advance: {formatCurrency(selectedInvoice.advancePaid)}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <h4 className="font-medium mb-2 wrap-anywhere">Items</h4>
-                  <div className="border rounded-md">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Item</TableHead>
-                          <TableHead>Quantity</TableHead>
-                          <TableHead className="text-right">Price</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {selectedInvoice.items.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell className="font-medium break-words whitespace-normal max-w-[250px]">
-                              {item.name}
-                            </TableCell>
-                            <TableCell>{item.quantity}</TableCell>
-                            <TableCell className="text-right">
-                              {formatCurrency(item.price)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {formatCurrency(item.quantity * item.price)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Dialog */}
+        {/* Existing Edit Dialog (keep as is) */}
         <Dialog open={mode === "edit"} onOpenChange={() => setMode(null)}>
           <DialogContent className="max-w-2xl bg-white">
             <DialogHeader>
@@ -783,7 +693,6 @@ const InvoiceManagement = () => {
                   let newStatus = selectedInvoice.status;
 
                   if (selectedInvoice.status === "UNPAID") {
-                    // For unpaid invoices, set the paid amount as advance
                     newAdvancePaid = paidAmount;
                     newStatus = paidAmount > 0 ? "ADVANCE" : "UNPAID";
                     if (paidAmount >= selectedInvoice.subtotal) {
@@ -791,7 +700,6 @@ const InvoiceManagement = () => {
                       newAdvancePaid = selectedInvoice.subtotal;
                     }
                   } else if (selectedInvoice.status === "ADVANCE") {
-                    // For advance invoices, add to existing advance
                     newAdvancePaid = selectedInvoice.advancePaid + paidAmount;
                     if (newAdvancePaid >= selectedInvoice.subtotal) {
                       newStatus = "PAID";
@@ -816,7 +724,7 @@ const InvoiceManagement = () => {
                       method: "PUT",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify(body),
-                    }
+                    },
                   );
 
                   toast.promise(updatePromise, {
@@ -838,6 +746,7 @@ const InvoiceManagement = () => {
                 }}
                 className="grid gap-4 py-4"
               >
+                {/* ... existing edit form content ... */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label
@@ -900,7 +809,7 @@ const InvoiceManagement = () => {
                         <p className="font-medium text-red-600">
                           {formatCurrency(
                             selectedInvoice.subtotal -
-                              selectedInvoice.advancePaid
+                              selectedInvoice.advancePaid,
                           )}
                         </p>
                       </div>
@@ -927,14 +836,14 @@ const InvoiceManagement = () => {
                       }
                       defaultValue="0"
                       placeholder={`Enter amount (max: ${formatCurrency(
-                        selectedInvoice.subtotal - selectedInvoice.advancePaid
+                        selectedInvoice.subtotal - selectedInvoice.advancePaid,
                       )})`}
                     />
                     <p className="text-xs text-gray-500">
                       {selectedInvoice.status === "UNPAID"
                         ? "Enter the amount being paid now. This will update the invoice status accordingly."
                         : `Enter additional payment. Already paid: ${formatCurrency(
-                            selectedInvoice.advancePaid
+                            selectedInvoice.advancePaid,
                           )}`}
                     </p>
                   </div>
@@ -962,10 +871,10 @@ const InvoiceManagement = () => {
                               (Number(
                                 (
                                   document.getElementById(
-                                    "paidAmount"
+                                    "paidAmount",
                                   ) as HTMLInputElement
-                                )?.value
-                              ) || 0)
+                                )?.value,
+                              ) || 0),
                           )}
                         </span>
                       </div>
@@ -978,10 +887,10 @@ const InvoiceManagement = () => {
                               (Number(
                                 (
                                   document.getElementById(
-                                    "paidAmount"
+                                    "paidAmount",
                                   ) as HTMLInputElement
-                                )?.value
-                              ) || 0)
+                                )?.value,
+                              ) || 0),
                           )}
                         </span>
                       </div>
@@ -993,9 +902,9 @@ const InvoiceManagement = () => {
                               Number(
                                 (
                                   document.getElementById(
-                                    "paidAmount"
+                                    "paidAmount",
                                   ) as HTMLInputElement
-                                )?.value
+                                )?.value,
                               ) || 0;
                             const newTotalPaid =
                               selectedInvoice.advancePaid + paidAmount;
@@ -1015,7 +924,6 @@ const InvoiceManagement = () => {
                 )}
 
                 <DialogFooter className="gap-5 sm:gap-2">
-                  {/* Mark as Fully Paid Button - Only show for unpaid/advance invoices */}
                   {(selectedInvoice.status === "UNPAID" ||
                     selectedInvoice.status === "ADVANCE") && (
                     <Button
@@ -1034,7 +942,7 @@ const InvoiceManagement = () => {
                               advancePaid: selectedInvoice.subtotal,
                               status: "PAID",
                             }),
-                          }
+                          },
                         );
 
                         toast.promise(markAsPaidPromise, {
