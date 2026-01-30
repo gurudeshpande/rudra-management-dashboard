@@ -40,13 +40,13 @@ export class WhatsAppService {
   generateInvoiceUrl(
     invoiceId: number,
     customerPhone: string,
-    customerName: string
+    customerName: string,
   ): string {
     const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
     // Create a simple token for security
     const token = Buffer.from(
-      `${invoiceId}:${customerPhone}:${Date.now()}`
+      `${invoiceId}:${customerPhone}:${Date.now()}`,
     ).toString("base64");
 
     return `${baseUrl}/users/${invoiceId}?token=${token}`;
@@ -71,7 +71,7 @@ export class WhatsAppService {
       invoiceData.dueDate
     }\n\n🔗 *View & Download Invoice:*\n\n${invoiceData.invoiceUrl.replace(
       /\s+/g,
-      ""
+      "",
     )}\n\nThank you for your business!\n\n*Note:* Click the link above to view, download, and share your invoice.`;
 
     return message;
@@ -134,7 +134,7 @@ export class WhatsAppService {
       totalAmount: string;
       dueDate: string;
       invoiceUrl: string;
-    }
+    },
   ): string {
     // Use the method with better link formatting
     const message = this.generateWhatsAppMessageWithClickableLink(invoiceData);

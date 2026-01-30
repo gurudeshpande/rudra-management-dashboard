@@ -58,6 +58,7 @@ interface InvoiceItem {
   searchQuery: string;
   showDropdown: boolean;
   gstIncluded?: boolean;
+  applyGST: boolean; // Add this - individual GST checkbox
 }
 
 interface CustomerInfo {
@@ -84,6 +85,8 @@ const Invoices = () => {
     address: "",
   });
 
+  const [productDescription, setProductDescription] = useState<string>("");
+
   // State for existing customers
   const [existingCustomers, setExistingCustomers] = useState<CustomerInfo[]>(
     [],
@@ -94,6 +97,9 @@ const Invoices = () => {
     new Date().toISOString().split("T")[0],
   );
 
+  // State for company selection
+  const [company, setCompany] = useState<"RUDRA" | "YADNYASENI">("RUDRA");
+
   // State for invoice items
   const [items, setItems] = useState<InvoiceItem[]>([
     {
@@ -101,13 +107,14 @@ const Invoices = () => {
       name: "",
       quantity: 1,
       price: 0,
-      originalPrice: 0,
+      originalPrice: 0, // GST-exclusive base price
       total: 0,
       discount: 0,
       discountedPrice: 0,
       searchQuery: "",
       showDropdown: false,
       gstIncluded: false,
+      applyGST: true, // Default to checked for both companies
     },
   ]);
 
@@ -138,7 +145,6 @@ const Invoices = () => {
   const [invoiceStatus, setInvoiceStatus] = useState<
     "PAID" | "UNPAID" | "ADVANCE"
   >("UNPAID");
-  const [company, setCompany] = useState<"RUDRA" | "YADNYASENI">("RUDRA");
 
   // Fetch existing customers from API
   useEffect(() => {
@@ -198,6 +204,8 @@ const Invoices = () => {
           item.quantity,
           discountPercentage,
           applyOverallDiscount ? overallDiscountPercentage : 0,
+          item.applyGST,
+          company,
         );
 
         return {
@@ -331,23 +339,38 @@ const Invoices = () => {
 
   // Calculate item total with discounts
   const calculateItemTotal = (
-    originalPrice: number,
+    originalPrice: number, // This should be the base price from database (GST-exclusive for calculations)
     quantity: number,
     itemDiscount: number,
     overallDiscount: number,
+    applyGST: boolean,
+    company: "RUDRA" | "YADNYASENI",
   ) => {
-    // Calculate base total
-    const baseTotal = originalPrice * quantity;
-    let finalTotal = baseTotal;
+    // Start with base price * quantity
+    let baseTotal = originalPrice * quantity;
+
+    // For YADNYASENI: Base price is GST-exclusive, but we need to add GST for display
+    // For RUDRA: Base price is GST-exclusive, GST is added separately
+
+    let discountedTotal = baseTotal;
 
     // Apply item discount
     if (itemDiscount > 0) {
-      finalTotal = baseTotal - (baseTotal * itemDiscount) / 100;
+      discountedTotal = baseTotal - (baseTotal * itemDiscount) / 100;
     }
 
     // Apply overall discount
     if (overallDiscount > 0) {
-      finalTotal = finalTotal - (finalTotal * overallDiscount) / 100;
+      discountedTotal =
+        discountedTotal - (discountedTotal * overallDiscount) / 100;
+    }
+
+    // Now add GST if applicable
+    let finalTotal = discountedTotal;
+
+    if (applyGST) {
+      // Add 5% GST to both companies
+      finalTotal = discountedTotal * 1.05;
     }
 
     return finalTotal;
@@ -371,6 +394,8 @@ const Invoices = () => {
           item.quantity,
           item.discount,
           percentage,
+          item.applyGST,
+          company,
         );
         const discountAmount = item.originalPrice * item.quantity - finalTotal;
 
@@ -400,6 +425,8 @@ const Invoices = () => {
             item.quantity,
             item.discount,
             0,
+            item.applyGST,
+            company,
           );
           const discountAmount =
             item.originalPrice * item.quantity - finalTotal;
@@ -418,6 +445,8 @@ const Invoices = () => {
       setOverallDiscountPercentage(0);
     }
   };
+  const roundTo2 = (num: number) =>
+    Math.round((num + Number.EPSILON) * 100) / 100;
 
   // Apply overall discount when percentage changes
   useEffect(() => {
@@ -432,6 +461,8 @@ const Invoices = () => {
             item.quantity,
             item.discount,
             0,
+            item.applyGST,
+            company,
           );
           const discountAmount =
             item.originalPrice * item.quantity - finalTotal;
@@ -450,30 +481,55 @@ const Invoices = () => {
     }
   }, [overallDiscountPercentage, applyOverallDiscount]);
 
-  // Calculate totals
-  // Calculate totals
   const calculateTotals = () => {
-    const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-    const totalDiscount = items.reduce(
-      (sum, item) => sum + (item.discountedPrice || 0),
-      0,
-    );
+    let subtotal = 0;
+    let totalDiscount = 0;
+    let totalGST = 0;
 
-    let cgst = 0;
-    let sgst = 0;
-    let gstTotal = 0;
+    items.forEach((item) => {
+      if (item.name && item.price > 0) {
+        // Get the base price (GST-exclusive)
+        let itemBasePrice = item.originalPrice;
+
+        // Calculate item subtotal based on displayed price
+        let itemSubtotal = item.price * item.quantity;
+
+        // For YADNYASENI with GST included:
+        // price already includes GST, so subtotal should be GST-inclusive
+        if (company === "YADNYASENI" && item.applyGST) {
+          // item.price is GST-inclusive, so subtotal is already GST-inclusive
+          subtotal += itemSubtotal;
+
+          // Calculate GST amount included
+          const gstIncluded = (itemSubtotal / 1.05) * 0.05;
+          totalGST += gstIncluded;
+        } else if (company === "RUDRA" && item.applyGST) {
+          // For RUDRA: price is GST-exclusive, subtotal is GST-exclusive
+          subtotal += itemSubtotal;
+
+          // GST is added on top
+          const gstAmount = itemSubtotal * 0.05;
+          totalGST += gstAmount;
+        } else {
+          // GST not applied
+          subtotal += itemSubtotal;
+        }
+
+        // Calculate discount
+        totalDiscount += item.discountedPrice || 0;
+      }
+    });
+
+    // Calculate total
     let total = subtotal;
 
-    // Calculate GST internally for both companies
-    const gstCalculation = calculateGST(subtotal);
-    cgst = gstCalculation.cgst;
-    sgst = gstCalculation.sgst;
-    gstTotal = gstCalculation.cgst + gstCalculation.sgst;
+    // For RUDRA, add GST on top of subtotal
+    if (company === "RUDRA") {
+      total = subtotal + totalGST;
+    }
+    // For YADNYASENI, total is already GST-inclusive in subtotal
 
-    // For both companies, add GST to total
-    total = subtotal + gstTotal;
-
-    // Add extra charges to total if applicable
+    // Add extra charges
     if (applyExtraCharges) {
       total += extraChargesAmount;
     }
@@ -481,14 +537,14 @@ const Invoices = () => {
     const balance = total - advancePayment;
 
     return {
-      subtotal,
-      totalDiscount,
-      cgst,
-      sgst,
-      gstTotal,
-      extraCharges: applyExtraCharges ? extraChargesAmount : 0,
-      total,
-      balance,
+      subtotal: roundTo2(subtotal),
+      totalDiscount: roundTo2(totalDiscount),
+      cgst: roundTo2(totalGST / 2),
+      sgst: roundTo2(totalGST / 2),
+      gstTotal: roundTo2(totalGST),
+      extraCharges: applyExtraCharges ? roundTo2(extraChargesAmount) : 0,
+      total: roundTo2(total),
+      balance: roundTo2(balance),
     };
   };
 
@@ -513,7 +569,12 @@ const Invoices = () => {
         customerInfo,
         companyType: company,
         shippingInfo: customerInfo,
-        items: items.filter((item) => item.name && item.price > 0),
+        items: items
+          .filter((item) => item.name && item.price > 0)
+          .map((item) => ({
+            ...item,
+            description: productDescription, // Add the common description
+          })),
         subtotal,
         extraCharges,
         cgst,
@@ -761,6 +822,18 @@ const Invoices = () => {
     }
   };
 
+  // Helper function to calculate GST for display
+  const calculateGSTForDisplay = (amount: number, includeGST: boolean) => {
+    if (!includeGST) return amount;
+
+    // For YADNYASENI: Amount is GST-inclusive, convert to GST-exclusive for calculations
+    if (company === "YADNYASENI") {
+      return amount / 1.05;
+    }
+    // For RUDRA: Amount is GST-exclusive
+    return amount;
+  };
+
   // Handle status change
   const handleStatusChange = (status: "PAID" | "UNPAID" | "ADVANCE") => {
     setInvoiceStatus(status);
@@ -782,6 +855,7 @@ const Invoices = () => {
         searchQuery: "",
         showDropdown: false,
         gstIncluded: company === "YADNYASENI",
+        applyGST: company === "RUDRA", // Default based on company
       },
     ]);
   };
@@ -808,19 +882,34 @@ const Invoices = () => {
         if (
           field === "quantity" ||
           field === "discount" ||
-          field === "originalPrice"
+          field === "originalPrice" ||
+          field === "applyGST"
         ) {
           const finalTotal = calculateItemTotal(
             updatedItem.originalPrice,
             updatedItem.quantity,
             updatedItem.discount,
             applyOverallDiscount ? overallDiscountPercentage : 0,
+            updatedItem.applyGST,
+            company,
           );
+
           updatedItem.total = finalTotal;
           updatedItem.discountedPrice =
-            updatedItem.originalPrice * updatedItem.quantity - finalTotal;
-          // Price always shows the original price
-          updatedItem.price = updatedItem.originalPrice;
+            updatedItem.originalPrice * updatedItem.quantity -
+            finalTotal / (updatedItem.applyGST ? 1.05 : 1);
+
+          // Update displayed price based on company and GST
+          if (updatedItem.applyGST && company === "YADNYASENI") {
+            // For YADNYASENI: Show GST-inclusive rate
+            updatedItem.price = updatedItem.originalPrice * 1.05;
+          } else {
+            // For RUDRA or GST not applied: Show GST-exclusive rate
+            updatedItem.price = updatedItem.originalPrice;
+          }
+
+          updatedItem.gstIncluded =
+            company === "YADNYASENI" && updatedItem.applyGST;
         }
 
         return updatedItem;
@@ -831,7 +920,6 @@ const Invoices = () => {
     setItems(updatedItems);
   };
 
-  // Handle product selection for a row
   const handleProductSelect = (index: number, product: Product) => {
     let discountPercentage = 0;
     switch (customerType) {
@@ -849,25 +937,47 @@ const Invoices = () => {
 
     const updatedItems = items.map((item, i) => {
       if (i === index) {
+        // Store base price (this is GST-exclusive price from database)
+        const basePrice = product.price;
+
         const finalTotal = calculateItemTotal(
-          product.price,
+          basePrice,
           item.quantity,
           discountPercentage,
           applyOverallDiscount ? overallDiscountPercentage : 0,
+          item.applyGST,
+          company,
         );
+
+        // Calculate displayed rate
+        let displayedRate = basePrice;
+        if (item.applyGST) {
+          if (company === "YADNYASENI") {
+            // For YADNYASENI: Show GST-inclusive rate
+            displayedRate = basePrice * 1.05;
+          } else {
+            // For RUDRA: Show GST-exclusive rate (GST shown separately)
+            displayedRate = basePrice;
+          }
+        } else {
+          // GST not applied, show base price for both
+          displayedRate = basePrice;
+        }
 
         return {
           ...item,
           productId: product.id,
           name: `${product.name} ${product.size}`,
-          price: product.price,
-          originalPrice: product.price,
+          price: displayedRate, // Show appropriate rate
+          originalPrice: basePrice, // Store GST-exclusive base price
           total: finalTotal,
           discount: discountPercentage,
-          discountedPrice: product.price * item.quantity - finalTotal,
+          discountedPrice:
+            basePrice * item.quantity - finalTotal / (item.applyGST ? 1.05 : 1),
           searchQuery: `${product.name} ${product.size}`,
           showDropdown: false,
-          gstIncluded: company === "YADNYASENI",
+          gstIncluded: company === "YADNYASENI" && item.applyGST,
+          applyGST: item.applyGST,
         };
       }
       return item;
@@ -881,16 +991,17 @@ const Invoices = () => {
     index: number,
     discountPercentage: number,
   ) => {
-    // Ensure discount is between 0 and 100
     const validDiscount = Math.max(0, Math.min(100, discountPercentage));
 
     const updatedItems = items.map((item, i) => {
       if (i === index) {
         const finalTotal = calculateItemTotal(
-          item.originalPrice,
+          item.originalPrice, // Use original base price
           item.quantity,
           validDiscount,
           applyOverallDiscount ? overallDiscountPercentage : 0,
+          item.applyGST,
+          company,
         );
 
         return {
@@ -898,9 +1009,9 @@ const Invoices = () => {
           discount: validDiscount,
           total: finalTotal,
           discountedPrice: item.originalPrice * item.quantity - finalTotal,
-          // Price remains the original price
-          price: item.originalPrice,
-          gstIncluded: company === "YADNYASENI",
+          // Update displayed price
+          price: finalTotal / item.quantity,
+          gstIncluded: company === "YADNYASENI" && item.applyGST,
         };
       }
       return item;
@@ -908,6 +1019,8 @@ const Invoices = () => {
 
     setItems(updatedItems);
   };
+
+  // for rounding to 2 decimal places
 
   // Bulk Upload Functions
   const handleBulkProductSelect = (index: number) => {
@@ -956,6 +1069,8 @@ const Invoices = () => {
         bp.quantity,
         discountPercentage,
         applyOverallDiscount ? overallDiscountPercentage : 0,
+        company === "RUDRA", // Default: checked for RUDRA
+        company,
       );
 
       return {
@@ -970,6 +1085,7 @@ const Invoices = () => {
         searchQuery: `${bp.product.name} ${bp.product.size}`,
         showDropdown: false,
         gstIncluded: company === "YADNYASENI",
+        applyGST: company === "RUDRA",
       };
     });
 
@@ -989,37 +1105,38 @@ const Invoices = () => {
 
   // Handle company change
   useEffect(() => {
-    // When company changes, update GST inclusion for all items
     const updatedItems = items.map((item) => {
       if (item.originalPrice > 0) {
-        // Recalculate total with new company logic
         const finalTotal = calculateItemTotal(
           item.originalPrice,
           item.quantity,
           item.discount,
           applyOverallDiscount ? overallDiscountPercentage : 0,
+          item.applyGST,
+          company,
         );
+
+        // Update displayed price based on new company
+        let displayedPrice = item.originalPrice;
+        if (company === "YADNYASENI" && item.applyGST) {
+          displayedPrice = item.originalPrice * 1.05;
+        }
 
         return {
           ...item,
           total: finalTotal,
           discountedPrice: item.originalPrice * item.quantity - finalTotal,
-          gstIncluded: company === "YADNYASENI",
+          price: displayedPrice,
+          gstIncluded: company === "YADNYASENI" && item.applyGST,
         };
       }
       return {
         ...item,
-        gstIncluded: company === "YADNYASENI",
+        gstIncluded: company === "YADNYASENI" && item.applyGST,
       };
     });
 
     setItems(updatedItems);
-
-    // For YADNYASENI, GST is always included but not shown in UI
-    // For RUDRA, show GST checkbox in UI
-    if (company === "YADNYASENI") {
-      setIncludeGst(true); // GST is always included for Yadnyaseni
-    }
   }, [company]);
 
   // Company details
@@ -1207,6 +1324,7 @@ const Invoices = () => {
           searchQuery: "",
           showDropdown: false,
           gstIncluded: company === "YADNYASENI",
+          applyGST: company === "RUDRA", // Default based on company
         },
       ]);
       setAdvancePayment(0);
@@ -1462,6 +1580,7 @@ const Invoices = () => {
                     placeholder="Type customer name or phone number"
                     required
                     onFocus={() => setShowCustomerDropdown(true)}
+                    autoComplete="off"
                   />
                   <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
 
@@ -1633,12 +1752,15 @@ const Invoices = () => {
             <CardContent>
               <div className="space-y-4">
                 {/* Table Header */}
-                <div className="grid grid-cols-11 gap-3 text-sm font-medium text-gray-600 pb-2 border-b">
-                  <div className="col-span-4">Product</div>
-                  <div className="col-span-1 text-center">Qty</div>
-                  <div className="col-span-2 text-right">Rate (₹)</div>
-                  <div className="col-span-2 text-center">Discount (%)</div>
-                  <div className="col-span-1 text-right">Amount (₹)</div>
+                <div className="grid grid-cols-11 gap-2 text-sm font-medium text-gray-600 pb-2 border-b">
+                  <div className="col-span-3 text-xs">Product</div>
+                  <div className="col-span-1 text-xs text-center">Qty</div>
+                  <div className="col-span-2 text-xs text-center">Rate (₹)</div>
+                  <div className="col-span-2 text-xs text-center">Disc (%)</div>
+                  <div className="col-span-1 text-xs text-center">GST</div>
+                  <div className="col-span-1 text-xs text-right">
+                    Amount (₹)
+                  </div>
                   <div className="col-span-1"></div>
                 </div>
 
@@ -1646,24 +1768,24 @@ const Invoices = () => {
                 {items.map((item, index) => (
                   <div
                     key={index}
-                    className="grid grid-cols-11 gap-3 items-center py-2 border-b border-gray-100 last:border-b-0"
+                    className="grid grid-cols-11 gap-2 items-center py-2 border-b border-gray-100 last:border-b-0"
                   >
-                    {/* Product Selection with Custom Search Dropdown */}
-                    <div className="col-span-4 custom-dropdown">
+                    {/* Product Selection (3 columns) */}
+                    <div className="col-span-3 custom-dropdown">
                       <div className="relative">
                         <div className="relative">
                           <input
                             type="text"
-                            placeholder="Search products..."
+                            placeholder="Search product..."
                             value={item.searchQuery}
                             onChange={(e) =>
                               handleSearchChange(index, e.target.value)
                             }
                             onFocus={() => handleDropdownToggle(index, true)}
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
                           />
                           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                            <ChevronDown className="h-4 w-4" />
+                            <ChevronDown className="h-3 w-3" />
                           </div>
                         </div>
 
@@ -1673,15 +1795,15 @@ const Invoices = () => {
                             {/* Search Input inside Dropdown */}
                             <div className="p-2 border-b">
                               <div className="relative">
-                                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                {/* <Search className="absolute left-2 top-2 h-3 w-3 text-gray-400" /> */}
                                 <input
                                   type="text"
-                                  placeholder="Type to search products..."
+                                  placeholder="Search product..."
                                   value={item.searchQuery}
                                   onChange={(e) =>
                                     handleSearchChange(index, e.target.value)
                                   }
-                                  className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                   autoFocus
                                 />
                               </div>
@@ -1690,7 +1812,7 @@ const Invoices = () => {
                             {/* Product List */}
                             <div className="py-1">
                               {filteredProducts(index).length === 0 ? (
-                                <div className="px-3 py-2 text-sm text-gray-500">
+                                <div className="px-2 py-1.5 text-xs text-gray-500">
                                   No products found
                                 </div>
                               ) : (
@@ -1700,21 +1822,21 @@ const Invoices = () => {
                                     onClick={() => {
                                       handleProductSelect(index, product);
                                     }}
-                                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 flex justify-between items-center ${
+                                    className={`px-2 py-1.5 text-xs cursor-pointer hover:bg-gray-100 flex justify-between items-center ${
                                       item.productId === product.id
                                         ? "bg-blue-50 text-blue-700"
                                         : ""
                                     }`}
                                   >
-                                    <div>
-                                      <div className="font-medium">
+                                    <div className="truncate">
+                                      <div className="font-medium truncate">
                                         {product.name} {product.size}
                                       </div>
                                       <div className="text-xs text-gray-500">
                                         ₹{product.price}
                                       </div>
                                     </div>
-                                    <div className="text-xs text-gray-500">
+                                    <div className="text-xs text-gray-500 whitespace-nowrap ml-1">
                                       {product.quantity !== undefined && (
                                         <span
                                           className={
@@ -1725,7 +1847,7 @@ const Invoices = () => {
                                                 : "text-green-600"
                                           }
                                         >
-                                          Qty: {product.quantity}
+                                          Stock: {product.quantity}
                                         </span>
                                       )}
                                     </div>
@@ -1737,11 +1859,9 @@ const Invoices = () => {
                         )}
                       </div>
 
-                      {/* GST Info for YADNYASENI - Not shown in UI */}
-
-                      {/* Stock warning for selected product */}
+                      {/* Stock warning */}
                       {item.productId && item.quantity > 0 && (
-                        <div className="mt-1">
+                        <div className="mt-0.5">
                           {(() => {
                             const selectedProduct = productsData.find(
                               (p) => p.id === item.productId,
@@ -1757,26 +1877,20 @@ const Invoices = () => {
 
                             if (quantity === 0) {
                               return (
-                                <div className="text-xs text-red-600 font-medium">
+                                <div className="text-[10px] text-red-600 font-medium">
                                   Out of Stock
                                 </div>
                               );
                             } else if (required > quantity) {
                               return (
-                                <div className="text-xs text-orange-600">
-                                  Only {quantity} available
+                                <div className="text-[10px] text-orange-600">
+                                  Only {quantity} left
                                 </div>
                               );
                             } else if (quantity < 10) {
                               return (
-                                <div className="text-xs text-blue-600">
-                                  Low Stock: {quantity} left
-                                </div>
-                              );
-                            } else {
-                              return (
-                                <div className="text-xs text-green-600">
-                                  {quantity} in stock
+                                <div className="text-[10px] text-blue-600">
+                                  Low Stock
                                 </div>
                               );
                             }
@@ -1785,7 +1899,7 @@ const Invoices = () => {
                       )}
                     </div>
 
-                    {/* Quantity */}
+                    {/* Quantity (1 column) */}
                     <div className="col-span-1">
                       <Input
                         type="number"
@@ -1795,34 +1909,34 @@ const Invoices = () => {
                           const newQuantity = parseInt(e.target.value) || 1;
                           handleItemChange(index, "quantity", newQuantity);
                         }}
-                        className="text-center"
+                        className="text-center h-8 text-xs px-1"
                       />
                     </div>
 
-                    {/* Rate - Always shows original price */}
+                    {/* Rate (2 columns) */}
                     <div className="col-span-2">
                       <div className="relative">
                         <Input
                           type="number"
                           min="0"
                           step="0.01"
-                          value={item.price}
+                          value={item.price.toFixed(2)} // display formatting
                           onChange={(e) =>
                             handleItemChange(
                               index,
                               "price",
-                              parseFloat(e.target.value) || 0,
+                              roundTo2(Number(e.target.value)),
                             )
                           }
-                          className="text-right"
+                          className="text-center h-8 text-xs px-1"
                           readOnly
                         />
                       </div>
                     </div>
 
-                    {/* Discount */}
+                    {/* Discount (2 columns) */}
                     <div className="col-span-2">
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 justify-center">
                         <Input
                           type="number"
                           min="0"
@@ -1834,38 +1948,70 @@ const Invoices = () => {
                               parseFloat(e.target.value) || 0,
                             )
                           }
-                          className="text-center"
+                          className="text-center h-8 w-16 text-xs px-1"
                           placeholder="0"
                         />
-                        <span className="text-sm text-gray-500">%</span>
+                        <span className="text-xs text-gray-500">%</span>
                       </div>
                       {item.discount > 0 && (
-                        <div className="text-xs text-green-600 text-center mt-1">
-                          Save: ₹{item.discountedPrice.toFixed(2)}
+                        <div className="text-[10px] text-green-600 text-center mt-0.5">
+                          Save ₹{item.discountedPrice.toFixed(0)}
                         </div>
                       )}
                     </div>
 
-                    {/* Amount - Shows discounted total */}
-                    <div className="col-span-1 text-right font-medium text-sm">
-                      ₹{item.total.toFixed(2)}
-                      {item.discount > 0 && (
-                        <div className="text-xs text-gray-500 line-through">
-                          ₹{(item.originalPrice * item.quantity).toFixed(2)}
-                        </div>
-                      )}
+                    {/* GST Checkbox (1 column) */}
+                    <div className="col-span-1">
+                      <div className="flex flex-col items-center justify-center">
+                        <Checkbox
+                          id={`gst-${index}`}
+                          checked={item.applyGST}
+                          onCheckedChange={(checked) =>
+                            handleItemChange(
+                              index,
+                              "applyGST",
+                              checked === true,
+                            )
+                          }
+                          className="h-4 w-4"
+                        />
+                        {item.applyGST && (
+                          <div className="text-[10px] text-gray-500 mt-0.5">
+                            {company === "YADNYASENI" ? "Incl. GST" : "+5% GST"}
+                          </div>
+                        )}
+                        {!item.applyGST && (
+                          <div className="text-[10px] text-gray-400 mt-0.5">
+                            Excl. GST
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Remove Button */}
+                    {/* Amount (1 column) */}
+                    <div className="col-span-1">
+                      <div className="text-right">
+                        <div className="font-medium text-xs">
+                          ₹{item.total.toFixed(0)}
+                        </div>
+                        {item.discount > 0 && (
+                          <div className="text-[10px] text-gray-400 line-through">
+                            ₹{(item.originalPrice * item.quantity).toFixed(0)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Remove Button (1 column) */}
                     <div className="col-span-1 flex justify-center">
                       {items.length > 1 && (
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="sm"
                           onClick={() => handleRemoveRow(index)}
-                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50 p-0"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       )}
                     </div>
@@ -1881,6 +2027,23 @@ const Invoices = () => {
                   <Plus className="mr-2 h-4 w-4" />
                   Add Row
                 </Button>
+                <div className="pt-4 border-t">
+                  <Label htmlFor="product-description" className="font-medium">
+                    Product Description / Notes (Optional)
+                  </Label>
+                  <Textarea
+                    id="product-description"
+                    placeholder="Add any product description, special instructions, or notes here..."
+                    value={productDescription}
+                    onChange={(e) => setProductDescription(e.target.value)}
+                    className="mt-2 min-h-[80px]"
+                    rows={3}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    This description will be added to all products in the
+                    invoice
+                  </p>
+                </div>
               </div>
             </CardContent>
           </div>
