@@ -1,4 +1,3 @@
-// app/invoice/[id]/page.tsx
 import { notFound, redirect } from "next/navigation";
 import { PrismaClient } from "@prisma/client";
 import { cookies } from "next/headers";
@@ -33,7 +32,7 @@ export default async function PublicInvoicePage({
   // For demo/development, allow access without token
   const allowAccess =
     process.env.NODE_ENV === "development" ||
-    (token && phone && validateToken(token, phone, invoiceId));
+    (token && validateToken(token, invoiceId));
 
   if (!allowAccess) {
     // Try to validate via session or redirect to login
@@ -66,11 +65,7 @@ export default async function PublicInvoicePage({
 }
 
 // Simple token validation
-function validateToken(
-  token: string,
-  phone: string,
-  invoiceId: number
-): boolean {
+function validateToken(token: string, invoiceId: number): boolean {
   try {
     const decoded = Buffer.from(token, "base64").toString("ascii");
     const [decodedInvoiceId, decodedPhone, timestamp] = decoded.split(":");
@@ -81,11 +76,7 @@ function validateToken(
     const daysDifference =
       (now.getTime() - tokenDate.getTime()) / (1000 * 60 * 60 * 24);
 
-    return (
-      parseInt(decodedInvoiceId) === invoiceId &&
-      decodedPhone === phone &&
-      daysDifference <= 30
-    );
+    return parseInt(decodedInvoiceId) === invoiceId && daysDifference <= 30;
   } catch {
     return false;
   }

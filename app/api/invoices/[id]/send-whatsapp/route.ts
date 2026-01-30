@@ -8,7 +8,7 @@ const whatsappService = new WhatsAppService();
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     // Await the params promise
@@ -18,7 +18,7 @@ export async function POST(
     if (isNaN(invoiceId)) {
       return NextResponse.json(
         { error: "Invalid invoice ID" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -43,7 +43,7 @@ export async function POST(
     if (!invoice.customer.number) {
       return NextResponse.json(
         { error: "Customer phone number not found" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -69,7 +69,7 @@ export async function POST(
     const invoiceUrl = whatsappService.generateInvoiceUrl(
       invoice.id,
       invoice.customer.number,
-      invoice.customer.name
+      invoice.customer.name,
     );
 
     // Create WhatsApp message
@@ -84,7 +84,7 @@ export async function POST(
     // Generate WhatsApp share URL
     const whatsappShareUrl = whatsappService.generateWhatsAppShareUrl(
       invoice.customer.number,
-      whatsappMessage
+      whatsappMessage,
     );
 
     return NextResponse.json({
@@ -109,7 +109,7 @@ export async function POST(
         error: "Failed to generate WhatsApp link",
         details: error.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

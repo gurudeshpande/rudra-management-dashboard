@@ -69,7 +69,7 @@ export default async function PublicInvoicePage({
 function validateToken(
   token: string,
   phone: string,
-  invoiceId: number
+  invoiceId: number,
 ): boolean {
   try {
     const decoded = Buffer.from(token, "base64").toString("ascii");
