@@ -15,6 +15,17 @@ import {
   MapPin,
   IndianRupee,
   ArrowLeft,
+  Building,
+  Receipt,
+  FileBox,
+  Tag,
+  Percent,
+  Wallet,
+  CreditCard,
+  Package,
+  Check,
+  Clock,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +48,9 @@ import {
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { pdf } from "@react-pdf/renderer";
+import InvoicePDF from "@/components/InvoicePDF/InvoicePDF";
+import { convertToWords } from "@/utils/numberToWords"; // Make sure this import exists
 
 interface InvoiceViewProps {
   invoice: any;
@@ -44,6 +58,22 @@ interface InvoiceViewProps {
 
 const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice }) => {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
+  // Check company type
+  const isYadnyaseni = invoice.companyType === "YADNYASENI";
+  const companyName = isYadnyaseni
+    ? "Yadnyaseni Creations"
+    : "Rudra Arts & Handicrafts";
+
+  // Color themes
+  const themeColors = {
+    primary: isYadnyaseni ? "text-purple-600" : "text-blue-600",
+    bgLight: isYadnyaseni ? "bg-purple-50" : "bg-blue-50",
+    bgMedium: isYadnyaseni ? "bg-purple-100" : "bg-blue-100",
+    text: isYadnyaseni ? "text-purple-700" : "text-blue-700",
+    border: isYadnyaseni ? "border-purple-200" : "border-blue-200",
+    accent: isYadnyaseni ? "bg-purple-500" : "bg-blue-500",
+  };
 
   // Format date
   const formatDate = (date: Date) => {
@@ -59,7 +89,7 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice }) => {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
-      minimumFractionDigits: 2,
+      minimumFractionDigits: 0,
     }).format(amount);
   };
 
@@ -68,20 +98,20 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice }) => {
     switch (status) {
       case "PAID":
         return (
-          <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-green-200">
+          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-50">
             <CheckCircle className="w-3 h-3 mr-1" /> PAID
           </Badge>
         );
       case "UNPAID":
         return (
-          <Badge className="bg-red-100 text-red-800 hover:bg-red-100 border-red-200">
-            UNPAID
+          <Badge className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50">
+            <AlertCircle className="w-3 h-3 mr-1" /> UNPAID
           </Badge>
         );
       case "ADVANCE":
         return (
-          <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-200">
-            ADVANCE PAYMENT
+          <Badge className="bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-50">
+            <Wallet className="w-3 h-3 mr-1" /> ADVANCE
           </Badge>
         );
       default:
@@ -93,27 +123,111 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice }) => {
   const generatePDF = async () => {
     try {
       setIsGeneratingPDF(true);
-      const element = document.getElementById("invoice-content");
 
-      if (!element) {
-        throw new Error("Invoice content not found");
-      }
+      // Format dates properly
+      const formatDateForPDF = (date: Date) => {
+        return new Date(date).toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+      };
 
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      });
+      // Prepare invoice data for PDF
+      const invoiceData = {
+        companyDetails: {
+          name: companyName,
+          address: isYadnyaseni
+            ? "Samata Nagar, Ganesh Nagar Lane No 1, Above Rudra arts & Handicrafts LLP, Famous Chowk, New Sangavi, Pune Maharashtra 411027, India"
+            : "Samata Nagar, Ganesh Nagar Lane No 1, Famous Chowk, New Sangavi, Pune Maharashtra 411027, India",
+          gstin: isYadnyaseni ? "" : "27AMWPV8148A1ZE",
+          city: "Pune",
+          phone: "9595221296",
+          email: "rudraarts30@gmail.com",
+        },
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceDate: formatDateForPDF(invoice.invoiceDate),
+        dueDate: formatDateForPDF(invoice.dueDate),
+        companyType: invoice.companyType || "RUDRA",
+        customerInfo: {
+          name: invoice.customer.name,
+          address: invoice.customer.address || "",
+          city: invoice.customer.city || "",
+          pincode: invoice.customer.pincode || "",
+          gstin: invoice.customer.gstin || "",
+        },
+        shippingInfo: {
+          name: invoice.customer.name,
+          address: invoice.customer.address || "",
+          city: invoice.customer.city || "",
+          pincode: invoice.customer.pincode || "",
+          gstin: invoice.customer.gstin || "",
+        },
+        items: invoice.items.map((item: any) => ({
+          name: item.name,
+          description: item.description || "",
+          hsn: item.hsn || "970300",
+          quantity: item.quantity,
+          unit: item.unit || "pcs",
+          rate: item.price,
+          discount: item.discount || 0,
+          cgst: 2.5,
+          sgst: 2.5,
+          amount: item.total,
+          gstIncluded: item.gstIncluded || false,
+        })),
+        subtotal: invoice.subtotal || 0,
+        cgst: invoice.cgst || 0,
+        sgst: invoice.sgst || 0,
+        total: invoice.total || invoice.subtotal,
+        extraCharges: invoice.extraCharges || 0,
+        totalInWords:
+          invoice.totalInWords ||
+          `${convertToWords(invoice.total || invoice.subtotal)} Only`,
+        notes: invoice.notes || "",
+        deliveryDate: invoice.deliveryDate
+          ? formatDateForPDF(invoice.deliveryDate)
+          : formatDateForPDF(new Date()),
+        advancePaid: invoice.advancePaid || 0,
+        previousDue: 0,
+        discountDetails: {
+          hasDiscount: invoice.items.some(
+            (item: any) => item.discount && item.discount > 0,
+          ),
+          totalDiscount: invoice.items.reduce(
+            (sum: number, item: any) => sum + (item.discountedPrice || 0),
+            0,
+          ),
+          itemsWithDiscount: invoice.items.filter(
+            (item: any) => item.discount && item.discount > 0,
+          ),
+        },
+        gstCalculationType: isYadnyaseni
+          ? ("INCLUDED_IN_PRICE" as const)
+          : ("ADDED_ON_TOP" as const),
+      };
 
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const imgWidth = 210;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      // Generate PDF blob
+      const blob = await pdf(
+        <InvoicePDF
+          invoiceData={invoiceData}
+          logoUrl="/images/logo.png" // Update this path to your actual logo
+        />,
+      ).toBlob();
 
-      pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-      pdf.save(`invoice-${invoice.invoiceNumber}.pdf`);
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `invoice-${invoice.invoiceNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-      toast.success("PDF downloaded successfully");
+      // Clean up URL object
+      URL.revokeObjectURL(url);
+
+      toast.success("PDF downloaded successfully!");
     } catch (error) {
       console.error("Error generating PDF:", error);
       toast.error("Failed to generate PDF");
@@ -133,7 +247,7 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice }) => {
             <head>
               <title>Invoice ${invoice.invoiceNumber}</title>
               <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
+                body { font-family: Arial, sans-serif; margin: 20px; background: white; }
                 .invoice-header { text-align: center; margin-bottom: 30px; }
                 .company-info { margin-bottom: 20px; }
                 .invoice-details { margin-bottom: 30px; }
@@ -183,363 +297,406 @@ const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex justify-between items-start">
+          <div className="flex justify-between items-start mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-semibold text-gray-900 mb-2">
                 Invoice #{invoice.invoiceNumber}
               </h1>
-              <p className="text-gray-600 mt-2">
-                View, download, and share your invoice
-              </p>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Building className="w-4 h-4 text-gray-500" />
+                  <span className="text-gray-700 font-medium">
+                    {companyName}
+                  </span>
+                </div>
+                {/* <div
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${themeColors.bgLight} ${themeColors.text}`}
+                >
+                  {isYadnyaseni ? "GST Included" : "GST Added"}
+                </div> */}
+                {getStatusBadge(invoice.status)}
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.history.back()}
-                className="gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </Button>
-            </div>
+            {/* <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.history.back()}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button> */}
+          </div>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <Card className="shadow-sm border-0">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${themeColors.bgLight}`}>
+                    <Calendar className={`w-5 h-5 ${themeColors.primary}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Invoice Date</p>
+                    <p className="font-medium text-gray-900">
+                      {formatDate(invoice.invoiceDate)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm border-0">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${themeColors.bgLight}`}>
+                    <Clock className={`w-5 h-5 ${themeColors.primary}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Due Date</p>
+                    <p className="font-medium text-gray-900">
+                      {formatDate(invoice.dueDate)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm border-0">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${themeColors.bgLight}`}>
+                    <Receipt className={`w-5 h-5 ${themeColors.primary}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Total Amount</p>
+                    <p className="text-xl font-semibold text-gray-900">
+                      {formatCurrency(invoice.total || invoice.subtotal)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
-        {/* Invoice Content */}
-        <Card id="invoice-content" className="mb-6 shadow-lg">
-          <CardContent className="p-6">
-            {/* Invoice Header */}
-            <div className="mb-8">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-amber-100 rounded-lg">
-                      <FileText className="w-8 h-8 text-amber-600" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900">
-                        {invoice.companyType || "RUDRA ARTS & HANDICRAFTS"}
-                      </h2>
-                      <p className="text-gray-600">Invoice Document</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">
-                        Invoice Date: {formatDate(invoice.invoiceDate)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">
-                        Due Date: {formatDate(invoice.dueDate)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  {getStatusBadge(invoice.status)}
-                  <div className="mt-4">
-                    <div className="text-3xl font-bold text-gray-900">
-                      {formatCurrency(invoice.total || invoice.subtotal)}
-                    </div>
-                    <p className="text-sm text-gray-600">Total Amount</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <Separator className="my-6" />
-
+        {/* Main Invoice Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - Customer & Items */}
+          <div className="lg:col-span-2 space-y-8">
             {/* Customer Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Billed To
-                </h3>
-                <Card className="bg-gray-50">
-                  <CardContent className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3">
-                        <User className="w-5 h-5 text-gray-500 mt-0.5" />
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {invoice.customer.name}
-                          </p>
-                          <p className="text-sm text-gray-600">Customer</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <Phone className="w-5 h-5 text-gray-500 mt-0.5" />
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {invoice.customer.number}
-                          </p>
-                          <p className="text-sm text-gray-600">Phone</p>
-                        </div>
-                      </div>
-
-                      {invoice.customer.email && (
-                        <div className="flex items-start gap-3">
-                          <Mail className="w-5 h-5 text-gray-500 mt-0.5" />
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {invoice.customer.email}
-                            </p>
-                            <p className="text-sm text-gray-600">Email</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {invoice.customer.address && (
-                        <div className="flex items-start gap-3">
-                          <MapPin className="w-5 h-5 text-gray-500 mt-0.5" />
-                          <div>
-                            <p className="font-medium text-gray-900 break-words">
-                              {invoice.customer.address}
-                            </p>
-                            <p className="text-sm text-gray-600">Address</p>
-                          </div>
-                        </div>
-                      )}
+            <Card className="shadow-sm border-0">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <User className="w-5 h-5 text-gray-600" />
+                  Customer Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Customer Name</p>
+                    <p className="text-lg font-medium text-gray-900">
+                      {invoice.customer.name}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Phone Number</p>
+                      <p className="font-medium text-gray-900">
+                        {invoice.customer.number}
+                      </p>
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Payment Summary */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Payment Summary
-                </h3>
-                <Card className="bg-gray-50">
-                  <CardContent className="p-4 space-y-4">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Subtotal</span>
-                      <span className="font-medium">
-                        {formatCurrency(invoice.subtotal)}
-                      </span>
-                    </div>
-
-                    {invoice.cgst > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">CGST</span>
-                        <span className="font-medium">
-                          {formatCurrency(invoice.cgst)}
-                        </span>
+                    {invoice.customer.email && (
+                      <div>
+                        <p className="text-sm text-gray-500">Email</p>
+                        <p className="font-medium text-gray-900">
+                          {invoice.customer.email}
+                        </p>
                       </div>
                     )}
-
-                    {invoice.sgst > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">SGST</span>
-                        <span className="font-medium">
-                          {formatCurrency(invoice.sgst)}
-                        </span>
-                      </div>
-                    )}
-
-                    <Separator />
-
-                    <div className="flex justify-between text-lg font-bold">
-                      <span>Total</span>
-                      <span>
-                        {formatCurrency(invoice.total || invoice.subtotal)}
-                      </span>
+                  </div>
+                  {invoice.customer.address && (
+                    <div>
+                      <p className="text-sm text-gray-500">Shipping Address</p>
+                      <p className="font-medium text-gray-900">
+                        {invoice.customer.address}
+                      </p>
                     </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
-                    {invoice.advancePaid > 0 && (
-                      <>
-                        <div className="flex justify-between text-green-600">
-                          <span>Advance Paid</span>
-                          <span>- {formatCurrency(invoice.advancePaid)}</span>
-                        </div>
-                        <div className="flex justify-between text-red-600 font-bold">
-                          <span>Balance Due</span>
-                          <span>
-                            {formatCurrency(
-                              (invoice.total || invoice.subtotal) -
-                                invoice.advancePaid
+            {/* Invoice Items */}
+            <Card className="shadow-sm border-0">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <Package className="w-5 h-5 text-gray-600" />
+                    Invoice Items
+                  </CardTitle>
+                  <Badge variant="outline" className="bg-gray-50">
+                    {invoice.items.length} items
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-gray-50">
+                      <TableRow>
+                        <TableHead className="font-medium">Item</TableHead>
+                        <TableHead className="font-medium text-center">
+                          Qty
+                        </TableHead>
+                        <TableHead className="font-medium">Rate</TableHead>
+                        <TableHead className="font-medium text-right">
+                          Amount
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {invoice.items.map((item: any, index: number) => (
+                        <TableRow
+                          key={item.id}
+                          className={
+                            index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          }
+                        >
+                          <TableCell>
+                            <div>
+                              <div className="font-medium text-gray-900">
+                                {item.name}
+                              </div>
+                              {item.gstIncluded && isYadnyaseni && (
+                                <div
+                                  className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-xs ${themeColors.bgLight} ${themeColors.text}`}
+                                >
+                                  <Check className="w-3 h-3" />
+                                  GST Included
+                                </div>
+                              )}
+                              {item.description && (
+                                <p className="text-sm text-gray-500 mt-1">
+                                  {item.description}
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="font-medium">{item.quantity}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium text-gray-900">
+                              {formatCurrency(item.price)}
+                            </div>
+                            {item.discount > 0 && (
+                              <div className="text-sm text-green-600 flex items-center gap-1">
+                                <Tag className="w-3 h-3" />
+                                {item.discount}% off
+                              </div>
                             )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="font-semibold text-gray-900">
+                              {formatCurrency(item.total)}
+                            </div>
+                            {item.discount > 0 && (
+                              <div className="text-sm text-gray-400 line-through">
+                                {formatCurrency(
+                                  item.originalPrice * item.quantity,
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column - Payment Summary */}
+          <div>
+            <Card className="shadow-sm border-0 sticky top-8">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-gray-600" />
+                  Payment Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-4">
+                  {/* Subtotal */}
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-600">Subtotal</span>
+                    <span className="font-medium text-gray-900">
+                      {formatCurrency(invoice.subtotal)}
+                    </span>
+                  </div>
+
+                  {/* GST Display */}
+                  {isYadnyaseni ? (
+                    // Yadnyaseni - GST Included
+                    invoice.gstTotal > 0 && (
+                      <div
+                        className={`flex justify-between items-center py-2 px-3 rounded-lg ${themeColors.bgLight}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`font-medium ${themeColors.text}`}>
+                            GST Included (5%)
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${themeColors.bgLight} ${themeColors.text} ${themeColors.border}`}
+                          >
+                            Included
+                          </Badge>
+                        </div>
+                        <span className={`font-medium ${themeColors.text}`}>
+                          {formatCurrency(invoice.gstTotal)}
+                        </span>
+                      </div>
+                    )
+                  ) : (
+                    // Rudra - Separate CGST/SGST
+                    <>
+                      {invoice.cgst > 0 && (
+                        <div className="flex justify-between items-center py-2">
+                          <span className="text-gray-600">CGST (2.5%)</span>
+                          <span className="font-medium text-gray-900">
+                            {formatCurrency(invoice.cgst)}
                           </span>
                         </div>
-                      </>
-                    )}
+                      )}
+                      {invoice.sgst > 0 && (
+                        <div className="flex justify-between items-center py-2">
+                          <span className="text-gray-600">SGST (2.5%)</span>
+                          <span className="font-medium text-gray-900">
+                            {formatCurrency(invoice.sgst)}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
 
-                    {invoice.totalInWords && (
-                      <div className="mt-4 pt-4 border-t">
-                        <p className="text-sm text-gray-600">
-                          Amount in Words:
-                        </p>
-                        <p className="font-medium italic">
+                  {/* Discount */}
+                  {invoice.totalDiscount > 0 && (
+                    <div className="flex justify-between items-center py-2">
+                      <div className="flex items-center gap-2 text-green-600">
+                        <Percent className="w-4 h-4" />
+                        <span>Total Discount</span>
+                      </div>
+                      <span className="font-medium text-green-600">
+                        -{formatCurrency(invoice.totalDiscount)}
+                      </span>
+                    </div>
+                  )}
+
+                  <Separator className="my-3" />
+
+                  {/* Total */}
+                  <div className="flex justify-between items-center py-3 bg-gray-50 rounded-lg px-3">
+                    <div>
+                      <span className="text-lg font-semibold text-gray-900">
+                        Total Amount
+                      </span>
+                      {invoice.totalInWords && (
+                        <p className="text-xs text-gray-500 mt-1">
                           {invoice.totalInWords}
                         </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-gray-900">
+                        {formatCurrency(invoice.total || invoice.subtotal)}
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+                      <p className="text-xs text-gray-500">
+                        Inclusive of all taxes
+                      </p>
+                    </div>
+                  </div>
 
-            {/* Items Table */}
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Invoice Items
-              </h3>
-              <div className="border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader className="bg-gray-50">
-                    <TableRow>
-                      <TableHead className="font-semibold">Item</TableHead>
-                      <TableHead className="font-semibold">
-                        Description
-                      </TableHead>
-                      <TableHead className="font-semibold">Quantity</TableHead>
-                      <TableHead className="font-semibold">Price</TableHead>
-                      <TableHead className="font-semibold text-right">
-                        Total
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {invoice.items.map((item: any, index: number) => (
-                      <TableRow
-                        key={item.id}
-                        className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                      >
-                        <TableCell className="font-medium">
-                          {item.name}
-                        </TableCell>
-                        <TableCell>
-                          {item.description || item.product?.category || "N/A"}
-                          {item.notes && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              {item.notes}
-                            </p>
-                          )}
-                        </TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{formatCurrency(item.price)}</TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(item.total)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
+                  {/* Advance Payment */}
+                  {invoice.advancePaid > 0 && (
+                    <>
+                      <div className="flex justify-between items-center py-2">
+                        <div className="flex items-center gap-2 text-emerald-600">
+                          <Wallet className="w-4 h-4" />
+                          <span>Advance Paid</span>
+                        </div>
+                        <span className="font-medium text-emerald-600">
+                          -{formatCurrency(invoice.advancePaid)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 px-3 bg-amber-50 rounded-lg">
+                        <div className="flex items-center gap-2 text-amber-700">
+                          <AlertCircle className="w-4 h-4" />
+                          <span className="font-medium">Balance Due</span>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-amber-700">
+                            {formatCurrency(
+                              (invoice.total || invoice.subtotal) -
+                                invoice.advancePaid,
+                            )}
+                          </div>
+                          <p className="text-xs text-amber-600">
+                            Payment pending
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  )}
 
-            {/* Footer Notes */}
-            {invoice.deliveryDate && (
-              <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar className="w-4 h-4 text-blue-600" />
-                  <h4 className="font-medium text-blue-800">
-                    Delivery Information
-                  </h4>
+                  {/* Action Buttons */}
+                  <div className="space-y-3 pt-4">
+                    <Button
+                      onClick={generatePDF}
+                      disabled={isGeneratingPDF}
+                      className={`w-full ${isYadnyaseni ? "bg-blue-600 hover:bg-purple-700 text-white" : "bg-blue-600 hover:bg-blue-700 text-white"}`}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      {isGeneratingPDF ? "Generating PDF..." : "Download PDF"}
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-blue-700">
-                  Scheduled delivery: {formatDate(invoice.deliveryDate)}
-                </p>
-              </div>
-            )}
-
-            {/* Terms & Conditions */}
-            <div className="mt-8 pt-6 border-t">
-              <h4 className="font-semibold text-gray-900 mb-2">
-                Terms & Conditions
-              </h4>
-              <ul className="text-sm text-gray-600 space-y-1 list-disc pl-5">
-                <li>Payment is due within {formatDate(invoice.dueDate)}</li>
-                <li>Late payments may be subject to interest charges</li>
-                <li>Goods once sold cannot be returned</li>
-                <li>All disputes are subject to local jurisdiction</li>
-              </ul>
-            </div>
-          </CardContent>
-
-          <CardFooter className="bg-gray-50 px-6 py-4 border-t">
-            <div className="w-full flex flex-col sm:flex-row justify-between items-center">
-              <div className="text-sm text-gray-600 mb-4 sm:mb-0">
-                <p>Invoice #{invoice.invoiceNumber}</p>
-                <p>Generated on {formatDate(invoice.createdAt)}</p>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={printInvoice}
-                  className="gap-2"
-                >
-                  <Printer className="w-4 h-4" />
-                  Print
-                </Button>
-
-                <Button
-                  onClick={generatePDF}
-                  disabled={isGeneratingPDF}
-                  className="gap-2 bg-amber-600 hover:bg-amber-700"
-                >
-                  <Download className="w-4 h-4" />
-                  {isGeneratingPDF ? "Generating..." : "Download PDF"}
-                </Button>
-
-                <Button
-                  variant="outline"
-                  onClick={shareInvoice}
-                  className="gap-2"
-                >
-                  <Share2 className="w-4 h-4" />
-                  Share
-                </Button>
-              </div>
-            </div>
-          </CardFooter>
-        </Card>
-
-        {/* Action Buttons */}
-        <div className="flex flex-wrap gap-4 justify-center">
-          <Button
-            onClick={() =>
-              (window.location.href = `tel:${invoice.customer.number}`)
-            }
-            variant="outline"
-            className="gap-2"
-          >
-            <Phone className="w-4 h-4" />
-            Call Customer
-          </Button>
-
-          <Button
-            onClick={() =>
-              (window.location.href = `https://wa.me/${invoice.customer.number}`)
-            }
-            className="gap-2 bg-green-600 hover:bg-green-700"
-          >
-            <Share2 className="w-4 h-4" />
-            Send WhatsApp Reminder
-          </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        {/* Security Note */}
-        {/* <div className="mt-8 text-center">
-          <p className="text-sm text-gray-500">
-            🔒 This invoice is securely shared. The link will expire in 30 days.
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            Invoice ID: {invoice.id} • Customer ID: {invoice.customerId}
-          </p>
-        </div> */}
+        {/* Footer */}
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="text-sm text-gray-500">
+              <p>
+                Invoice #{invoice.invoiceNumber} • Generated on{" "}
+                {formatDate(invoice.createdAt)}
+              </p>
+              <p className="mt-1">This secure link expires in 30 days</p>
+            </div>
+            <div
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg ${themeColors.bgLight}`}
+            >
+              <div
+                className={`w-2 h-2 rounded-full ${themeColors.accent}`}
+              ></div>
+              {/* <span className={`text-sm font-medium ${themeColors.text}`}>
+                {isYadnyaseni
+                  ? "GST included in all prices"
+                  : "GST added separately"}
+              </span> */}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
