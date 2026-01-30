@@ -1,11 +1,11 @@
 // types/invoice.ts
 export interface CompanyDetails {
   name: string;
-  address: string;
-  city: string;
-  gstin: string;
-  phone: string;
-  email: string;
+  address?: string;
+  city?: string;
+  gstin?: string;
+  phone?: string;
+  email?: string;
 }
 
 export interface CustomerInfo {
