@@ -125,6 +125,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         icon: LayoutDashboard,
       },
       {
+        name: "Customer Management",
+        href: "/super-admin/customer-management",
+        icon: LayoutDashboard,
+      },
+      {
         name: "User Management",
         href: "/super-admin/users",
         icon: Package,
@@ -193,6 +198,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {
         name: "Dashboard",
         href: "/dashboard",
+        icon: LayoutDashboard,
+      },
+      {
+        name: "Customer Management",
+        href: "/admin/customer-management",
         icon: LayoutDashboard,
       },
       {
@@ -381,7 +391,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                           "w-full flex items-center justify-between px-4 py-3 transition-all duration-200",
                           isActive
                             ? "bg-blue-50 text-amber-900 border-r-2 border-amber-600"
-                            : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                            : "text-gray-300 hover:bg-gray-800 hover:text-white",
                         )}
                         onClick={() => toggleSubmenu(item.name)}
                       >
@@ -389,7 +399,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                           <item.icon
                             className={cn(
                               "h-5 w-5",
-                              isActive ? "text-amber-800" : "text-gray-400"
+                              isActive ? "text-amber-800" : "text-gray-400",
                             )}
                           />
                           <span className="font-medium">{item.name}</span>
@@ -397,7 +407,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                         <ChevronRight
                           className={cn(
                             "h-4 w-4 transition-transform",
-                            isSubmenuOpen && "rotate-90"
+                            isSubmenuOpen && "rotate-90",
                           )}
                         />
                       </Button>
@@ -427,7 +437,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                                       "w-full flex items-center space-x-3 px-4 py-2 text-sm transition-all duration-200",
                                       isSubItemActive
                                         ? "bg-blue-50 text-amber-900 border-r-2 border-amber-600"
-                                        : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                                        : "text-gray-300 hover:bg-gray-800 hover:text-white",
                                     )}
                                   >
                                     <subItem.icon
@@ -435,7 +445,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                                         "h-4 w-4",
                                         isSubItemActive
                                           ? "text-amber-800"
-                                          : "text-gray-400"
+                                          : "text-gray-400",
                                       )}
                                     />
                                     <span>{subItem.name}</span>
@@ -455,13 +465,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                           "w-full flex items-center justify-start space-x-3 px-4 py-3 transition-all duration-200",
                           isActive
                             ? "bg-blue-50 text-amber-900 border-r-2 border-amber-600"
-                            : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                            : "text-gray-300 hover:bg-gray-800 hover:text-white",
                         )}
                       >
                         <item.icon
                           className={cn(
                             "h-5 w-5",
-                            isActive ? "text-amber-800" : "text-gray-400"
+                            isActive ? "text-amber-800" : "text-gray-400",
                           )}
                         />
                         <span className="font-medium">{item.name}</span>
@@ -627,7 +637,7 @@ const ReturnedItemsPopup = () => {
   const handleMarkAsUnused = async (itemId: number) => {
     if (
       !confirm(
-        "Are you sure you want to mark this as unused? The product is too damaged and cannot be repaired."
+        "Are you sure you want to mark this as unused? The product is too damaged and cannot be repaired.",
       )
     )
       return;
@@ -637,7 +647,7 @@ const ReturnedItemsPopup = () => {
       await markAsUnused(itemId);
     } catch (error) {
       alert(
-        error instanceof Error ? error.message : "Failed to mark as unused"
+        error instanceof Error ? error.message : "Failed to mark as unused",
       );
     } finally {
       setLoadingStates((prev) => ({ ...prev, [itemId]: null }));

@@ -48,6 +48,7 @@ export interface InvoiceData {
   advancePaid?: number;
   balanceDue?: number;
   status?: string;
+  description?: string;
   totalInWords: string;
   deliveryDate: string;
   gstCalculationType: "INCLUDED_IN_PRICE" | "ADDED_ON_TOP";

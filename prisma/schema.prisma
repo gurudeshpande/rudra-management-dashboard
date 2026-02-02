@@ -30,6 +30,25 @@ model User {
   RawMaterialConsumption RawMaterialConsumption[]
 }
 
+model UserCustomer {
+  id              Int      @id @default(autoincrement())
+  name            String   // Customer/Company name
+  email           String?  // Email address
+  phone           String   @unique // Phone number
+  billingAddress  String?  // Billing address
+  gst             String?  // GST number
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Indexes for better query performance
+  @@index([name])
+  @@index([email])
+  @@index([phone])
+  @@index([gst])
+  @@index([createdAt])
+}
+
 // ====================== CUSTOMER ======================
 model Customer {
   id        Int       @id @default(autoincrement())
@@ -282,6 +301,7 @@ model Invoice {
   shippingId    Int?
   
   items         InvoiceItem[]
+  description String   @default("")
   
   subtotal      Float
   cgst          Float
