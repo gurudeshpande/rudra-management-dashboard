@@ -79,6 +79,14 @@ export default function DashboardPage() {
       badge: "All Access",
     },
     {
+      title: "Customer Management",
+      description: "Create, view and manage Customers",
+      icon: <User className="h-8 w-8" />,
+      href: "/super-admin/customer-management",
+      role: ["SUPER_ADMIN"],
+      badge: "All Access",
+    },
+    {
       title: "Analysis",
       description: "Generate and view detailed reports",
       icon: <TrendingUp className="h-8 w-8" />,
@@ -205,7 +213,10 @@ export default function DashboardPage() {
               index !== 3 &&
               index !== 4 && // only first and second cards are enabled
               index !== 5 &&
-              index !== 6;
+              index !== 6 &&
+              index !== 7 &&
+              index !== 8 &&
+              index !== 9;
             return (
               <Card
                 key={index}

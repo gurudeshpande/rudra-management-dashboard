@@ -64,8 +64,11 @@ interface InvoiceItem {
 interface CustomerInfo {
   id?: number;
   name: string;
-  number: string;
-  address: string;
+  // number: string;
+  // address: string;
+  phone?: string;
+  billingAddress?: string;
+  email: string;
   city?: string;
   pincode?: string;
   gstin?: string;
@@ -81,8 +84,11 @@ const Invoices = () => {
   // State for customer information
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
     name: "",
-    number: "",
-    address: "",
+    phone: "",
+    // address: "",
+    email: "",
+    // phone: "",
+    billingAddress: "",
   });
 
   const [productDescription, setProductDescription] = useState<string>("");
@@ -150,10 +156,11 @@ const Invoices = () => {
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        const res = await fetch("/api/customers");
+        const res = await fetch("/api/customer-management");
         if (res.ok) {
           const data = await res.json();
-          setExistingCustomers(data);
+          console.log(data, "data");
+          setExistingCustomers(data.customers);
         }
       } catch (error) {
         console.error("Failed to fetch customers:", error);
@@ -227,7 +234,7 @@ const Invoices = () => {
   const filteredCustomers = existingCustomers.filter(
     (customer) =>
       customer.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-      customer.number.includes(customerSearch),
+      (customer.phone ?? "").includes(customerSearch),
   );
 
   // Filter products for bulk upload
@@ -301,8 +308,9 @@ const Invoices = () => {
   const handleCustomerSelect = (customer: CustomerInfo) => {
     setCustomerInfo({
       name: customer.name,
-      number: customer.number,
-      address: customer.address,
+      phone: customer.phone,
+      billingAddress: customer.billingAddress || "",
+      email: customer.email || "",
     });
     setShowCustomerDropdown(false);
     setCustomerSearch("");
@@ -330,8 +338,9 @@ const Invoices = () => {
   const handleClearCustomerSelection = () => {
     setCustomerInfo({
       name: "",
-      number: "",
-      address: "",
+      phone: "",
+      billingAddress: "",
+      email: "",
     });
     setCustomerSearch("");
     setShowCustomerDropdown(false);
@@ -573,7 +582,7 @@ const Invoices = () => {
           .filter((item) => item.name && item.price > 0)
           .map((item) => ({
             ...item,
-            description: productDescription, // Add the common description
+            // description: productDescription, // Add the common description
           })),
         subtotal,
         extraCharges,
@@ -585,6 +594,7 @@ const Invoices = () => {
         totalInWords: `${convertToWords(total)} Only`,
         deliveryDate: new Date().toISOString(),
         status,
+        description: productDescription,
         gstCalculationType:
           company === "YADNYASENI" ? "INCLUDED_IN_PRICE" : "ADDED_ON_TOP",
       };
@@ -714,7 +724,7 @@ const Invoices = () => {
         return;
       }
 
-      if (!customerInfo.name || !customerInfo.number) {
+      if (!customerInfo.name || !customerInfo.phone) {
         alert.error(
           "Customer information incomplete",
           "Please fill customer name and phone number",
@@ -756,14 +766,14 @@ const Invoices = () => {
         companyType: company,
         customerInfo: {
           name: customerInfo.name || "",
-          address: customerInfo.address || "",
+          address: customerInfo.billingAddress || "",
           city: customerInfo.city || "",
           pincode: customerInfo.pincode || "",
           gstin: customerInfo.gstin || "",
         },
         shippingInfo: {
           name: customerInfo.name || "",
-          address: customerInfo.address || "",
+          address: customerInfo.billingAddress || "",
           city: customerInfo.city || "",
           pincode: customerInfo.pincode || "",
           gstin: customerInfo.gstin || "",
@@ -1178,7 +1188,7 @@ const Invoices = () => {
         return;
       }
 
-      if (!customerInfo.name || !customerInfo.number) {
+      if (!customerInfo.name || !customerInfo.phone) {
         alert.error(
           "Customer information incomplete",
           "Please fill customer name and phone number",
@@ -1222,16 +1232,17 @@ const Invoices = () => {
             invoiceDate,
             dueDate: invoiceDate,
             companyType: company,
+            description: productDescription,
             customerInfo: {
               name: customerInfo.name || "",
-              address: customerInfo.address || "",
+              address: customerInfo.billingAddress || "",
               city: customerInfo.city || "",
               pincode: customerInfo.pincode || "",
               gstin: customerInfo.gstin || "",
             },
             shippingInfo: {
               name: customerInfo.name || "",
-              address: customerInfo.address || "",
+              address: customerInfo.billingAddress || "",
               city: customerInfo.city || "",
               pincode: customerInfo.pincode || "",
               gstin: customerInfo.gstin || "",
@@ -1330,7 +1341,7 @@ const Invoices = () => {
       setAdvancePayment(0);
       setApplyOverallDiscount(false);
       setOverallDiscountPercentage(0);
-      setCustomerInfo({ name: "", number: "", address: "" });
+      setCustomerInfo({ name: "", phone: "", billingAddress: "", email: "" });
     } catch (error: any) {
       console.error("Failed to generate invoice:", error);
 
@@ -1595,7 +1606,7 @@ const Invoices = () => {
                         >
                           <div className="font-medium">{customer.name}</div>
                           <div className="text-sm text-gray-600">
-                            {customer.number} • {customer.address}
+                            {customer.phone} • {customer.billingAddress}
                           </div>
                         </div>
                       ))}
@@ -1609,7 +1620,7 @@ const Invoices = () => {
                       {existingCustomers.find(
                         (c) =>
                           c.name === customerInfo.name &&
-                          c.number === customerInfo.number,
+                          c.phone === customerInfo.phone,
                       )
                         ? "Existing customer selected"
                         : "New customer"}
@@ -1617,7 +1628,7 @@ const Invoices = () => {
                     {existingCustomers.find(
                       (c) =>
                         c.name === customerInfo.name &&
-                        c.number === customerInfo.number,
+                        c.phone === customerInfo.phone,
                     ) && (
                       <Button
                         type="button"
@@ -1639,7 +1650,7 @@ const Invoices = () => {
                   <Input
                     id="number"
                     name="number"
-                    value={customerInfo.number}
+                    value={customerInfo.phone}
                     onChange={handleCustomerInfoChange}
                     placeholder="Customer Phone Number"
                     required
@@ -1661,7 +1672,7 @@ const Invoices = () => {
                   <Textarea
                     id="address"
                     name="address"
-                    value={customerInfo.address}
+                    value={customerInfo.billingAddress}
                     onChange={handleCustomerInfoChange}
                     placeholder="Customer Billing Address"
                     rows={3}
@@ -2323,6 +2334,9 @@ const Invoices = () => {
             ...invoicePreviewData,
             companyDetails: currentCompany,
             companyType: company,
+            description: productDescription,
+            gstCalculationType:
+              company === "YADNYASENI" ? "INCLUDED_IN_PRICE" : "ADDED_ON_TOP",
             // Add any other data needed for preview
           }}
           onClose={() => {

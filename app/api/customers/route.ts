@@ -25,7 +25,7 @@ export async function GET() {
         message: "Internal server error",
         error: error.message || "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -35,10 +35,12 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { name, email, phone, address, city, state, pincode, gstin } = body;
 
+    console.log(body, "body in customers route");
+
     if (!name || !phone) {
       return NextResponse.json(
         { message: "Name and phone are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -50,7 +52,7 @@ export async function POST(req: Request) {
     if (existingCustomer) {
       return NextResponse.json(
         { message: "Customer with this phone number already exists" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -72,13 +74,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
       { message: "Customer created successfully", customer },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error: any) {
     console.error("Error creating customer:", error);
     return NextResponse.json(
       { message: "Internal server error", error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
