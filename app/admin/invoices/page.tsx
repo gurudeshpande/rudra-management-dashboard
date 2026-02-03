@@ -64,12 +64,13 @@ interface InvoiceItem {
 interface CustomerInfo {
   id?: number;
   name: string;
-  phone: string;
-  billingAddress: string;
-  email: string; // Already exists, ensure it's used
-  gstin?: string; // Add GSTIN field
-  city?: string; // Already exists
-  pincode?: string; // Already exists
+  phone?: string;
+  billingAddress?: string;
+  email: string;
+  city?: string;
+  pincode?: string;
+  gst?: string;
+  pan?: string;
 }
 
 interface BulkProduct {
@@ -87,6 +88,7 @@ const Invoices = () => {
     email: "",
     // phone: "",
     billingAddress: "",
+    gst: "",
   });
 
   const [productDescription, setProductDescription] = useState<string>("");
@@ -309,6 +311,8 @@ const Invoices = () => {
       phone: customer.phone,
       billingAddress: customer.billingAddress || "",
       email: customer.email || "",
+      gst: customer.gst || "",
+      pan: customer.pan || "",
     });
     setShowCustomerDropdown(false);
     setCustomerSearch("");
@@ -767,14 +771,14 @@ const Invoices = () => {
           address: customerInfo.billingAddress || "",
           city: customerInfo.city || "",
           pincode: customerInfo.pincode || "",
-          gstin: customerInfo.gstin || "",
+          gstin: customerInfo.gst || "",
         },
         shippingInfo: {
           name: customerInfo.name || "",
           address: customerInfo.billingAddress || "",
           city: customerInfo.city || "",
           pincode: customerInfo.pincode || "",
-          gstin: customerInfo.gstin || "",
+          gstin: customerInfo.gst || "",
         },
         items: mappedItems,
         subtotal,
@@ -1236,14 +1240,14 @@ const Invoices = () => {
               address: customerInfo.billingAddress || "",
               city: customerInfo.city || "",
               pincode: customerInfo.pincode || "",
-              gstin: customerInfo.gstin || "",
+              gstin: customerInfo.gst || "",
             },
             shippingInfo: {
               name: customerInfo.name || "",
               address: customerInfo.billingAddress || "",
               city: customerInfo.city || "",
               pincode: customerInfo.pincode || "",
-              gstin: customerInfo.gstin || "",
+              gstin: customerInfo.gst || "",
             },
             items: mappedItems,
             subtotal,
@@ -1604,8 +1608,16 @@ const Invoices = () => {
                         >
                           <div className="font-medium">{customer.name}</div>
                           <div className="text-sm text-gray-600">
-                            {customer.phone} • {customer.billingAddress}
+                            {customer.phone}
+                            {customer.email && ` • ${customer.email}`}
+                            {customer.gst && ` • GST: ${customer.gst}`}
+                            {customer.pan && ` • PAN: ${customer.pan}`}
                           </div>
+                          {customer.billingAddress && (
+                            <div className="text-xs text-gray-500 truncate">
+                              {customer.billingAddress}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1652,6 +1664,38 @@ const Invoices = () => {
                     onChange={handleCustomerInfoChange}
                     placeholder="Customer Phone Number"
                     required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={customerInfo.email}
+                    onChange={handleCustomerInfoChange}
+                    placeholder="customer@example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="gstin">GST Number</Label>
+                  <Input
+                    id="gstin"
+                    name="gstin"
+                    value={customerInfo.gst || ""}
+                    onChange={handleCustomerInfoChange}
+                    placeholder="27ABCDE1234F1Z5"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pan">PAN Number</Label>
+                  <Input
+                    id="pan"
+                    name="pan"
+                    value={customerInfo.pan || ""}
+                    onChange={handleCustomerInfoChange}
+                    placeholder="ABCDE1234F"
+                    style={{ textTransform: "uppercase" }}
                   />
                 </div>
                 <div className="space-y-2">
