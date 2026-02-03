@@ -40,13 +40,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "react-hot-toast";
@@ -62,6 +55,8 @@ import {
   FileText,
   RefreshCw,
   Building,
+  CreditCard,
+  Hash,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 
@@ -72,6 +67,7 @@ interface Customer {
   phone: string;
   billingAddress: string | null;
   gst: string | null;
+  pan: string | null; // Added PAN field
   createdAt: string;
   updatedAt: string;
 }
@@ -111,6 +107,7 @@ const SimpleCustomerManagement: React.FC = () => {
     phone: "",
     billingAddress: "",
     gst: "",
+    pan: "", // Added PAN field
   });
   const [formErrors, setFormErrors] = useState<Partial<typeof formData>>({});
 
@@ -126,7 +123,7 @@ const SimpleCustomerManagement: React.FC = () => {
       setLoading(true);
       const queryParams = new URLSearchParams({
         search: debouncedSearchTerm,
-        page: pagination?.page?.toString() || "1", // Safe access
+        page: pagination?.page?.toString() || "1",
         limit: pagination?.limit?.toString() || "10",
       });
 
@@ -143,7 +140,7 @@ const SimpleCustomerManagement: React.FC = () => {
       // Set customers
       setCustomers(data.customers || []);
 
-      // Set pagination with safe defaults
+      // Set pagination
       if (data.pagination) {
         setPagination({
           page: data.pagination.page || 1,
@@ -152,7 +149,6 @@ const SimpleCustomerManagement: React.FC = () => {
           pages: data.pagination.pages || 1,
         });
       } else {
-        // Set default pagination if API doesn't return it
         setPagination({
           page: 1,
           limit: 10,
@@ -163,7 +159,6 @@ const SimpleCustomerManagement: React.FC = () => {
     } catch (error) {
       console.error("Error fetching customers:", error);
       toast.error("Failed to load customers");
-      // Reset to empty state on error
       setCustomers([]);
       setPagination({
         page: 1,
@@ -174,19 +169,19 @@ const SimpleCustomerManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearchTerm, pagination?.page, pagination?.limit]); // Safe dependency
+  }, [debouncedSearchTerm, pagination?.page, pagination?.limit]);
 
   // Initial fetch
   useEffect(() => {
     fetchCustomers();
-  }, []); // Only run on mount
+  }, []);
 
   // Fetch when search or pagination changes
   useEffect(() => {
     if (!loading) {
       fetchCustomers();
     }
-  }, [debouncedSearchTerm, pagination?.page, pagination?.limit]); // Safe dependencies
+  }, [debouncedSearchTerm, pagination?.page, pagination?.limit]);
 
   // Debounce search
   useEffect(() => {
@@ -206,6 +201,7 @@ const SimpleCustomerManagement: React.FC = () => {
       phone: "",
       billingAddress: "",
       gst: "",
+      pan: "",
     });
     setFormErrors({});
   };
@@ -228,6 +224,7 @@ const SimpleCustomerManagement: React.FC = () => {
       errors.email = "Please enter a valid email address";
     }
 
+    // Validate GST format
     if (
       formData.gst &&
       !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(
@@ -235,6 +232,11 @@ const SimpleCustomerManagement: React.FC = () => {
       )
     ) {
       errors.gst = "Invalid GST format. Example: 27ABCDE1234F1Z5";
+    }
+
+    // Validate PAN format
+    if (formData.pan && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.pan)) {
+      errors.pan = "Invalid PAN format. Example: ABCDE1234F";
     }
 
     setFormErrors(errors);
@@ -246,12 +248,18 @@ const SimpleCustomerManagement: React.FC = () => {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    // Convert PAN to uppercase automatically
+    let processedValue = value;
+    if (name === "pan") {
+      processedValue = value.toUpperCase();
+    }
+    setFormData((prev) => ({ ...prev, [name]: processedValue }));
     if (formErrors[name as keyof typeof formData]) {
       setFormErrors((prev) => ({ ...prev, [name]: undefined }));
     }
   };
 
+  // Create customer
   // Create customer
   const handleCreateCustomer = async () => {
     if (!validateForm()) return;
@@ -268,7 +276,12 @@ const SimpleCustomerManagement: React.FC = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to create customer");
+        // Log the error for debugging
+        console.error("API Error Response:", data);
+        throw new Error(
+          data.error ||
+            `Failed to create customer: ${response.status} ${response.statusText}`,
+        );
       }
 
       toast.success("Customer created successfully!");
@@ -276,7 +289,8 @@ const SimpleCustomerManagement: React.FC = () => {
       resetForm();
       fetchCustomers();
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Create Customer Error:", error);
+      toast.error(error.message || "Failed to create customer");
     }
   };
 
@@ -347,6 +361,7 @@ const SimpleCustomerManagement: React.FC = () => {
       phone: customer.phone,
       billingAddress: customer.billingAddress || "",
       gst: customer.gst || "",
+      pan: customer.pan || "", // Added PAN
     });
     setIsEditDialogOpen(true);
   };
@@ -382,7 +397,7 @@ const SimpleCustomerManagement: React.FC = () => {
               </h1>
               <p className="text-gray-600">
                 Manage customer information (Name, Email, Phone, Billing
-                Address, GST)
+                Address, GST, PAN)
               </p>
             </div>
             <Skeleton className="h-10 w-32" />
@@ -438,7 +453,7 @@ const SimpleCustomerManagement: React.FC = () => {
             </h1>
             <p className="text-gray-600">
               Manage customer information (Name, Email, Phone, Billing Address,
-              GST)
+              GST, PAN)
             </p>
           </div>
           <div className="flex gap-3 mt-4 md:mt-0">
@@ -517,19 +532,36 @@ const SimpleCustomerManagement: React.FC = () => {
                       <p className="text-sm text-red-500">{formErrors.email}</p>
                     )}
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="gst">GST Number</Label>
-                    <Input
-                      id="gst"
-                      name="gst"
-                      placeholder="27ABCDE1234F1Z5"
-                      value={formData.gst}
-                      onChange={handleInputChange}
-                      className={formErrors.gst ? "border-red-500" : ""}
-                    />
-                    {formErrors.gst && (
-                      <p className="text-sm text-red-500">{formErrors.gst}</p>
-                    )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="gst">GST Number</Label>
+                      <Input
+                        id="gst"
+                        name="gst"
+                        placeholder="27ABCDE1234F1Z5"
+                        value={formData.gst}
+                        onChange={handleInputChange}
+                        className={formErrors.gst ? "border-red-500" : ""}
+                      />
+                      {formErrors.gst && (
+                        <p className="text-sm text-red-500">{formErrors.gst}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pan">PAN Number</Label>
+                      <Input
+                        id="pan"
+                        name="pan"
+                        placeholder="ABCDE1234F"
+                        value={formData.pan}
+                        onChange={handleInputChange}
+                        className={formErrors.pan ? "border-red-500" : ""}
+                        style={{ textTransform: "uppercase" }}
+                      />
+                      {formErrors.pan && (
+                        <p className="text-sm text-red-500">{formErrors.pan}</p>
+                      )}
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="billingAddress">Billing Address</Label>
@@ -553,7 +585,7 @@ const SimpleCustomerManagement: React.FC = () => {
                   <Button
                     onClick={handleCreateCustomer}
                     style={{ backgroundColor: themeColors.primary }}
-                    className="text-white"
+                    className="text-white cursor-pointer"
                   >
                     Create Customer
                   </Button>
@@ -569,7 +601,7 @@ const SimpleCustomerManagement: React.FC = () => {
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
             <Input
               type="text"
-              placeholder="Search customers by name, phone, email, or GST..."
+              placeholder="Search customers by name, phone, email, GST, or PAN..."
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -578,7 +610,7 @@ const SimpleCustomerManagement: React.FC = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -590,7 +622,7 @@ const SimpleCustomerManagement: React.FC = () => {
               <div className="text-2xl font-bold">{pagination?.total || 0}</div>
             </CardContent>
           </Card>
-          {/* <Card>
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">With GST</CardTitle>
               <Building className="h-4 w-4 text-muted-foreground" />
@@ -598,6 +630,17 @@ const SimpleCustomerManagement: React.FC = () => {
             <CardContent>
               <div className="text-2xl font-bold">
                 {customers.filter((c) => c.gst).length}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">With PAN</CardTitle>
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {customers.filter((c) => c.pan).length}
               </div>
             </CardContent>
           </Card>
@@ -611,7 +654,7 @@ const SimpleCustomerManagement: React.FC = () => {
                 {customers.filter((c) => c.email).length}
               </div>
             </CardContent>
-          </Card> */}
+          </Card>
         </div>
 
         {/* Customers Table */}
@@ -631,6 +674,7 @@ const SimpleCustomerManagement: React.FC = () => {
                       <TableHead>Customer</TableHead>
                       <TableHead>Contact</TableHead>
                       <TableHead>GST</TableHead>
+                      <TableHead>PAN</TableHead>
                       <TableHead>Billing Address</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -671,6 +715,17 @@ const SimpleCustomerManagement: React.FC = () => {
                           ) : (
                             <span className="text-sm text-gray-400">
                               No GST
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {customer.pan ? (
+                            <Badge className="bg-blue-100 text-blue-800">
+                              {customer.pan}
+                            </Badge>
+                          ) : (
+                            <span className="text-sm text-gray-400">
+                              No PAN
                             </span>
                           )}
                         </TableCell>
@@ -847,19 +902,36 @@ const SimpleCustomerManagement: React.FC = () => {
                 <p className="text-sm text-red-500">{formErrors.email}</p>
               )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-gst">GST Number</Label>
-              <Input
-                id="edit-gst"
-                name="gst"
-                placeholder="27ABCDE1234F1Z5"
-                value={formData.gst}
-                onChange={handleInputChange}
-                className={formErrors.gst ? "border-red-500" : ""}
-              />
-              {formErrors.gst && (
-                <p className="text-sm text-red-500">{formErrors.gst}</p>
-              )}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-gst">GST Number</Label>
+                <Input
+                  id="edit-gst"
+                  name="gst"
+                  placeholder="27ABCDE1234F1Z5"
+                  value={formData.gst}
+                  onChange={handleInputChange}
+                  className={formErrors.gst ? "border-red-500" : ""}
+                />
+                {formErrors.gst && (
+                  <p className="text-sm text-red-500">{formErrors.gst}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-pan">PAN Number</Label>
+                <Input
+                  id="edit-pan"
+                  name="pan"
+                  placeholder="ABCDE1234F"
+                  value={formData.pan}
+                  onChange={handleInputChange}
+                  className={formErrors.pan ? "border-red-500" : ""}
+                  style={{ textTransform: "uppercase" }}
+                />
+                {formErrors.pan && (
+                  <p className="text-sm text-red-500">{formErrors.pan}</p>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-billingAddress">Billing Address</Label>
