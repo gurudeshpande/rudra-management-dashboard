@@ -14,12 +14,14 @@ export async function GET(req: Request) {
 
     const [customers, totalCount] = await Promise.all([
       prisma.userCustomer.findMany({
+        // ✅ Correct: userCustomer (lowercase in Prisma)
         where: {
           OR: [
             { name: { contains: search, mode: "insensitive" } },
             { email: { contains: search, mode: "insensitive" } },
             { phone: { contains: search, mode: "insensitive" } },
             { gst: { contains: search, mode: "insensitive" } },
+            { pan: { contains: search, mode: "insensitive" } },
           ],
         },
         orderBy: { createdAt: "desc" },
@@ -27,12 +29,14 @@ export async function GET(req: Request) {
         take: limit,
       }),
       prisma.userCustomer.count({
+        // ✅ Correct: userCustomer (lowercase in Prisma)
         where: {
           OR: [
             { name: { contains: search, mode: "insensitive" } },
             { email: { contains: search, mode: "insensitive" } },
             { phone: { contains: search, mode: "insensitive" } },
             { gst: { contains: search, mode: "insensitive" } },
+            { pan: { contains: search, mode: "insensitive" } },
           ],
         },
       }),
@@ -50,7 +54,7 @@ export async function GET(req: Request) {
   } catch (error: any) {
     console.error("❌ Error fetching customers:", error);
     return NextResponse.json(
-      { error: "Failed to fetch customers" },
+      { error: "Failed to fetch customers: " + error.message },
       { status: 500 },
     );
   }
@@ -60,7 +64,9 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, email, phone, billingAddress, gst } = body;
+    const { name, email, phone, billingAddress, gst, pan } = body;
+
+    console.log("Creating customer with data:", body);
 
     // Validate required fields
     if (!name || !phone) {
@@ -72,7 +78,7 @@ export async function POST(req: Request) {
 
     // Check if customer with same phone exists
     const existingCustomer = await prisma.userCustomer.findUnique({
-      where: { phone },
+      where: { phone }, // ✅ Correct: matches your model field name
     });
 
     if (existingCustomer) {
@@ -93,15 +99,26 @@ export async function POST(req: Request) {
       );
     }
 
+    // Validate PAN format (if provided)
+    if (pan && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan)) {
+      return NextResponse.json(
+        { error: "Invalid PAN format. Expected format: ABCDE1234F" },
+        { status: 400 },
+      );
+    }
+
     const customer = await prisma.userCustomer.create({
       data: {
         name,
         email: email || null,
-        phone,
-        billingAddress: billingAddress || null,
+        phone, // ✅ Correct: matches your model field name
+        billingAddress: billingAddress || null, // ✅ Correct: matches your model field name
         gst: gst || null,
+        pan: pan || null,
       },
     });
+
+    console.log("Customer created successfully:", customer);
 
     return NextResponse.json({
       success: true,
@@ -111,7 +128,7 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("❌ Error creating customer:", error);
     return NextResponse.json(
-      { error: "Failed to create customer" },
+      { error: "Failed to create customer: " + error.message },
       { status: 500 },
     );
   }
@@ -131,12 +148,21 @@ export async function PUT(req: Request) {
     }
 
     const body = await req.json();
-    const { name, email, phone, billingAddress, gst } = body;
+    const { name, email, phone, billingAddress, gst, pan } = body;
+
+    console.log("Updating customer ID:", id, "with data:", body);
 
     // Check if phone is being changed and if it conflicts
     const currentCustomer = await prisma.userCustomer.findUnique({
       where: { id: parseInt(id) },
     });
+
+    if (!currentCustomer) {
+      return NextResponse.json(
+        { error: "Customer not found" },
+        { status: 404 },
+      );
+    }
 
     if (currentCustomer && phone !== currentCustomer.phone) {
       const existingWithPhone = await prisma.userCustomer.findUnique({
@@ -163,6 +189,16 @@ export async function PUT(req: Request) {
       }
     }
 
+    // Validate PAN format (if provided and changed)
+    if (pan && pan !== currentCustomer?.pan) {
+      if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan)) {
+        return NextResponse.json(
+          { error: "Invalid PAN format. Expected format: ABCDE1234F" },
+          { status: 400 },
+        );
+      }
+    }
+
     const updatedCustomer = await prisma.userCustomer.update({
       where: { id: parseInt(id) },
       data: {
@@ -171,8 +207,11 @@ export async function PUT(req: Request) {
         phone,
         billingAddress: billingAddress || null,
         gst: gst || null,
+        pan: pan || null,
       },
     });
+
+    console.log("Customer updated successfully:", updatedCustomer);
 
     return NextResponse.json({
       success: true,
@@ -182,7 +221,7 @@ export async function PUT(req: Request) {
   } catch (error: any) {
     console.error("❌ Error updating customer:", error);
     return NextResponse.json(
-      { error: "Failed to update customer" },
+      { error: "Failed to update customer: " + error.message },
       { status: 500 },
     );
   }
@@ -201,6 +240,8 @@ export async function DELETE(req: Request) {
       );
     }
 
+    console.log("Deleting customer ID:", id);
+
     await prisma.userCustomer.delete({
       where: { id: parseInt(id) },
     });
@@ -212,7 +253,7 @@ export async function DELETE(req: Request) {
   } catch (error: any) {
     console.error("❌ Error deleting customer:", error);
     return NextResponse.json(
-      { error: "Failed to delete customer" },
+      { error: "Failed to delete customer: " + error.message },
       { status: 500 },
     );
   }
