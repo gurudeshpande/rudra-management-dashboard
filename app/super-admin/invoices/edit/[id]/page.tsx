@@ -84,6 +84,7 @@ const EditInvoicePage = () => {
         }
 
         const data = await response.json();
+        console.log(data, "data");
         setInvoiceData(data);
       } catch (err: any) {
         setError(err.message);
