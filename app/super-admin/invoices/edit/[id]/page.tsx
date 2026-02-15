@@ -84,21 +84,9 @@ const EditInvoicePage = () => {
         }
 
         const data = await response.json();
-        console.log("API Response in Production:", data);
-        console.log("Items from API:", data.items);
-
-        // Check if items have all required fields
-        if (data.items && data.items.length > 0) {
-          console.log("First item structure:", data.items[0]);
-          console.log(
-            "Has price field:",
-            data.items[0].hasOwnProperty("price"),
-          );
-          console.log(
-            "Has total field:",
-            data.items[0].hasOwnProperty("total"),
-          );
-        }
+        console.log("Full API Response:", data);
+        console.log("Items array:", data.items);
+        console.log("First item:", data.items[0]);
 
         setInvoiceData(data);
       } catch (err: any) {
@@ -159,50 +147,36 @@ const EditInvoicePage = () => {
       pan: invoiceData.customer.pan || "",
     },
     items: invoiceData.items.map((item) => {
-      // Calculate original price based on company type
-      // For YADNYASENI, the price in DB might be GST-inclusive
-      let originalPrice = item.price;
-      let applyGST = true;
-      let gstIncluded = false;
+      // Log each item during transformation
+      console.log("Transforming item:", item);
 
-      if (invoiceData.companyType === "YADNYASENI") {
-        // For YADNYASENI, GST is included in the price
-        // So originalPrice (base price) should be price/1.05
-        originalPrice = item.price / 1.05;
-        gstIncluded = true;
-        applyGST = true;
-      } else if (invoiceData.companyType === "RUDRA") {
-        // For RUDRA, GST is added separately
-        // So originalPrice is the base price
-        originalPrice = item.price;
-        gstIncluded = false;
-        applyGST = true;
-      }
-
+      // Make sure we're accessing all the fields correctly
       return {
         productId: item.productId,
         name: item.name,
         quantity: item.quantity,
-        price: item.price, // Display price (may include GST or not)
-        originalPrice: Number(originalPrice.toFixed(2)), // Base price for calculations
-        total: item.total,
-        discount: 0, // No discount in the original invoice
-        discountedPrice: 0, // No discount in the original invoice
+        price: item.price || 0,
+        originalPrice: item.price || 0,
+        total: item.total || 0,
+        discount: 0,
+        discountedPrice: 0,
         searchQuery: item.name,
         showDropdown: false,
-        gstIncluded: gstIncluded,
-        applyGST: applyGST,
+        gstIncluded: invoiceData.companyType === "YADNYASENI",
+        applyGST: invoiceData.companyType === "RUDRA",
       };
     }),
     invoiceDate: new Date(invoiceData.invoiceDate).toISOString().split("T")[0],
     company: invoiceData.companyType,
     status: invoiceData.status,
-    advancePaid: invoiceData.advancePaid,
+    advancePaid: invoiceData.advancePaid || 0,
     description: invoiceData.description || "",
     extraCharges: invoiceData.extraCharges || 0,
-    subtotal: invoiceData.subtotal,
-    total: invoiceData.total,
+    subtotal: invoiceData.subtotal || 0,
+    total: invoiceData.total || 0,
   };
+
+  console.log("Final transformed data:", transformedData);
 
   return <Invoices initialData={transformedData} isEditMode={true} />;
 };
