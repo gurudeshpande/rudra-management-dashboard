@@ -118,6 +118,8 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
     gst: "",
   });
 
+  console.log(initialData, "initial Data");
+
   const [productDescription, setProductDescription] = useState<string>("");
 
   // State for existing customers
