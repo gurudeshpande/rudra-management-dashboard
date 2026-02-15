@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Invoices from "../../page"; // Import your invoice page component
+import Invoices from "@/app/super-admin/invoices/page";
 
 interface InvoiceItem {
   productId: number;
