@@ -125,11 +125,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         icon: LayoutDashboard,
       },
       {
-        name: "Customer Management",
-        href: "/super-admin/customer-management",
-        icon: LayoutDashboard,
-      },
-      {
         name: "User Management",
         href: "/super-admin/users",
         icon: Package,
@@ -143,6 +138,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         name: "User Inventory",
         href: "/user/UserInventory",
         icon: Package,
+      },
+      {
+        name: "Customer Management",
+        href: "/super-admin/customer-management",
+        icon: LayoutDashboard,
       },
       {
         name: "Billing & Invoices",

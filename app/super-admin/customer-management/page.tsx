@@ -785,7 +785,7 @@ const SimpleCustomerManagement: React.FC = () => {
                 {!searchTerm && (
                   <Button
                     onClick={() => setIsCreateDialogOpen(true)}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 text-white"
                     style={{ backgroundColor: themeColors.primary }}
                   >
                     <Plus className="h-4 w-4" />
@@ -968,7 +968,7 @@ const SimpleCustomerManagement: React.FC = () => {
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-white">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Customer</AlertDialogTitle>
             <AlertDialogDescription>

@@ -22,6 +22,7 @@ interface InvoicePreviewPageProps {
   onClose: () => void;
   onGenerateInvoice: () => Promise<void>;
   onSaveAsDraft: () => Promise<void>;
+  isEditMode?: boolean;
   isGenerating?: boolean;
 }
 
@@ -90,6 +91,7 @@ const InvoicePreviewPage: React.FC<InvoicePreviewPageProps> = ({
   onClose,
   onGenerateInvoice,
   onSaveAsDraft,
+  isEditMode,
   isGenerating = false,
 }) => {
   const [isDownloading, setIsDownloading] = useState(false);
@@ -817,7 +819,7 @@ const InvoicePreviewPage: React.FC<InvoicePreviewPageProps> = ({
                 ) : (
                   <>
                     <IndianRupee className="mr-2 h-4 w-4" />
-                    Generate Invoice & PDF
+                    {isEditMode ? "Update Invoice" : "Generate Invoice & PDF"}
                   </>
                 )}
               </Button>
