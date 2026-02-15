@@ -622,10 +622,11 @@ const InvoiceManagement = () => {
                             <Button
                               variant="outline"
                               size="icon"
-                              onClick={() => {
-                                setSelectedInvoice(invoice);
-                                setMode("edit");
-                              }}
+                              onClick={() =>
+                                router.push(
+                                  `/super-admin/invoices/edit/${invoice.id}`,
+                                )
+                              }
                               title="Edit Invoice"
                               className="cursor-pointer"
                             >

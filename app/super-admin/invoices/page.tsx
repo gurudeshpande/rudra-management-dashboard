@@ -23,7 +23,16 @@ import {
   Upload,
   X,
   Minus,
+  UserPlus,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -34,6 +43,24 @@ import { AlertToaster, alert } from "@/components/ui/alert-toaster";
 import InvoicePreviewPage from "@/components/InvoicePreview/InvoicePreviewPage";
 
 // Define types
+
+interface InvoicesProps {
+  initialData?: {
+    id: number;
+    invoiceNumber: string;
+    customerInfo: CustomerInfo;
+    items: InvoiceItem[];
+    invoiceDate: string;
+    company: "RUDRA" | "YADNYASENI";
+    status: "PAID" | "UNPAID" | "ADVANCE";
+    advancePaid: number;
+    description: string;
+    extraCharges: number;
+    subtotal: number;
+    total: number;
+  };
+  isEditMode?: boolean;
+}
 interface Product {
   stock: undefined;
   id: number;
@@ -79,7 +106,7 @@ interface BulkProduct {
   selected: boolean;
 }
 
-const Invoices = () => {
+const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
   // State for customer information
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
     name: "",
@@ -103,6 +130,19 @@ const Invoices = () => {
     new Date().toISOString().split("T")[0],
   );
 
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [customerFormData, setCustomerFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    billingAddress: "",
+    gst: "",
+    pan: "",
+  });
+  const [customerFormErrors, setCustomerFormErrors] = useState<
+    Partial<typeof customerFormData>
+  >({});
+
   // State for company selection
   const [company, setCompany] = useState<"RUDRA" | "YADNYASENI">("RUDRA");
 
@@ -123,6 +163,11 @@ const Invoices = () => {
       applyGST: true, // Default to checked for both companies
     },
   ]);
+
+  const [isEditing, setIsEditing] = useState(isEditMode);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(
+    initialData?.id || null,
+  );
 
   // State for bulk upload
   const [showBulkUpload, setShowBulkUpload] = useState(false);
@@ -151,6 +196,123 @@ const Invoices = () => {
   const [invoiceStatus, setInvoiceStatus] = useState<
     "PAID" | "UNPAID" | "ADVANCE"
   >("UNPAID");
+
+  const resetCustomerForm = () => {
+    setCustomerFormData({
+      name: "",
+      email: "",
+      phone: "",
+      billingAddress: "",
+      gst: "",
+      pan: "",
+    });
+    setCustomerFormErrors({});
+  };
+
+  const validateCustomerForm = (): boolean => {
+    const errors: Partial<typeof customerFormData> = {};
+
+    if (!customerFormData.name.trim()) {
+      errors.name = "Name is required";
+    }
+
+    if (!customerFormData.phone.trim()) {
+      errors.phone = "Phone number is required";
+    } else if (!/^\d{10}$/.test(customerFormData.phone)) {
+      errors.phone = "Please enter a valid 10-digit phone number";
+    }
+
+    if (
+      customerFormData.email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerFormData.email)
+    ) {
+      errors.email = "Please enter a valid email address";
+    }
+
+    if (
+      customerFormData.gst &&
+      !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(
+        customerFormData.gst,
+      )
+    ) {
+      errors.gst = "Invalid GST format. Example: 27ABCDE1234F1Z5";
+    }
+
+    if (
+      customerFormData.pan &&
+      !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(customerFormData.pan)
+    ) {
+      errors.pan = "Invalid PAN format. Example: ABCDE1234F";
+    }
+
+    setCustomerFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleCustomerInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { name, value } = e.target;
+    let processedValue = value;
+    if (name === "pan") {
+      processedValue = value.toUpperCase();
+    }
+    setCustomerFormData((prev) => ({ ...prev, [name]: processedValue }));
+    if (customerFormErrors[name as keyof typeof customerFormData]) {
+      setCustomerFormErrors((prev) => ({ ...prev, [name]: undefined }));
+    }
+  };
+
+  const handleCreateCustomer = async () => {
+    if (!validateCustomerForm()) return;
+
+    try {
+      const response = await fetch("/api/customer-management", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(customerFormData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create customer");
+      }
+
+      // Auto-select the newly created customer
+      setCustomerInfo({
+        name: customerFormData.name,
+        phone: customerFormData.phone,
+        email: customerFormData.email,
+        billingAddress: customerFormData.billingAddress,
+        gst: customerFormData.gst,
+        pan: customerFormData.pan,
+      });
+
+      alert.success(
+        "Customer created successfully!",
+        "New customer has been added and selected",
+      );
+
+      // Close modal and reset form
+      setIsCustomerModalOpen(false);
+      resetCustomerForm();
+
+      // Refresh customer list
+      const res = await fetch("/api/customer-management");
+      if (res.ok) {
+        const data = await res.json();
+        setExistingCustomers(data.customers);
+      }
+    } catch (error: any) {
+      alert.error(
+        "Failed to create customer",
+        error.message || "Please try again later",
+      );
+    }
+  };
 
   // Fetch existing customers from API
   useEffect(() => {
@@ -181,6 +343,47 @@ const Invoices = () => {
       );
     }
   }, [productsData]);
+
+  useEffect(() => {
+    if (isEditMode && initialData) {
+      // Populate customer info (make it non-editable)
+      setCustomerInfo({
+        name: initialData.customerInfo.name,
+        phone: initialData.customerInfo.phone,
+        billingAddress: initialData.customerInfo.billingAddress || "",
+        email: initialData.customerInfo.email || "",
+        gst: initialData.customerInfo.gst || "",
+        pan: initialData.customerInfo.pan || "",
+      });
+
+      // Set invoice date
+      setInvoiceDate(initialData.invoiceDate);
+
+      // Set company
+      setCompany(initialData.company);
+
+      // Set invoice status
+      setInvoiceStatus(initialData.status);
+
+      // Set advance payment
+      setAdvancePayment(initialData.advancePaid);
+
+      // Set product description
+      setProductDescription(initialData.description || "");
+
+      // Set extra charges
+      if (initialData.extraCharges > 0) {
+        setApplyExtraCharges(true);
+        setExtraChargesAmount(initialData.extraCharges);
+      }
+
+      // Set items
+      setItems(initialData.items);
+
+      // Set invoice number display
+      setInvoiceNumber(initialData.invoiceNumber);
+    }
+  }, [initialData, isEditMode]);
 
   type CustomerType = "CUSTOMER" | "FRANCHISE" | "RESELLER";
 
@@ -573,19 +776,51 @@ const Invoices = () => {
   // Save Invoice to API
   const saveInvoice = async (status: "PAID" | "ADVANCE" | "UNPAID") => {
     try {
+      // Filter out empty items
+      const validItems = items.filter((item) => item.name && item.price > 0);
+
+      if (validItems.length === 0) {
+        alert.error(
+          "No items added",
+          "Please add at least one product to the invoice",
+        );
+        return;
+      }
+
+      if (!customerInfo.name || !customerInfo.phone) {
+        alert.error(
+          "Customer information incomplete",
+          "Please fill customer name and phone number",
+        );
+        return;
+      }
+
+      // Calculate due date (30 days from invoice date)
+      const invoiceDateObj = new Date(invoiceDate);
+      const dueDateObj = new Date(invoiceDateObj);
+      dueDateObj.setDate(dueDateObj.getDate() + 30);
+
+      // Use current date for delivery date
+      const deliveryDateObj = new Date();
+
       const invoiceData = {
         invoiceNumber,
         invoiceDate: new Date(invoiceDate).toISOString(),
-        dueDate: new Date().toISOString(),
-        customerInfo,
+        dueDate: dueDateObj.toISOString(),
+        deliveryDate: deliveryDateObj.toISOString(),
+        // Only include customerInfo for new invoices, not for edits
+        ...(!isEditing && { customerInfo }),
         companyType: company,
-        shippingInfo: customerInfo,
-        items: items
-          .filter((item) => item.name && item.price > 0)
-          .map((item) => ({
-            ...item,
-            // description: productDescription, // Add the common description
-          })),
+        items: validItems.map((item) => ({
+          productId: item.productId,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          originalPrice: item.originalPrice,
+          total: item.total,
+          discount: item.discount,
+          discountedPrice: item.discountedPrice,
+        })),
         subtotal,
         extraCharges,
         cgst,
@@ -594,27 +829,34 @@ const Invoices = () => {
         advancePaid: advancePayment,
         balanceDue: balance,
         totalInWords: `${convertToWords(total)} Only`,
-        deliveryDate: new Date().toISOString(),
         status,
         description: productDescription,
-        gstCalculationType:
-          company === "YADNYASENI" ? "INCLUDED_IN_PRICE" : "ADDED_ON_TOP",
       };
 
-      const res = await fetch("/api/invoices", {
-        method: "POST",
+      let url = "/api/invoices";
+      let method = "POST";
+
+      if (isEditing && editingInvoiceId) {
+        url = `/api/allinvoices/${editingInvoiceId}`;
+        method = "PUT";
+        // For edit mode, send only the fields that should be updated
+        // Remove customerInfo from the payload for PUT requests
+        delete invoiceData.customerInfo;
+      }
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(invoiceData),
       });
 
       const result = await res.json();
 
-      setInvoiceNumber(result.invoice.invoiceNumber);
       if (!res.ok) throw new Error(result.error || "Failed to save invoice");
 
       alert.success(
-        `Invoice ${status} saved successfully!`,
-        `Invoice number: ${result.invoice.invoiceNumber}`,
+        `Invoice ${isEditing ? "updated" : "created"} successfully!`,
+        `Invoice number: ${result.invoice?.invoiceNumber || invoiceNumber}`,
         {
           duration: 6000,
           action: {
@@ -626,19 +868,19 @@ const Invoices = () => {
         },
       );
 
+      // If editing, redirect back to invoice management after a short delay
+      if (isEditing) {
+        setTimeout(() => {
+          window.location.href = "/super-admin/invoicemanagement";
+        }, 2000);
+      }
+
       return result;
     } catch (error: any) {
       console.error("❌ Error saving invoice:", error);
       alert.error(
         "Failed to save invoice",
         error.message || "Please try again later",
-        {
-          duration: 8000,
-          action: {
-            label: "Retry",
-            onClick: () => saveInvoice(status),
-          },
-        },
       );
       throw error;
     }
@@ -1199,13 +1441,10 @@ const Invoices = () => {
         return;
       }
 
-      // First, update product quantities in inventory
-      // const quantityUpdatePromises = validItems.map((item) =>
-      //   updateProductQuantity(item.productId, item.quantity)
-      // );
-
-      // // Wait for all quantity updates to complete
-      // await Promise.all(quantityUpdatePromises);
+      // Calculate due date
+      const invoiceDateObj = new Date(invoiceDate);
+      const dueDateObj = new Date(invoiceDateObj);
+      dueDateObj.setDate(dueDateObj.getDate() + 30);
 
       // Proceed with invoice generation
       const result = await saveInvoice(invoiceStatus);
@@ -1232,7 +1471,12 @@ const Invoices = () => {
             companyDetails: currentCompany,
             invoiceNumber: result.invoice.invoiceNumber,
             invoiceDate,
-            dueDate: invoiceDate,
+            dueDate: dueDateObj.toLocaleDateString("en-IN", {
+              // ✅ Use calculated due date
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            }),
             companyType: company,
             description: productDescription,
             customerInfo: {
@@ -1576,10 +1820,31 @@ const Invoices = () => {
           {/* Customer Information */}
           <div className="border border-black/20 py-5 rounded-2xl">
             <CardHeader>
-              <CardTitle className="text-lg">Customer Information</CardTitle>
-              <CardDescription>
-                Select existing customer or add new customer details
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="text-lg">
+                    Customer Information
+                  </CardTitle>
+                  {!isEditMode && (
+                    <CardDescription>
+                      Select existing customer or add new customer details
+                    </CardDescription>
+                  )}
+                </div>
+                {!isEditMode && (
+                  <Button
+                    onClick={() => {
+                      resetCustomerForm();
+                      setIsCustomerModalOpen(true);
+                    }}
+                    variant="outline"
+                    className="bg-orange-800 hover:bg-orange-900 text-white cursor-pointer"
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Add Customer
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Customer Search and Dropdown */}
@@ -1593,6 +1858,7 @@ const Invoices = () => {
                     placeholder="Type customer name or phone number"
                     required
                     onFocus={() => setShowCustomerDropdown(true)}
+                    disabled={isEditMode}
                     autoComplete="off"
                   />
                   <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
@@ -1624,7 +1890,7 @@ const Invoices = () => {
                   )}
                 </div>
 
-                {customerInfo.name && (
+                {customerInfo.name && !isEditMode && (
                   <div className="flex items-center space-x-2 text-sm">
                     <span className="text-gray-600">
                       {existingCustomers.find(
@@ -1633,7 +1899,7 @@ const Invoices = () => {
                           c.phone === customerInfo.phone,
                       )
                         ? "Existing customer selected"
-                        : "New customer"}
+                        : ""}
                     </span>
                     {existingCustomers.find(
                       (c) =>
@@ -1663,6 +1929,7 @@ const Invoices = () => {
                     value={customerInfo.phone}
                     onChange={handleCustomerInfoChange}
                     placeholder="Customer Phone Number"
+                    disabled={isEditMode}
                     required
                   />
                 </div>
@@ -1674,6 +1941,7 @@ const Invoices = () => {
                     type="email"
                     value={customerInfo.email}
                     onChange={handleCustomerInfoChange}
+                    disabled={isEditMode}
                     placeholder="customer@example.com"
                   />
                 </div>
@@ -1684,6 +1952,7 @@ const Invoices = () => {
                     name="gstin"
                     value={customerInfo.gst || ""}
                     onChange={handleCustomerInfoChange}
+                    disabled={isEditMode}
                     placeholder="27ABCDE1234F1Z5"
                   />
                 </div>
@@ -1695,6 +1964,7 @@ const Invoices = () => {
                     value={customerInfo.pan || ""}
                     onChange={handleCustomerInfoChange}
                     placeholder="ABCDE1234F"
+                    disabled={isEditMode}
                     style={{ textTransform: "uppercase" }}
                   />
                 </div>
@@ -1705,6 +1975,7 @@ const Invoices = () => {
                     type="date"
                     value={invoiceDate}
                     onChange={(e) => setInvoiceDate(e.target.value)}
+                    disabled={isEditMode}
                     required
                     className="w-1/2"
                   />
@@ -1716,6 +1987,7 @@ const Invoices = () => {
                     name="address"
                     value={customerInfo.billingAddress}
                     onChange={handleCustomerInfoChange}
+                    disabled={isEditMode}
                     placeholder="Customer Billing Address"
                     rows={3}
                     className="w-full"
@@ -2362,7 +2634,7 @@ const Invoices = () => {
                 onClick={handlePreviewInvoice}
               >
                 <IndianRupee className="mr-2 h-4 w-4" />
-                Generate Invoice
+                {isEditMode ? "Update Invoice" : "Generate Invoice"}
               </Button>
             </div>
           </div>
@@ -2381,6 +2653,7 @@ const Invoices = () => {
               company === "YADNYASENI" ? "INCLUDED_IN_PRICE" : "ADDED_ON_TOP",
             // Add any other data needed for preview
           }}
+          isEditMode={isEditMode}
           onClose={() => {
             setShowPreview(false);
             setInvoicePreviewData(null);
@@ -2402,6 +2675,135 @@ const Invoices = () => {
           // isGenerating={isGenerating} // Add this state if needed
         />
       )}
+
+      <Dialog
+        open={isCustomerModalOpen}
+        onOpenChange={(open) => {
+          setIsCustomerModalOpen(open);
+          if (!open) resetCustomerForm();
+        }}
+      >
+        <DialogContent className="max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle>Add New Customer</DialogTitle>
+            <DialogDescription>
+              Enter customer details below. The customer will be saved to your
+              database.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="modal-name">Name *</Label>
+              <Input
+                id="modal-name"
+                name="name"
+                placeholder="Customer/Company name"
+                value={customerFormData.name}
+                onChange={handleCustomerInputChange}
+                className={customerFormErrors.name ? "border-red-500" : ""}
+              />
+              {customerFormErrors.name && (
+                <p className="text-sm text-red-500">
+                  {customerFormErrors.name}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="modal-phone">Phone Number *</Label>
+              <Input
+                id="modal-phone"
+                name="phone"
+                placeholder="10-digit phone number"
+                value={customerFormData.phone}
+                onChange={handleCustomerInputChange}
+                className={customerFormErrors.phone ? "border-red-500" : ""}
+              />
+              {customerFormErrors.phone && (
+                <p className="text-sm text-red-500">
+                  {customerFormErrors.phone}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="modal-email">Email Address</Label>
+              <Input
+                id="modal-email"
+                name="email"
+                type="email"
+                placeholder="email@example.com"
+                value={customerFormData.email}
+                onChange={handleCustomerInputChange}
+                className={customerFormErrors.email ? "border-red-500" : ""}
+              />
+              {customerFormErrors.email && (
+                <p className="text-sm text-red-500">
+                  {customerFormErrors.email}
+                </p>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="modal-gst">GST Number</Label>
+                <Input
+                  id="modal-gst"
+                  name="gst"
+                  placeholder="27ABCDE1234F1Z5"
+                  value={customerFormData.gst}
+                  onChange={handleCustomerInputChange}
+                  className={customerFormErrors.gst ? "border-red-500" : ""}
+                />
+                {customerFormErrors.gst && (
+                  <p className="text-sm text-red-500">
+                    {customerFormErrors.gst}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="modal-pan">PAN Number</Label>
+                <Input
+                  id="modal-pan"
+                  name="pan"
+                  placeholder="ABCDE1234F"
+                  value={customerFormData.pan}
+                  onChange={handleCustomerInputChange}
+                  className={customerFormErrors.pan ? "border-red-500" : ""}
+                  style={{ textTransform: "uppercase" }}
+                />
+                {customerFormErrors.pan && (
+                  <p className="text-sm text-red-500">
+                    {customerFormErrors.pan}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="modal-billingAddress">Billing Address</Label>
+              <Textarea
+                id="modal-billingAddress"
+                name="billingAddress"
+                placeholder="Complete billing address"
+                value={customerFormData.billingAddress}
+                onChange={handleCustomerInputChange}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsCustomerModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateCustomer}
+              className="bg-orange-800 hover:bg-orange-900 text-white"
+            >
+              Create Customer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
