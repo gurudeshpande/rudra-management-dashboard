@@ -212,6 +212,10 @@ const SimpleCustomerManagement: React.FC = () => {
 
     if (!formData.name.trim()) {
       errors.name = "Name is required";
+    } else if (formData.name.trim().length < 2) {
+      errors.name = "Name must be at least 2 characters long";
+    } else if (nameCheckStatus.exists) {
+      errors.name = `Customer with name "${formData.name}" already exists`;
     }
 
     if (!formData.phone.trim()) {
@@ -224,7 +228,6 @@ const SimpleCustomerManagement: React.FC = () => {
       errors.email = "Please enter a valid email address";
     }
 
-    // Validate GST format
     if (
       formData.gst &&
       !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(
@@ -234,7 +237,6 @@ const SimpleCustomerManagement: React.FC = () => {
       errors.gst = "Invalid GST format. Example: 27ABCDE1234F1Z5";
     }
 
-    // Validate PAN format
     if (formData.pan && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.pan)) {
       errors.pan = "Invalid PAN format. Example: ABCDE1234F";
     }
@@ -242,7 +244,6 @@ const SimpleCustomerManagement: React.FC = () => {
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
-
   // Handle input change
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -258,6 +259,75 @@ const SimpleCustomerManagement: React.FC = () => {
       setFormErrors((prev) => ({ ...prev, [name]: undefined }));
     }
   };
+
+  const checkExistingName = useCallback(
+    async (name: string, excludeId?: number) => {
+      if (!name.trim()) return null;
+
+      try {
+        const response = await fetch(
+          `/api/customer-management/check-name?name=${encodeURIComponent(
+            name,
+          )}${excludeId ? `&excludeId=${excludeId}` : ""}`,
+        );
+
+        if (!response.ok) return null;
+
+        const data = await response.json();
+        return data.exists ? data.customer : null;
+      } catch (error) {
+        console.error("Error checking name:", error);
+        return null;
+      }
+    },
+    [],
+  );
+
+  // Add debounced name check
+  const [nameCheckStatus, setNameCheckStatus] = useState<{
+    checking: boolean;
+    exists: boolean;
+    customer?: Customer;
+  }>({ checking: false, exists: false });
+
+  // Debounce name check
+  useEffect(() => {
+    const checkName = async () => {
+      if (!formData.name.trim() || formData.name.length < 2) {
+        setNameCheckStatus({ checking: false, exists: false });
+        return;
+      }
+
+      setNameCheckStatus((prev) => ({ ...prev, checking: true }));
+
+      const existingCustomer = await checkExistingName(
+        formData.name,
+        selectedCustomer?.id,
+      );
+
+      setNameCheckStatus({
+        checking: false,
+        exists: !!existingCustomer,
+        customer: existingCustomer || undefined,
+      });
+
+      // Update form error if name exists
+      if (existingCustomer) {
+        setFormErrors((prev) => ({
+          ...prev,
+          name: `Customer with name "${formData.name}" already exists`,
+        }));
+      } else {
+        setFormErrors((prev) => {
+          const { name, ...rest } = prev;
+          return rest;
+        });
+      }
+    };
+
+    const timer = setTimeout(checkName, 500);
+    return () => clearTimeout(timer);
+  }, [formData.name, selectedCustomer?.id]);
 
   // Create customer
   // Create customer
@@ -491,17 +561,51 @@ const SimpleCustomerManagement: React.FC = () => {
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Name *</Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      placeholder="Customer/Company name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      className={formErrors.name ? "border-red-500" : ""}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="name"
+                        name="name"
+                        placeholder="Customer/Company name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        className={
+                          formErrors.name ? "border-red-500 pr-10" : ""
+                        }
+                        autoComplete="off"
+                      />
+                      {nameCheckStatus.checking && (
+                        <div className="absolute right-3 top-3">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                        </div>
+                      )}
+                    </div>
                     {formErrors.name && (
-                      <p className="text-sm text-red-500">{formErrors.name}</p>
+                      <div className="flex items-start gap-1">
+                        <p className="text-sm text-red-500">
+                          {formErrors.name}
+                        </p>
+                        {nameCheckStatus.exists && nameCheckStatus.customer && (
+                          <Button
+                            variant="link"
+                            className="text-xs text-blue-600 p-0 h-auto"
+                            onClick={() => {
+                              if (nameCheckStatus.customer) {
+                                openEditDialog(nameCheckStatus.customer);
+                              }
+                            }}
+                          >
+                            View existing customer
+                          </Button>
+                        )}
+                      </div>
                     )}
+                    {!formErrors.name &&
+                      formData.name &&
+                      !nameCheckStatus.checking && (
+                        <p className="text-sm text-green-600">
+                          Name is available
+                        </p>
+                      )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number *</Label>
@@ -512,6 +616,7 @@ const SimpleCustomerManagement: React.FC = () => {
                       value={formData.phone}
                       onChange={handleInputChange}
                       className={formErrors.phone ? "border-red-500" : ""}
+                      autoComplete="off"
                     />
                     {formErrors.phone && (
                       <p className="text-sm text-red-500">{formErrors.phone}</p>
@@ -527,6 +632,7 @@ const SimpleCustomerManagement: React.FC = () => {
                       value={formData.email}
                       onChange={handleInputChange}
                       className={formErrors.email ? "border-red-500" : ""}
+                      autoComplete="off"
                     />
                     {formErrors.email && (
                       <p className="text-sm text-red-500">{formErrors.email}</p>
@@ -542,6 +648,7 @@ const SimpleCustomerManagement: React.FC = () => {
                         value={formData.gst}
                         onChange={handleInputChange}
                         className={formErrors.gst ? "border-red-500" : ""}
+                        autoComplete="off"
                       />
                       {formErrors.gst && (
                         <p className="text-sm text-red-500">{formErrors.gst}</p>
@@ -557,6 +664,7 @@ const SimpleCustomerManagement: React.FC = () => {
                         onChange={handleInputChange}
                         className={formErrors.pan ? "border-red-500" : ""}
                         style={{ textTransform: "uppercase" }}
+                        autoComplete="off"
                       />
                       {formErrors.pan && (
                         <p className="text-sm text-red-500">{formErrors.pan}</p>
@@ -572,6 +680,7 @@ const SimpleCustomerManagement: React.FC = () => {
                       value={formData.billingAddress}
                       onChange={handleInputChange}
                       rows={3}
+                      autoComplete="off"
                     />
                   </div>
                 </div>

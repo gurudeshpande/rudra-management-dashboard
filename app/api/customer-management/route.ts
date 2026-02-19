@@ -88,6 +88,21 @@ export async function POST(req: Request) {
       );
     }
 
+    const existingCustomerByName = await prisma.userCustomer.findFirst({
+      where: {
+        name: {
+          equals: name,
+          mode: "insensitive",
+        },
+      },
+    });
+
+    if (existingCustomerByName) {
+      return NextResponse.json(
+        { error: "Customer with this name already exists" },
+        { status: 400 },
+      );
+    }
     // Validate GST format (if provided)
     if (
       gst &&
@@ -172,6 +187,33 @@ export async function PUT(req: Request) {
       if (existingWithPhone) {
         return NextResponse.json(
           { error: "Another customer already has this phone number" },
+          { status: 400 },
+        );
+      }
+    }
+
+    if (name && name !== currentCustomer.name) {
+      const existingWithName = await prisma.userCustomer.findFirst({
+        where: {
+          AND: [
+            {
+              name: {
+                equals: name,
+                mode: "insensitive",
+              },
+            },
+            {
+              NOT: {
+                id: parseInt(id),
+              },
+            },
+          ],
+        },
+      });
+
+      if (existingWithName) {
+        return NextResponse.json(
+          { error: "Another customer already has this name" },
           { status: 400 },
         );
       }
