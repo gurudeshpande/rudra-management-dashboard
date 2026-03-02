@@ -158,7 +158,7 @@ const EditInvoicePage = () => {
         price: item.price || 0,
         originalPrice: item.price || 0,
         total: item.total || 0,
-        discount: 0,
+        discount: { type: "FIXED", value: 0 } as any,
         discountedPrice: 0,
         searchQuery: item.name,
         showDropdown: false,
