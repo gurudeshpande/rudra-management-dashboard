@@ -118,6 +118,8 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
     gst: "",
   });
 
+  console.log(initialData, "initial Data");
+
   const [productDescription, setProductDescription] = useState<string>("");
 
   // State for existing customers
@@ -705,39 +707,49 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
         // Get the base price (GST-exclusive)
         let itemBasePrice = item.originalPrice;
 
-        // Calculate item subtotal based on displayed price
-        let itemSubtotal = item.price * item.quantity;
+        // Calculate base amount before any discounts
+        let baseAmount = itemBasePrice * item.quantity;
 
-        // For YADNYASENI with GST included:
-        // price already includes GST, so subtotal should be GST-inclusive
-        if (company === "YADNYASENI" && item.applyGST) {
-          // item.price is GST-inclusive, so subtotal is already GST-inclusive
-          subtotal += itemSubtotal;
-
-          // Calculate GST amount included
-          const gstIncluded = (itemSubtotal / 1.05) * 0.05;
-          totalGST += gstIncluded;
-        } else if (company === "RUDRA" && item.applyGST) {
-          // For RUDRA: price is GST-exclusive, subtotal is GST-exclusive
-          subtotal += itemSubtotal;
-
-          // GST is added on top
-          const gstAmount = itemSubtotal * 0.05;
-          totalGST += gstAmount;
-        } else {
-          // GST not applied
-          subtotal += itemSubtotal;
+        // Apply item-specific discount
+        if (item.discount > 0) {
+          baseAmount = baseAmount - (baseAmount * item.discount) / 100;
         }
 
-        // Calculate discount
-        totalDiscount += item.discountedPrice || 0;
+        // Apply overall discount if enabled
+        if (applyOverallDiscount && overallDiscountPercentage > 0) {
+          baseAmount =
+            baseAmount - (baseAmount * overallDiscountPercentage) / 100;
+        }
+
+        // Now handle GST based on company and item's GST setting
+        if (item.applyGST) {
+          if (company === "YADNYASENI") {
+            // For YADNYASENI: price is GST-inclusive, so baseAmount already includes GST?
+            // Actually, we need to calculate GST on the discounted amount
+            const gstAmount = baseAmount * 0.05; // 5% GST on discounted amount
+            totalGST += gstAmount;
+            subtotal += baseAmount; // baseAmount already includes GST for YADNYASENI
+          } else {
+            // For RUDRA: add GST on top
+            const gstAmount = baseAmount * 0.05;
+            totalGST += gstAmount;
+            subtotal += baseAmount; // baseAmount is GST-exclusive for RUDRA
+          }
+        } else {
+          // No GST applied
+          subtotal += baseAmount;
+        }
+
+        // Calculate total discount (original price - discounted price after all discounts)
+        const originalTotal = item.originalPrice * item.quantity;
+        totalDiscount += originalTotal - baseAmount;
       }
     });
 
     // Calculate total
     let total = subtotal;
 
-    // For RUDRA, add GST on top of subtotal
+    // For RUDRA, add GST on top of subtotal (if GST is applied)
     if (company === "RUDRA") {
       total = subtotal + totalGST;
     }
@@ -2081,7 +2093,11 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                   <div className="col-span-3 text-xs">Product</div>
                   <div className="col-span-1 text-xs text-center">Qty</div>
                   <div className="col-span-2 text-xs text-center">Rate (₹)</div>
-                  <div className="col-span-2 text-xs text-center">Disc (%)</div>
+                  {customerType !== "CUSTOMER" && (
+                    <div className="col-span-2 text-xs text-center">
+                      Disc (%)
+                    </div>
+                  )}
                   <div className="col-span-1 text-xs text-center">GST</div>
                   <div className="col-span-1 text-xs text-right">
                     Amount (₹)
@@ -2260,30 +2276,32 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                     </div>
 
                     {/* Discount (2 columns) */}
-                    <div className="col-span-2">
-                      <div className="flex items-center gap-1 justify-center">
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={item.discount}
-                          onChange={(e) =>
-                            handleItemDiscountChange(
-                              index,
-                              parseFloat(e.target.value) || 0,
-                            )
-                          }
-                          className="text-center h-8 w-16 text-xs px-1"
-                          placeholder="0"
-                        />
-                        <span className="text-xs text-gray-500">%</span>
-                      </div>
-                      {item.discount > 0 && (
-                        <div className="text-[10px] text-green-600 text-center mt-0.5">
-                          Save ₹{item.discountedPrice.toFixed(0)}
+                    {customerType !== "CUSTOMER" && (
+                      <div className="col-span-2">
+                        <div className="flex items-center gap-1 justify-center">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={item.discount}
+                            onChange={(e) =>
+                              handleItemDiscountChange(
+                                index,
+                                parseFloat(e.target.value) || 0,
+                              )
+                            }
+                            className="text-center h-8 w-16 text-xs px-1"
+                            placeholder="0"
+                          />
+                          <span className="text-xs text-gray-500">%</span>
                         </div>
-                      )}
-                    </div>
+                        {item.discount > 0 && (
+                          <div className="text-[10px] text-green-600 text-center mt-0.5">
+                            Save ₹{item.discountedPrice.toFixed(0)}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* GST Checkbox (1 column) */}
                     <div className="col-span-1">

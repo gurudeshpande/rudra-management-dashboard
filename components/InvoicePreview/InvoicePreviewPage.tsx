@@ -639,11 +639,11 @@ const InvoicePreviewPage: React.FC<InvoicePreviewPageProps> = ({
                                 </>
                               )}
 
-                              {isGSTIncluded && (
+                              {/* {isGSTIncluded && (
                                 <div className="flex justify-between text-sm text-gray-500">
                                   <span>GST (5%) included in prices</span>
                                 </div>
-                              )}
+                              )} */}
 
                               {/* Extra Charges */}
                               {previewData.extraCharges > 0 && (
