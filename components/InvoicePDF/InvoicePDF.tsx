@@ -569,7 +569,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
               </View>
               <View style={styles.tableColMedium}>
                 <Text style={styles.tableCell}>
-                  {formatIndianCurrency(item.rate * item.quantity)}
+                  {formatIndianCurrency(item.rate)}
                 </Text>
               </View>
               {items.some((itm) => itm.discount > 0) && (
@@ -613,11 +613,19 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
               >
                 <Text style={styles.summaryLabel}>Subtotal:</Text>
               </View>
-              <View style={styles.summaryValueCell}>
-                <Text style={styles.summaryValue}>
-                  Rs.{formatIndianCurrency(subtotal)}
-                </Text>
-              </View>
+              {companyType === "RUDRA" ? (
+                <View style={styles.summaryValueCell}>
+                  <Text style={styles.summaryValue}>
+                    Rs.{formatIndianCurrency(subtotal)}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.summaryValueCell}>
+                  <Text style={styles.summaryValue}>
+                    Rs.{formatIndianCurrency(total)}
+                  </Text>
+                </View>
+              )}
             </View>
 
             {/* CGST */}

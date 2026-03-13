@@ -33,6 +33,11 @@ import {
   History,
   DollarSign,
   Calendar,
+  ShoppingBag,
+  Truck,
+  FileSpreadsheet,
+  Wallet,
+  TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
@@ -116,7 +121,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }));
   };
 
-  // ✅ Role-based menu items with submenus
+  // ✅ Role-based menu items with the exact structure you requested
   const menuItems: Record<string, MenuItem[]> = {
     SUPER_ADMIN: [
       {
@@ -127,7 +132,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {
         name: "User Management",
         href: "/super-admin/users",
-        icon: Package,
+        icon: Users,
       },
       {
         name: "Inventory",
@@ -137,32 +142,59 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {
         name: "User Inventory",
         href: "/user/UserInventory",
-        icon: Package,
+        icon: ListIcon,
       },
       {
-        name: "Customer Management",
-        href: "/super-admin/customer-management",
-        icon: LayoutDashboard,
-      },
-      {
-        name: "Billing & Invoices",
+        name: "Sales",
         href: "#",
-        icon: FileText,
+        icon: TrendingUp,
         subItems: [
+          {
+            name: "Customer Management",
+            href: "/super-admin/customer-management",
+            icon: Users,
+          },
           {
             name: "Create Invoice",
             href: "/super-admin/invoices",
             icon: PlusCircle,
           },
           {
-            name: "All Invoices",
+            name: "All Invoice",
             href: "/super-admin/invoicemanagement",
             icon: List,
           },
         ],
       },
       {
-        name: "Manifacturing",
+        name: "Purchases",
+        href: "#",
+        icon: ShoppingBag,
+        subItems: [
+          {
+            name: "Vendors",
+            href: "/super-admin/vendors",
+            icon: Users,
+          },
+          {
+            name: "Bills",
+            href: "/super-admin/payment",
+            icon: FileSpreadsheet,
+          },
+          {
+            name: "Payment Made",
+            href: "/super-admin/payment/history",
+            icon: Wallet,
+          },
+          {
+            name: "Credits",
+            href: "/super-admin/credit-notes",
+            icon: CreditCard,
+          },
+        ],
+      },
+      {
+        name: "Manufacturing",
         href: "/super-admin/manufacturing",
         icon: Factory,
       },
@@ -170,28 +202,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         name: "Analytics",
         href: "/super-admin/analysis",
         icon: BarChart2Icon,
-      },
-      {
-        name: "Payment",
-        href: "#",
-        icon: DollarSign,
-        subItems: [
-          {
-            name: "Create Payment",
-            href: "/super-admin/payment",
-            icon: PlusCircle,
-          },
-          {
-            name: "Payment History",
-            href: "/super-admin/payment/history",
-            icon: History,
-          },
-        ],
-      },
-      {
-        name: "Credit Notes",
-        href: "/super-admin/vendors",
-        icon: CreditCard,
       },
     ],
     ADMIN: [
@@ -203,7 +213,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {
         name: "Customer Management",
         href: "/admin/customer-management",
-        icon: LayoutDashboard,
+        icon: Users,
       },
       {
         name: "Inventory",
@@ -211,66 +221,63 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         icon: Package,
       },
       {
-        name: "Billing & Invoices",
+        name: "Sales",
         href: "#",
-        icon: FileText,
+        icon: TrendingUp,
         subItems: [
+          {
+            name: "Customer Management",
+            href: "/admin/customer-management",
+            icon: Users,
+          },
           {
             name: "Create Invoice",
             href: "/admin/invoices",
             icon: PlusCircle,
           },
           {
-            name: "All Invoices",
+            name: "All Invoice",
             href: "/admin/invoicemanagement",
             icon: List,
           },
         ],
       },
-      // { name: "Invoices", href: "/admin/invoices", icon: FileText },
-      // {
-      //   name: "Payment",
-      //   href: "#",
-      //   icon: DollarSign,
-      //   subItems: [
-      //     {
-      //       name: "Create Payment",
-      //       href: "/admin/payment/create",
-      //       icon: PlusCircle,
-      //     },
-      //     {
-      //       name: "Payment History",
-      //       href: "/admin/payment/history",
-      //       icon: History,
-      //     },
-      //   ],
-      // },
+      {
+        name: "Purchases",
+        href: "#",
+        icon: ShoppingBag,
+        subItems: [
+          {
+            name: "Bills",
+            href: "/admin/bills",
+            icon: FileSpreadsheet,
+          },
+          {
+            name: "Payment Made",
+            href: "/admin/payment/history",
+            icon: Wallet,
+          },
+          {
+            name: "Credits",
+            href: "/admin/credits",
+            icon: CreditCard,
+          },
+        ],
+      },
+      {
+        name: "Manufacturing",
+        href: "/admin/manufacturing",
+        icon: Factory,
+      },
     ],
     USER: [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { name: "Inventory", href: "/user/UserInventory", icon: ListIcon },
       {
-        name: "Manifacturing",
-        href: "/user/manifacturing",
-        icon: ShoppingCart,
+        name: "Manufacturing",
+        href: "/user/manufacturing",
+        icon: Factory,
       },
-      // {
-      //   name: "Payment",
-      //   href: "#",
-      //   icon: DollarSign,
-      //   subItems: [
-      //     {
-      //       name: "Create Payment",
-      //       href: "/user/payment/create",
-      //       icon: PlusCircle,
-      //     },
-      //     {
-      //       name: "Payment History",
-      //       href: "/user/payment/history",
-      //       icon: History,
-      //     },
-      //   ],
-      // },
     ],
   };
 
@@ -297,6 +304,26 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
     return false;
   };
+
+  // Auto-open submenu if any child is active
+  useEffect(() => {
+    if (role && menuItems[role]) {
+      const newOpenSubmenus: Record<string, boolean> = {};
+
+      menuItems[role].forEach((item) => {
+        if (item.subItems) {
+          const hasActiveChild = item.subItems.some(
+            (subItem) => pathname === subItem.href,
+          );
+          if (hasActiveChild) {
+            newOpenSubmenus[item.name] = true;
+          }
+        }
+      });
+
+      setOpenSubmenus((prev) => ({ ...prev, ...newOpenSubmenus }));
+    }
+  }, [pathname, role]);
 
   return (
     <div className="flex min-h-screen bg-gray-50/50">
@@ -434,7 +461,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                                       isSubItemActive ? "secondary" : "ghost"
                                     }
                                     className={cn(
-                                      "w-full flex items-center space-x-3 px-4 py-2 text-sm transition-all duration-200",
+                                      "w-full flex items-center justify-start space-x-3 px-4 py-2 text-sm transition-all duration-200",
                                       isSubItemActive
                                         ? "bg-blue-50 text-amber-900 border-r-2 border-amber-600"
                                         : "text-gray-300 hover:bg-gray-800 hover:text-white",
@@ -503,8 +530,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Main content - Scrollable area */}
       <div className="flex-1 flex flex-col min-w-0 lg:ml-72">
-        {" "}
-        {/* Added left margin for sidebar */}
         {/* Topbar */}
         <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
           <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
@@ -626,12 +651,12 @@ const ReturnedItemsPopup = () => {
     setShowReturnedItemsPopup,
     markAsRepairing,
     markAsFinished,
-    markAsUnused, // NEW: Add this
+    markAsUnused,
     fetchReturnedItems,
   } = useReturnedItems();
 
   const [loadingStates, setLoadingStates] = useState<
-    Record<number, "repairing" | "finishing" | "unused" | null> // UPDATED: Add "unused"
+    Record<number, "repairing" | "finishing" | "unused" | null>
   >({});
 
   const handleMarkAsUnused = async (itemId: number) => {
@@ -810,11 +835,6 @@ const ReturnedItemsPopup = () => {
                                   alt={`Rejection evidence ${index + 1}`}
                                   className="w-full h-full object-cover transition-transform group-hover:scale-105"
                                 />
-                                {/* <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all flex items-center justify-center">
-                                  <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-50 px-2 py-1 rounded">
-                                    View
-                                  </span>
-                                </div> */}
                               </div>
                             ))}
                           </div>
@@ -829,7 +849,6 @@ const ReturnedItemsPopup = () => {
                       <Button
                         size="sm"
                         onClick={() => handleStartRepair(item.id)}
-                        // disabled={loadingStates[item.id] !== null}
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                       >
                         {loadingStates[item.id] === "repairing" ? (
@@ -850,7 +869,6 @@ const ReturnedItemsPopup = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => handleFinishRepair(item.id)}
-                        // disabled={loadingStates[item.id] !== null}
                         className="w-full text-green-600 border-green-200 hover:bg-green-50 hover:border-green-300"
                       >
                         {loadingStates[item.id] === "finishing" ? (
@@ -866,12 +884,11 @@ const ReturnedItemsPopup = () => {
                         )}
                       </Button>
 
-                      {/* NEW: Mark as Unused Button */}
+                      {/* Mark as Unused Button */}
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleMarkAsUnused(item.id)}
-                        // disabled={loadingStates[item.id] !== null}
                         className="w-full text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
                       >
                         {loadingStates[item.id] === "unused" ? (

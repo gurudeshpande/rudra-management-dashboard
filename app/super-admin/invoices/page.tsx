@@ -710,17 +710,11 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
           }
         }
 
-        // Now handle GST based on company and item's GST setting
+        // Calculate GST if item has GST applied
         if (item.applyGST) {
-          if (company === "YADNYASENI") {
-            const gstAmount = baseAmount * 0.05;
-            totalGST += gstAmount;
-            subtotal += baseAmount;
-          } else {
-            const gstAmount = baseAmount * 0.05;
-            totalGST += gstAmount;
-            subtotal += baseAmount;
-          }
+          const gstAmount = baseAmount * 0.05;
+          totalGST += gstAmount;
+          subtotal += baseAmount;
         } else {
           subtotal += baseAmount;
         }
@@ -731,13 +725,8 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
       }
     });
 
-    // Calculate total
-    let total = subtotal;
-
-    // For RUDRA, add GST on top of subtotal (if GST is applied)
-    if (company === "RUDRA") {
-      total = subtotal + totalGST;
-    }
+    // Calculate total with GST (always add GST on top, regardless of company)
+    let total = subtotal + totalGST;
 
     // Add extra charges
     if (applyExtraCharges) {
@@ -749,6 +738,7 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
     return {
       subtotal: roundTo2(subtotal),
       totalDiscount: roundTo2(totalDiscount),
+      // Keep these for internal calculations but don't display them for Yadnyaseni
       cgst: roundTo2(totalGST / 2),
       sgst: roundTo2(totalGST / 2),
       gstTotal: roundTo2(totalGST),
@@ -2645,16 +2635,20 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
               </CardContent>
             </div>
 
-            {/* Invoice Summary - Show GST breakdown only for RUDRA in UI */}
+            {/* Invoice Summary */}
             <div className="border border-black/20 py-5 rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-lg">Invoice Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Subtotal:</span>
-                  <span className="text-gray-800">₹{subtotal.toFixed(2)}</span>
-                </div>
+                {company === "RUDRA" && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Subtotal:</span>
+                    <span className="text-gray-800">
+                      ₹{subtotal.toFixed(2)}
+                    </span>
+                  </div>
+                )}
 
                 {totalDiscount > 0 && (
                   <div className="flex justify-between text-green-600">
@@ -2663,8 +2657,8 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                   </div>
                 )}
 
-                {/* Only show GST breakdown for RUDRA in UI */}
-                {includeGst && company === "RUDRA" && (
+                {/* Show GST breakdown ONLY for RUDRA */}
+                {company === "RUDRA" && gstTotal > 0 && (
                   <>
                     <div className="flex justify-between">
                       <span className="text-gray-600">CGST (2.5%):</span>
@@ -2677,6 +2671,8 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                   </>
                 )}
 
+                {/* For YADNYASENI, GST is included in the total but not shown as breakdown */}
+
                 {extraCharges > 0 && (
                   <div className="flex justify-between text-blue-600">
                     <span>Extra Charges:</span>
@@ -2686,7 +2682,7 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
 
                 <div className="flex justify-between font-bold text-lg pt-3 border-t">
                   <span className="text-gray-900">Total Amount:</span>
-                  <span className="text-gray-900">₹{total.toFixed(2)}</span>
+                  <span className="text-gray-900">₹{total.toFixed(0)}</span>
                 </div>
 
                 {invoiceStatus === "ADVANCE" && (
