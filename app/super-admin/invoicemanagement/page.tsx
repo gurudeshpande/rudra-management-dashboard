@@ -583,7 +583,7 @@ const InvoiceManagement = () => {
                         <TableCell>{formatDate(invoice.dueDate)}</TableCell>
                         <TableCell>
                           <div className="font-medium">
-                            {formatCurrency(invoice.subtotal)}
+                            {formatCurrency(invoice.total)}
                           </div>
                           {invoice.advancePaid > 0 && (
                             <div className="text-xs space-y-1">

@@ -82,6 +82,8 @@ const InvoiceDownloadPreview: React.FC<InvoiceDownloadPreviewProps> = ({
   const [isDownloading, setIsDownloading] = useState(false);
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
 
+  console.log(previewData, "Data");
+
   // Format the invoice data with default values
   React.useEffect(() => {
     if (invoiceData) {

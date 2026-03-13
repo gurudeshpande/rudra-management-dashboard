@@ -532,7 +532,7 @@ const InvoicePreviewPage: React.FC<InvoicePreviewPageProps> = ({
                                 </>
                               )}
                               <td className="border border-gray-300 p-3 text-right font-medium text-sm">
-                                ₹{item.amount.toFixed(2)}
+                                ₹{item.amount.toFixed(0)}
                               </td>
                             </tr>
                           ))}
@@ -593,14 +593,16 @@ const InvoicePreviewPage: React.FC<InvoicePreviewPageProps> = ({
                             </div>
 
                             <div className="p-4 space-y-3">
-                              <div className="flex justify-between">
-                                <span className="text-gray-600 text-sm">
-                                  Subtotal:
-                                </span>
-                                <span className="font-medium text-sm">
-                                  ₹{previewData.subtotal.toFixed(2)}
-                                </span>
-                              </div>
+                              {company === "RUDRA" && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600 text-sm">
+                                    Subtotal:
+                                  </span>
+                                  <span className="font-medium text-sm">
+                                    ₹{previewData.subtotal.toFixed(2)}
+                                  </span>
+                                </div>
+                              )}
 
                               {/* Discount */}
                               {previewData.discountDetails.hasDiscount && (
@@ -611,7 +613,7 @@ const InvoicePreviewPage: React.FC<InvoicePreviewPageProps> = ({
                                   <span className="font-medium text-sm">
                                     -₹
                                     {previewData.discountDetails.totalDiscount.toFixed(
-                                      2,
+                                      0,
                                     )}
                                   </span>
                                 </div>
@@ -675,7 +677,7 @@ const InvoicePreviewPage: React.FC<InvoicePreviewPageProps> = ({
                                   Total Amount:
                                 </span>
                                 <span className="text-2xl font-bold text-orange-700">
-                                  ₹{previewData.total.toFixed(2)}
+                                  ₹{previewData.total.toFixed(0)}
                                 </span>
                               </div>
                             </div>
@@ -764,7 +766,7 @@ const InvoicePreviewPage: React.FC<InvoicePreviewPageProps> = ({
               <p className="text-sm font-medium text-gray-900">
                 Total:{" "}
                 <span className="text-orange-700">
-                  ₹{previewData.total.toFixed(2)}
+                  ₹{previewData.total.toFixed(0)}
                 </span>
               </p>
               <p className="text-xs text-gray-500">
