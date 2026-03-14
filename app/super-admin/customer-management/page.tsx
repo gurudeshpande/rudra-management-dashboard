@@ -92,6 +92,8 @@ const SimpleCustomerManagement: React.FC = () => {
     pages: 1,
   });
 
+  const [apiError, setApiError] = useState<string | null>(null);
+
   // Dialog states
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -207,15 +209,28 @@ const SimpleCustomerManagement: React.FC = () => {
   };
 
   // Validate form
-  const validateForm = (): boolean => {
+  const validateForm = async (): Promise<boolean> => {
     const errors: Partial<typeof formData> = {};
 
     if (!formData.name.trim()) {
       errors.name = "Name is required";
     } else if (formData.name.trim().length < 2) {
       errors.name = "Name must be at least 2 characters long";
-    } else if (nameCheckStatus.exists) {
-      errors.name = `Customer with name "${formData.name}" already exists`;
+    } else {
+      // Check if name exists (for create dialog) or exists for another customer (for edit)
+      const existingCustomer = await checkExistingName(
+        formData.name,
+        selectedCustomer?.id,
+      );
+
+      if (existingCustomer) {
+        errors.name = `Customer with name "${formData.name}" already exists`;
+        setNameCheckStatus({
+          checking: false,
+          exists: true,
+          customer: existingCustomer,
+        });
+      }
     }
 
     if (!formData.phone.trim()) {
@@ -332,9 +347,11 @@ const SimpleCustomerManagement: React.FC = () => {
   // Create customer
   // Create customer
   const handleCreateCustomer = async () => {
-    if (!validateForm()) return;
+    const isValid = await validateForm();
+    if (!isValid) return;
 
     try {
+      setApiError(null); // Clear any previous API errors
       const response = await fetch("/api/customer-management", {
         method: "POST",
         headers: {
@@ -346,27 +363,27 @@ const SimpleCustomerManagement: React.FC = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        // Log the error for debugging
         console.error("API Error Response:", data);
-        throw new Error(
-          data.error ||
-            `Failed to create customer: ${response.status} ${response.statusText}`,
-        );
+        // Set the API error to display in the modal
+        setApiError(data.error || "Failed to create customer");
+        return; // Don't close the modal
       }
 
       toast.success("Customer created successfully!");
       setIsCreateDialogOpen(false);
       resetForm();
+      setApiError(null); // Clear API error
       fetchCustomers();
     } catch (error: any) {
       console.error("Create Customer Error:", error);
-      toast.error(error.message || "Failed to create customer");
+      setApiError(error.message || "Failed to create customer");
     }
   };
 
   // Edit customer
   const handleEditCustomer = async () => {
-    if (!validateForm() || !selectedCustomer) return;
+    const isValid = await validateForm();
+    if (!isValid || !selectedCustomer) return;
 
     try {
       const response = await fetch(
@@ -481,11 +498,11 @@ const SimpleCustomerManagement: React.FC = () => {
             {[...Array(3)].map((_, i) => (
               <Card key={i}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <Skeleton className="h-4 w-[100px]" />
+                  <Skeleton className="h-4 w-25" />
                   <Skeleton className="h-4 w-4" />
                 </CardHeader>
                 <CardContent>
-                  <Skeleton className="h-8 w-[120px] mb-2" />
+                  <Skeleton className="h-8 w-30 mb-2" />
                 </CardContent>
               </Card>
             ))}
@@ -539,7 +556,10 @@ const SimpleCustomerManagement: React.FC = () => {
               open={isCreateDialogOpen}
               onOpenChange={(open) => {
                 setIsCreateDialogOpen(open);
-                if (!open) resetForm();
+                if (!open) {
+                  resetForm();
+                  setApiError(null); // Clear API error when closing
+                }
               }}
             >
               <DialogTrigger asChild>
@@ -698,6 +718,16 @@ const SimpleCustomerManagement: React.FC = () => {
                   >
                     Create Customer
                   </Button>
+
+                  {apiError && (
+                    <div
+                      className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative"
+                      role="alert"
+                    >
+                      <strong className="font-bold">Error: </strong>
+                      <span className="block sm:inline">{apiError}</span>
+                    </div>
+                  )}
                 </DialogFooter>
               </DialogContent>
             </Dialog>

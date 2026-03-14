@@ -9,8 +9,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") || "";
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
-    const skip = (page - 1) * limit;
+    // const limit = parseInt(searchParams.get("limit") || "10");
+    // const skip = (page - 1) * limit;
 
     const [customers, totalCount] = await Promise.all([
       prisma.userCustomer.findMany({
@@ -25,8 +25,8 @@ export async function GET(req: Request) {
           ],
         },
         orderBy: { createdAt: "desc" },
-        skip,
-        take: limit,
+        // skip,
+        // take: limit,
       }),
       prisma.userCustomer.count({
         // ✅ Correct: userCustomer (lowercase in Prisma)
@@ -46,9 +46,9 @@ export async function GET(req: Request) {
       customers,
       pagination: {
         page,
-        limit,
+        // limit,
         total: totalCount,
-        pages: Math.ceil(totalCount / limit),
+        // pages: Math.ceil(totalCount / limit),
       },
     });
   } catch (error: any) {
