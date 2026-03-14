@@ -49,6 +49,14 @@ export async function GET(
       );
     }
 
+    // Add this right after fetching the invoice
+    console.log("Invoice found:", {
+      id: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      itemsCount: invoice.items.length,
+      items: invoice.items.map((i) => ({ id: i.id, name: i.name })),
+    });
+
     return NextResponse.json(invoice);
   } catch (error: any) {
     console.error("Error fetching invoice by ID:", error);
