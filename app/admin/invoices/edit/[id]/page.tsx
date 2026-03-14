@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Invoices from "../../page"; // Import your invoice page component
+import Invoices from "@/app/super-admin/invoices/page";
 
 interface InvoiceItem {
   productId: number;
@@ -75,13 +75,19 @@ const EditInvoicePage = () => {
     const fetchInvoice = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/allinvoices/${params.id}`);
+        const response = await fetch(
+          `/api/allinvoices/getallinvoices/${params.id}`,
+        );
 
         if (!response.ok) {
           throw new Error("Failed to fetch invoice");
         }
 
         const data = await response.json();
+        console.log("Full API Response:", data);
+        console.log("Items array:", data.items);
+        console.log("First item:", data.items[0]);
+
         setInvoiceData(data);
       } catch (err: any) {
         setError(err.message);
@@ -140,29 +146,37 @@ const EditInvoicePage = () => {
       gst: invoiceData.customer.gst || "",
       pan: invoiceData.customer.pan || "",
     },
-    items: invoiceData.items.map((item) => ({
-      productId: item.productId,
-      name: item.name,
-      quantity: item.quantity,
-      price: item.price,
-      originalPrice: item.price, // You might need to calculate this based on GST
-      total: item.total,
-      discount: 0, // Calculate if needed
-      discountedPrice: 0,
-      searchQuery: item.name,
-      showDropdown: false,
-      gstIncluded: invoiceData.companyType === "YADNYASENI",
-      applyGST: invoiceData.companyType === "RUDRA",
-    })),
+    items: invoiceData.items.map((item) => {
+      // Log each item during transformation
+      console.log("Transforming item:", item);
+
+      // Make sure we're accessing all the fields correctly
+      return {
+        productId: item.productId,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price || 0,
+        originalPrice: item.price || 0,
+        total: item.total || 0,
+        discount: { type: "FIXED", value: 0 } as any,
+        discountedPrice: 0,
+        searchQuery: item.name,
+        showDropdown: false,
+        gstIncluded: invoiceData.companyType === "YADNYASENI",
+        applyGST: invoiceData.companyType === "RUDRA",
+      };
+    }),
     invoiceDate: new Date(invoiceData.invoiceDate).toISOString().split("T")[0],
     company: invoiceData.companyType,
     status: invoiceData.status,
-    advancePaid: invoiceData.advancePaid,
+    advancePaid: invoiceData.advancePaid || 0,
     description: invoiceData.description || "",
-    extraCharges: invoiceData.extraCharges,
-    subtotal: invoiceData.subtotal,
-    total: invoiceData.total,
+    extraCharges: invoiceData.extraCharges || 0,
+    subtotal: invoiceData.subtotal || 0,
+    total: invoiceData.total || 0,
   };
+
+  console.log("Final transformed data:", transformedData);
 
   return <Invoices initialData={transformedData} isEditMode={true} />;
 };
