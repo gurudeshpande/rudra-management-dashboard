@@ -510,7 +510,7 @@ const InvoicePreviewPage: React.FC<InvoicePreviewPageProps> = ({
                                 {item.quantity} {item.unit}
                               </td>
                               <td className="border border-gray-300 p-3 text-right text-sm">
-                                ₹{item.rate.toFixed(2)}
+                                ₹{item.rate.toFixed(0)}
                               </td>
                               <td className="border border-gray-300 p-3 text-right text-sm">
                                 {item.discount > 0 ? (
@@ -599,7 +599,7 @@ const InvoicePreviewPage: React.FC<InvoicePreviewPageProps> = ({
                                     Subtotal:
                                   </span>
                                   <span className="font-medium text-sm">
-                                    ₹{previewData.subtotal.toFixed(2)}
+                                    ₹{previewData.subtotal.toFixed(0)}
                                   </span>
                                 </div>
                               )}

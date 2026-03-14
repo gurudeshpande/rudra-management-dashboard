@@ -395,6 +395,8 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
 
   const [customerType, setCustomerType] = useState<CustomerType>("CUSTOMER");
 
+  console.log(items, "Data items");
+
   const handleCustomerTypeChange = (type: CustomerType) => {
     setCustomerType(type);
 
@@ -1801,7 +1803,7 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
 
         {/* All sections in vertical flow */}
         <div className="space-y-6">
-          {/* Customer Information */}
+          {/* Customer Information - Compact Grid Layout */}
           <div className="border border-black/20 py-5 rounded-2xl">
             <CardHeader>
               <div className="flex justify-between items-center">
@@ -1830,160 +1832,136 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                 )}
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Customer Search and Dropdown */}
-              <div className="space-y-2">
-                <div className="relative">
-                  <Input
-                    id="customer-search"
-                    name="name"
-                    value={customerInfo.name}
-                    onChange={handleCustomerInfoChange}
-                    placeholder="Type customer name or phone number"
-                    required
-                    onFocus={() => setShowCustomerDropdown(true)}
-                    disabled={isEditMode}
-                    autoComplete="off"
-                  />
-                  <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
 
-                  {/* Customer Dropdown */}
-                  {showCustomerDropdown && filteredCustomers.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                      {filteredCustomers.map((customer) => (
-                        <div
-                          key={customer.id}
-                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
-                          onClick={() => handleCustomerSelect(customer)}
-                        >
-                          <div className="font-medium">{customer.name}</div>
-                          <div className="text-sm text-gray-600">
-                            {customer.phone}
-                            {customer.email && ` • ${customer.email}`}
-                            {customer.gst && ` • GST: ${customer.gst}`}
-                            {customer.pan && ` • PAN: ${customer.pan}`}
-                          </div>
-                          {customer.billingAddress && (
-                            <div className="text-xs text-gray-500 truncate">
-                              {customer.billingAddress}
+            <CardContent>
+              {/* Two-column compact layout */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Left Column */}
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Label className="text-xs text-gray-500">
+                      Customer Name *
+                    </Label>
+                    <Input
+                      name="name"
+                      value={customerInfo.name}
+                      onChange={handleCustomerInfoChange}
+                      placeholder="Type customer name or phone"
+                      onFocus={() => setShowCustomerDropdown(true)}
+                      disabled={isEditMode}
+                      className="mt-1"
+                    />
+                    <ChevronDown className="absolute right-3 top-8 h-4 w-4 text-gray-400" />
+
+                    {/* Customer Dropdown */}
+                    {showCustomerDropdown && filteredCustomers.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                        {filteredCustomers.map((customer) => (
+                          <div
+                            key={customer.id}
+                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                            onClick={() => handleCustomerSelect(customer)}
+                          >
+                            <div className="font-medium text-sm">
+                              {customer.name}
                             </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {customerInfo.name && !isEditMode && (
-                  <div className="flex items-center space-x-2 text-sm">
-                    <span className="text-gray-600">
-                      {existingCustomers.find(
-                        (c) =>
-                          c.name === customerInfo.name &&
-                          c.phone === customerInfo.phone,
-                      )
-                        ? "Existing customer selected"
-                        : ""}
-                    </span>
-                    {existingCustomers.find(
-                      (c) =>
-                        c.name === customerInfo.name &&
-                        c.phone === customerInfo.phone,
-                    ) && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleClearCustomerSelection}
-                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                      >
-                        Clear
-                      </Button>
+                            <div className="text-xs text-gray-600">
+                              {customer.phone}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
-                )}
+
+                  <div>
+                    <Label className="text-xs text-gray-500">
+                      Phone Number *
+                    </Label>
+                    <Input
+                      name="number"
+                      value={customerInfo.phone}
+                      onChange={handleCustomerInfoChange}
+                      placeholder="Customer Phone"
+                      disabled={isEditMode}
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-gray-500">Email</Label>
+                    <Input
+                      name="email"
+                      type="email"
+                      value={customerInfo.email}
+                      onChange={handleCustomerInfoChange}
+                      disabled={isEditMode}
+                      placeholder="email@example.com"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs text-gray-500">GST Number</Label>
+                    <Input
+                      name="gstin"
+                      value={customerInfo.gst || ""}
+                      onChange={handleCustomerInfoChange}
+                      disabled={isEditMode}
+                      placeholder="27ABCDE1234F1Z5"
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-gray-500">PAN Number</Label>
+                    <Input
+                      name="pan"
+                      value={customerInfo.pan || ""}
+                      onChange={handleCustomerInfoChange}
+                      placeholder="ABCDE1234F"
+                      disabled={isEditMode}
+                      className="mt-1 uppercase"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-gray-500">
+                      Invoice Date *
+                    </Label>
+                    <Input
+                      type="date"
+                      value={invoiceDate}
+                      onChange={(e) => setInvoiceDate(e.target.value)}
+                      disabled={isEditMode}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="number">Phone Number *</Label>
-                  <Input
-                    id="number"
-                    name="number"
-                    value={customerInfo.phone}
-                    onChange={handleCustomerInfoChange}
-                    placeholder="Customer Phone Number"
-                    disabled={isEditMode}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={customerInfo.email}
-                    onChange={handleCustomerInfoChange}
-                    disabled={isEditMode}
-                    placeholder="customer@example.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="gstin">GST Number</Label>
-                  <Input
-                    id="gstin"
-                    name="gstin"
-                    value={customerInfo.gst || ""}
-                    onChange={handleCustomerInfoChange}
-                    disabled={isEditMode}
-                    placeholder="27ABCDE1234F1Z5"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="pan">PAN Number</Label>
-                  <Input
-                    id="pan"
-                    name="pan"
-                    value={customerInfo.pan || ""}
-                    onChange={handleCustomerInfoChange}
-                    placeholder="ABCDE1234F"
-                    disabled={isEditMode}
-                    style={{ textTransform: "uppercase" }}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="invoiceDate">Date *</Label>
-                  <Input
-                    id="invoiceDate"
-                    type="date"
-                    value={invoiceDate}
-                    onChange={(e) => setInvoiceDate(e.target.value)}
-                    disabled={isEditMode}
-                    required
-                    className="w-1/2"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address">Billing Address</Label>
-                  <Textarea
-                    id="address"
-                    name="address"
-                    value={customerInfo.billingAddress}
-                    onChange={handleCustomerInfoChange}
-                    disabled={isEditMode}
-                    placeholder="Customer Billing Address"
-                    rows={3}
-                    className="w-full"
-                  />
-                </div>
+              {/* Full-width Address */}
+              <div className="mt-3">
+                <Label className="text-xs text-gray-500">Billing Address</Label>
+                <Textarea
+                  name="address"
+                  value={customerInfo.billingAddress}
+                  onChange={handleCustomerInfoChange}
+                  disabled={isEditMode}
+                  placeholder="Customer Billing Address"
+                  rows={2}
+                  className="mt-1"
+                />
               </div>
             </CardContent>
           </div>
 
           {/* Invoice Items */}
-          <div className="border border-black/20 py-5 rounded-2xl">
-            <CardHeader>
+          <div className="py-5 -z-10">
+            <CardHeader className="px-0">
               <div className="flex justify-between items-center">
                 <div>
                   <CardTitle className="text-lg">Invoice Items</CardTitle>
@@ -1996,58 +1974,39 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                     <Label className="font-medium text-sm">
                       Customer Type:
                     </Label>
+
                     <div className="flex items-center space-x-2">
                       <input
                         type="radio"
-                        id="customer-type-customer"
-                        name="customerType"
                         checked={customerType === "CUSTOMER"}
                         onChange={() => handleCustomerTypeChange("CUSTOMER")}
-                        className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        className="h-3 w-3 text-blue-600"
                       />
-                      <Label
-                        htmlFor="customer-type-customer"
-                        className="cursor-pointer text-sm"
-                      >
-                        Customer
-                      </Label>
+                      <Label className="text-sm">Customer</Label>
                     </div>
 
                     <div className="flex items-center space-x-2">
                       <input
                         type="radio"
-                        id="customer-type-franchise"
-                        name="customerType"
                         checked={customerType === "FRANCHISE"}
                         onChange={() => handleCustomerTypeChange("FRANCHISE")}
-                        className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        className="h-3 w-3 text-blue-600"
                       />
-                      <Label
-                        htmlFor="customer-type-franchise"
-                        className="cursor-pointer text-sm"
-                      >
-                        Franchise (40%)
-                      </Label>
+                      <Label className="text-sm">Franchise (40%)</Label>
                     </div>
 
                     <div className="flex items-center space-x-2">
                       <input
                         type="radio"
-                        id="customer-type-reseller"
-                        name="customerType"
                         checked={customerType === "RESELLER"}
                         onChange={() => handleCustomerTypeChange("RESELLER")}
-                        className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        className="h-3 w-3 text-blue-600"
                       />
-                      <Label
-                        htmlFor="customer-type-reseller"
-                        className="cursor-pointer text-sm"
-                      >
-                        Reseller (30%)
-                      </Label>
+                      <Label className="text-sm">Reseller (30%)</Label>
                     </div>
                   </div>
                 </div>
+
                 <Button
                   onClick={() => setShowBulkUpload(true)}
                   variant="outline"
@@ -2058,34 +2017,37 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Table Header */}
-                <div className="grid grid-cols-11 gap-2 text-sm font-medium text-gray-600 pb-2 border-b">
-                  <div className="col-span-3 text-xs">Product</div>
-                  <div className="col-span-1 text-xs text-center">Qty</div>
-                  <div className="col-span-2 text-xs text-center">Rate (₹)</div>
+
+            <CardContent className="px-0 -z-40">
+              {/* Table Container */}
+              <div className="space-y-4" style={{ overflow: "visible" }}>
+                {/* TABLE HEADER */}
+                <div className="grid grid-cols-12 gap-2 text-xs font-medium text-gray-600 pb-2 border-b">
+                  <div className="col-span-5">Product</div>
+                  <div className="col-span-1 text-right">Qty</div>
+                  <div className="col-span-2 text-right">Rate (₹)</div>
                   {customerType !== "CUSTOMER" && (
-                    <div className="col-span-2 text-xs text-center">
-                      Discount
-                    </div>
+                    <div className="col-span-2 text-right">Discount</div>
                   )}
-                  <div className="col-span-1 text-xs text-center">GST</div>
-                  <div className="col-span-1 text-xs text-right">
-                    Amount (₹)
-                  </div>
-                  <div className="col-span-1"></div>
+                  <div className="col-span-1 text-right">GST</div>
+                  <div className="col-span-1 text-right">Amount (₹)</div>
+                  <div className="col-span-1 text-center">Action</div>{" "}
+                  {/* New column */}
                 </div>
 
-                {/* Line Items */}
+                {/* LINE ITEMS */}
                 {items.map((item, index) => (
                   <div
                     key={index}
-                    className="grid grid-cols-11 gap-2 items-center py-2 border-b border-gray-100 last:border-b-0"
+                    className="grid grid-cols-12 gap-2 items-start py-2 border-b border-gray-100 last:border-b-0"
+                    style={{ overflow: "visible" }}
                   >
-                    {/* Product Selection (3 columns) */}
-                    <div className="col-span-3 custom-dropdown">
-                      <div className="relative">
+                    {/* PRODUCT */}
+                    <div className="col-span-5" style={{ overflow: "visible" }}>
+                      <div
+                        className="relative custom-dropdown"
+                        style={{ overflow: "visible" }}
+                      >
                         <div className="relative">
                           <input
                             type="text"
@@ -2095,30 +2057,45 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                               handleSearchChange(index, e.target.value)
                             }
                             onFocus={() => handleDropdownToggle(index, true)}
-                            className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDropdownToggle(index, true);
+                            }}
+                            className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-xs bg-white"
+                            autoComplete="off"
                           />
                           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                             <ChevronDown className="h-3 w-3" />
                           </div>
                         </div>
 
-                        {/* Dropdown Menu */}
+                        {/* DROPDOWN - INSIDE TABLE */}
                         {item.showDropdown && (
-                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                            {/* Search Input inside Dropdown */}
-                            <div className="p-2 border-b">
-                              <div className="relative">
-                                <input
-                                  type="text"
-                                  placeholder="Search product..."
-                                  value={item.searchQuery}
-                                  onChange={(e) =>
-                                    handleSearchChange(index, e.target.value)
-                                  }
-                                  className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                  autoFocus
-                                />
-                              </div>
+                          <div
+                            className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
+                            style={{
+                              position: "absolute",
+                              top: "100%",
+                              left: 0,
+                              right: 0,
+                              zIndex: 50,
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {/* Search inside dropdown */}
+                            <div className="p-2 border-b sticky top-0 bg-white">
+                              <input
+                                type="text"
+                                placeholder="Search product..."
+                                value={item.searchQuery}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  handleSearchChange(index, e.target.value);
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md"
+                                autoFocus
+                              />
                             </div>
 
                             {/* Product List */}
@@ -2131,7 +2108,8 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                                 filteredProducts(index).map((product) => (
                                   <div
                                     key={product.id}
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       handleProductSelect(index, product);
                                     }}
                                     className={`px-2 py-1.5 text-xs cursor-pointer hover:bg-gray-100 flex justify-between items-center ${
@@ -2140,25 +2118,29 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                                         : ""
                                     }`}
                                   >
-                                    <div className="truncate">
-                                      <div className="font-medium truncate">
+                                    <div>
+                                      <div className="font-medium">
                                         {product.name} {product.size}
                                       </div>
                                       <div className="text-xs text-gray-500">
                                         ₹{product.price}
                                       </div>
                                     </div>
-                                    <div className="text-xs text-gray-500 whitespace-nowrap ml-1">
-                                      {product.quantity !== undefined && (
-                                        <span
-                                          className={
-                                            product.quantity === 0
-                                              ? "text-red-600"
-                                              : product.quantity < 10
-                                                ? "text-orange-600"
-                                                : "text-green-600"
-                                          }
-                                        >
+
+                                    <div>
+                                      {product.quantity === 0 && (
+                                        <span className="text-red-600 text-xs">
+                                          Stock: 0
+                                        </span>
+                                      )}
+                                      {product.quantity > 0 &&
+                                        product.quantity < 10 && (
+                                          <span className="text-orange-600 text-xs">
+                                            Stock: {product.quantity}
+                                          </span>
+                                        )}
+                                      {product.quantity >= 10 && (
+                                        <span className="text-green-600 text-xs">
                                           Stock: {product.quantity}
                                         </span>
                                       )}
@@ -2171,212 +2153,147 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                         )}
                       </div>
 
-                      {/* Stock warning */}
-                      {item.productId && item.quantity > 0 && (
-                        <div className="mt-0.5">
-                          {(() => {
-                            const selectedProduct = productsData.find(
-                              (p) => p.id === item.productId,
+                      {/* STOCK WARNING */}
+                      {item.productId &&
+                        item.quantity > 0 &&
+                        (() => {
+                          const selectedProduct = productsData.find(
+                            (p) => p.id === item.productId,
+                          );
+                          if (!selectedProduct) return null;
+
+                          const quantity = selectedProduct.quantity;
+                          const required = item.quantity;
+
+                          if (quantity === 0) {
+                            return (
+                              <div className="text-[10px] text-red-600 font-medium mt-1">
+                                Out of Stock
+                              </div>
                             );
-                            if (
-                              !selectedProduct ||
-                              selectedProduct.quantity === undefined
-                            )
-                              return null;
-
-                            const quantity = selectedProduct.quantity;
-                            const required = item.quantity;
-
-                            if (quantity === 0) {
-                              return (
-                                <div className="text-[10px] text-red-600 font-medium">
-                                  Out of Stock
-                                </div>
-                              );
-                            } else if (required > quantity) {
-                              return (
-                                <div className="text-[10px] text-orange-600">
-                                  Only {quantity} left
-                                </div>
-                              );
-                            } else if (quantity < 10) {
-                              return (
-                                <div className="text-[10px] text-blue-600">
-                                  Low Stock
-                                </div>
-                              );
-                            }
-                          })()}
-                        </div>
-                      )}
+                          } else if (required > quantity) {
+                            return (
+                              <div className="text-[10px] text-orange-600 mt-1">
+                                Only {quantity} left
+                              </div>
+                            );
+                          } else if (quantity < 10) {
+                            return (
+                              <div className="text-[10px] text-blue-600 mt-1">
+                                Low Stock
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                     </div>
 
-                    {/* Quantity (1 column) */}
+                    {/* QTY */}
                     <div className="col-span-1">
                       <Input
                         type="number"
                         min="1"
                         value={item.quantity}
-                        onChange={(e) => {
-                          const newQuantity = parseInt(e.target.value) || 1;
-                          handleItemChange(index, "quantity", newQuantity);
-                        }}
-                        className="text-center h-8 text-xs px-1"
+                        onChange={(e) =>
+                          handleItemChange(
+                            index,
+                            "quantity",
+                            parseInt(e.target.value) || 1,
+                          )
+                        }
+                        className="text-right h-8 text-xs"
                       />
                     </div>
 
-                    {/* Rate (2 columns) */}
+                    {/* RATE */}
                     <div className="col-span-2">
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.price.toFixed(2)}
-                          onChange={(e) =>
-                            handleItemChange(
-                              index,
-                              "price",
-                              roundTo2(Number(e.target.value)),
-                            )
-                          }
-                          className="text-center h-8 text-xs px-1"
-                          readOnly
-                        />
-                      </div>
+                      <Input
+                        type="number"
+                        value={item.price.toFixed(0)}
+                        readOnly
+                        className="text-right h-8 text-xs"
+                      />
                     </div>
 
-                    {/* Discount (2 columns) */}
+                    {/* DISCOUNT */}
                     {customerType !== "CUSTOMER" && (
-                      <div className="col-span-2">
-                        <div className="flex items-center gap-1 justify-center">
-                          <select
-                            value={item.discount.type}
-                            onChange={(e) => {
-                              const newType = e.target.value as
-                                | "percentage"
-                                | "amount";
-                              handleItemDiscountChange(index, {
-                                type: newType,
-                                value: 0,
-                              });
-                            }}
-                            className="border border-gray-300 rounded-md px-1 py-1.5 text-xs w-14"
-                          >
-                            <option value="percentage">%</option>
-                            <option value="amount">₹</option>
-                          </select>
-                          <Input
-                            type="number"
-                            min="0"
-                            max={
-                              item.discount.type === "percentage"
-                                ? 100
-                                : undefined
-                            }
-                            value={item.discount.value}
-                            onChange={(e) => {
-                              const newValue = parseFloat(e.target.value) || 0;
-                              handleItemDiscountChange(index, {
-                                type: item.discount.type,
-                                value: newValue,
-                              });
-                            }}
-                            className="text-center h-8 w-16 text-xs px-1"
-                            placeholder="0"
-                          />
-                        </div>
-                        {item.discount.value > 0 && (
-                          <div className="text-[10px] text-green-600 text-center mt-0.5">
-                            Save ₹{item.discountedPrice.toFixed(0)}
-                          </div>
-                        )}
+                      <div className="col-span-2 flex justify-end gap-1">
+                        <select
+                          value={item.discount.type}
+                          onChange={(e) =>
+                            handleItemDiscountChange(index, {
+                              type: e.target.value as any,
+                              value: 0,
+                            })
+                          }
+                          className="border border-gray-300 rounded-md px-1 py-1 text-xs w-14"
+                        >
+                          <option value="percentage">%</option>
+                          <option value="amount">₹</option>
+                        </select>
+
+                        <Input
+                          type="number"
+                          value={item.discount.value}
+                          onChange={(e) =>
+                            handleItemDiscountChange(index, {
+                              type: item.discount.type,
+                              value: parseFloat(e.target.value) || 0,
+                            })
+                          }
+                          className="text-right h-8 w-16 text-xs"
+                        />
                       </div>
                     )}
 
-                    {/* GST Checkbox (1 column) */}
-                    <div className="col-span-1">
-                      <div className="flex flex-col items-center justify-center">
-                        <Checkbox
-                          id={`gst-${index}`}
-                          checked={item.applyGST}
-                          onCheckedChange={(checked) =>
-                            handleItemChange(
-                              index,
-                              "applyGST",
-                              checked === true,
-                            )
-                          }
-                          className="h-4 w-4"
-                        />
-                        {item.applyGST && (
-                          <div className="text-[10px] text-gray-500 mt-0.5">
-                            {company === "YADNYASENI" ? "Incl. GST" : "+5% GST"}
-                          </div>
-                        )}
-                        {!item.applyGST && (
-                          <div className="text-[10px] text-gray-400 mt-0.5">
-                            Excl. GST
-                          </div>
-                        )}
-                      </div>
+                    {/* GST */}
+                    <div className="col-span-1 flex justify-end">
+                      <Checkbox
+                        checked={item.applyGST}
+                        onCheckedChange={(checked) =>
+                          handleItemChange(index, "applyGST", checked === true)
+                        }
+                      />
                     </div>
 
-                    {/* Amount (1 column) */}
-                    <div className="col-span-1">
-                      <div className="text-right">
-                        <div className="font-medium text-xs">
-                          ₹{item.total.toFixed(0)}
-                        </div>
-                        {item.discount.value > 0 && (
-                          <div className="text-[10px] text-gray-400 line-through">
-                            ₹{(item.originalPrice * item.quantity).toFixed(0)}
-                          </div>
-                        )}
-                      </div>
+                    {/* AMOUNT */}
+                    <div className="col-span-1 text-right font-medium text-xs">
+                      ₹{item.total.toFixed(0)}
                     </div>
 
-                    {/* Remove Button (1 column) */}
-                    <div className="col-span-1 flex justify-center">
-                      {items.length > 1 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveRow(index)}
-                          className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50 p-0"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      )}
+                    {/* ACTION - TRASH BUTTON */}
+                    <div className="col-span-1 flex justify-center items-center">
+                      <button
+                        onClick={() => handleRemoveRow(index)}
+                        disabled={items.length === 1}
+                        className={`p-1.5 rounded-full transition-all duration-200 ${
+                          items.length === 1
+                            ? "opacity-30 cursor-not-allowed text-gray-400"
+                            : "text-red-500 hover:text-red-700 hover:bg-red-50 hover:scale-110"
+                        }`}
+                        title={
+                          items.length === 1
+                            ? "Cannot remove the last row"
+                            : "Remove item"
+                        }
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
                 ))}
 
-                {/* Add Row Button */}
-                <Button
-                  onClick={handleAddRow}
-                  variant="outline"
-                  className="w-full border-dashed"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Row
-                </Button>
-                <div className="pt-4 border-t">
-                  <Label htmlFor="product-description" className="font-medium">
-                    Product Description / Notes (Optional)
-                  </Label>
-                  <Textarea
-                    id="product-description"
-                    placeholder="Add any product description, special instructions, or notes here..."
-                    value={productDescription}
-                    onChange={(e) => setProductDescription(e.target.value)}
-                    className="mt-2 min-h-[80px]"
-                    rows={3}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    This description will be added to all products in the
-                    invoice
-                  </p>
+                {/* ADD ANOTHER ROW BUTTON */}
+                <div className="flex justify-start pt-2">
+                  <Button
+                    onClick={handleAddRow}
+                    variant="outline"
+                    size="sm"
+                    className="border-dashed border-2 border-gray-300 hover:border-orange-300 hover:bg-orange-50 text-gray-600 hover:text-orange-800 transition-colors"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Another Row
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -2384,36 +2301,35 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
 
           {/* Invoice Settings and Summary - Side by side on larger screens */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Invoice Settings */}
+            {/* Invoice Settings - Tabular Format */}
             <div className="border border-black/20 py-5 rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-lg">Invoice Settings</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Extra Charges */}
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-3">
-                    <Checkbox
-                      id="applyExtraCharges"
-                      checked={applyExtraCharges}
-                      onCheckedChange={(checked) =>
-                        setApplyExtraCharges(checked === true)
-                      }
-                    />
-                    <Label
-                      htmlFor="applyExtraCharges"
-                      className="cursor-pointer"
-                    >
-                      Apply Extra Charges
-                    </Label>
-                  </div>
 
-                  {applyExtraCharges && (
-                    <div className="flex items-center gap-2 pl-6">
-                      <div className="relative">
-                        <span className="absolute left-3 top-2.5 text-gray-500">
-                          ₹
-                        </span>
+              <CardContent>
+                <div className="divide-y divide-gray-100">
+                  {/* Extra Charges Row */}
+                  <div className="py-3 flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Checkbox
+                        id="applyExtraCharges"
+                        checked={applyExtraCharges}
+                        onCheckedChange={(checked) =>
+                          setApplyExtraCharges(checked === true)
+                        }
+                      />
+                      <Label
+                        htmlFor="applyExtraCharges"
+                        className="font-medium cursor-pointer"
+                      >
+                        Apply Extra Charges
+                      </Label>
+                    </div>
+
+                    {applyExtraCharges && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">₹</span>
                         <Input
                           type="number"
                           min="0"
@@ -2423,70 +2339,59 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                               parseFloat(e.target.value) || 0,
                             )
                           }
-                          className="w-32 pl-8"
-                          placeholder="Amount"
+                          className="w-24 text-right"
+                          placeholder="0"
                         />
                       </div>
-                      <span className="text-sm text-gray-500">
-                        flat charges
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Overall Discount */}
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-3">
-                    <Checkbox
-                      id="applyOverallDiscount"
-                      checked={overallDiscount.value > 0}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          // When checking, set a default discount (5% or ₹100 as example)
-                          const newDiscount = {
-                            type: "percentage" as const,
-                            value: 5,
-                          };
-                          setOverallDiscount(newDiscount);
-                          applyOverallDiscountToItems(newDiscount);
-                        } else {
-                          // When unchecking, remove discount
-                          setOverallDiscount({ type: "percentage", value: 0 });
-                          // Remove overall discount from all items
-                          const updatedItems = items.map((item) => {
-                            if (item.originalPrice > 0) {
-                              const finalTotal = calculateItemTotal(
-                                item.originalPrice,
-                                item.quantity,
-                                item.discount,
-                                { type: "percentage", value: 0 },
-                                item.applyGST,
-                                company,
-                              );
-                              return {
-                                ...item,
-                                total: finalTotal,
-                                discountedPrice:
-                                  item.originalPrice * item.quantity -
-                                  finalTotal,
-                              };
-                            }
-                            return item;
-                          });
-                          setItems(updatedItems);
-                        }
-                      }}
-                    />
-                    <Label
-                      htmlFor="applyOverallDiscount"
-                      className="cursor-pointer"
-                    >
-                      Apply Overall Discount
-                    </Label>
+                    )}
                   </div>
 
-                  {overallDiscount.value > 0 && (
-                    <div className="pl-6 space-y-2">
+                  {/* Overall Discount Row */}
+                  <div className="py-3 flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Checkbox
+                        id="applyOverallDiscount"
+                        checked={overallDiscount.value > 0}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            const newDiscount = {
+                              type: "percentage" as const,
+                              value: 5,
+                            };
+                            setOverallDiscount(newDiscount);
+                            applyOverallDiscountToItems(newDiscount);
+                          } else {
+                            setOverallDiscount({
+                              type: "percentage",
+                              value: 0,
+                            });
+                            const updatedItems = items.map((item) => {
+                              if (item.originalPrice > 0) {
+                                const finalTotal = calculateItemTotal(
+                                  item.originalPrice,
+                                  item.quantity,
+                                  item.discount,
+                                  { type: "percentage", value: 0 },
+                                  item.applyGST,
+                                  company,
+                                );
+                                return { ...item, total: finalTotal };
+                              }
+                              return item;
+                            });
+                            setItems(updatedItems);
+                          }
+                        }}
+                      />
+                      <Label
+                        htmlFor="applyOverallDiscount"
+                        className="font-medium cursor-pointer"
+                      >
+                        Apply Overall Discount
+                      </Label>
+                    </div>
+
+                    {overallDiscount.value > 0 && (
                       <div className="flex items-center gap-2">
                         <select
                           value={overallDiscount.type}
@@ -2494,20 +2399,16 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                             const newType = e.target.value as
                               | "percentage"
                               | "amount";
-                            // Keep the current value when switching types, don't reset to 0
                             setOverallDiscount((prev) => ({
                               ...prev,
                               type: newType,
-                              // Keep the same value, but ensure it's valid for the new type
-                              value: prev.value,
                             }));
-                            // Apply the discount with the new type but same value
                             applyOverallDiscountToItems({
                               type: newType,
                               value: overallDiscount.value,
                             });
                           }}
-                          className="border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                          className="border border-gray-300 rounded px-2 py-1 text-sm w-16"
                         >
                           <option value="percentage">%</option>
                           <option value="amount">₹</option>
@@ -2530,178 +2431,190 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                             setOverallDiscount(newDiscount);
                             applyOverallDiscountToItems(newDiscount);
                           }}
-                          className="w-24"
+                          className="w-20 text-right"
                           placeholder="0"
                         />
-                        {overallDiscount.type === "percentage" && (
-                          <span className="text-sm text-gray-500">%</span>
-                        )}
                       </div>
-                      <Badge variant="secondary" className="ml-2">
-                        {customerType === "RESELLER" && "Auto: 40%"}
-                        {customerType === "FRANCHISE" && "Auto: 30%"}
-                        {customerType === "CUSTOMER" && "Auto: 0%"}
-                      </Badge>
+                    )}
+                  </div>
+
+                  {/* GST Settings - Only for RUDRA */}
+                  {company === "RUDRA" && (
+                    <div className="py-3 flex items-center">
+                      <div className="flex items-center space-x-3">
+                        <Checkbox
+                          id="includeGst"
+                          checked={includeGst}
+                          onCheckedChange={(checked) =>
+                            setIncludeGst(checked === true)
+                          }
+                        />
+                        <Label
+                          htmlFor="includeGst"
+                          className="font-medium cursor-pointer"
+                        >
+                          Include GST (5%)
+                        </Label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Invoice Status */}
+                  <div className="py-3">
+                    <Label className="font-medium block mb-2">
+                      Invoice Status *
+                    </Label>
+                    <div className="flex space-x-6">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          id="status-paid"
+                          name="invoiceStatus"
+                          checked={invoiceStatus === "PAID"}
+                          onChange={() => handleStatusChange("PAID")}
+                          className="h-4 w-4 text-blue-600"
+                        />
+                        <Label htmlFor="status-paid" className="cursor-pointer">
+                          Paid
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          id="status-unpaid"
+                          name="invoiceStatus"
+                          checked={invoiceStatus === "UNPAID"}
+                          onChange={() => handleStatusChange("UNPAID")}
+                          className="h-4 w-4 text-blue-600"
+                        />
+                        <Label
+                          htmlFor="status-unpaid"
+                          className="cursor-pointer"
+                        >
+                          Unpaid
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          id="status-advance"
+                          name="invoiceStatus"
+                          checked={invoiceStatus === "ADVANCE"}
+                          onChange={() => handleStatusChange("ADVANCE")}
+                          className="h-4 w-4 text-blue-600"
+                        />
+                        <Label
+                          htmlFor="status-advance"
+                          className="cursor-pointer"
+                        >
+                          Advance
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Advance Payment - Conditionally shown */}
+                  {invoiceStatus === "ADVANCE" && (
+                    <div className="py-3 flex items-center justify-between">
+                      <Label htmlFor="advance" className="font-medium">
+                        Advance Payment
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">₹</span>
+                        <Input
+                          id="advance"
+                          type="number"
+                          min="0"
+                          max={total}
+                          value={advancePayment}
+                          onChange={(e) =>
+                            setAdvancePayment(parseFloat(e.target.value) || 0)
+                          }
+                          className="w-32 text-right"
+                          placeholder="Enter amount"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
-
-                {/* GST Settings - Only show for RUDRA in UI */}
-                {company === "RUDRA" && (
-                  <div className="flex items-center space-x-3">
-                    <Checkbox
-                      id="includeGst"
-                      checked={includeGst}
-                      onCheckedChange={(checked) =>
-                        setIncludeGst(checked === true)
-                      }
-                    />
-                    <Label htmlFor="includeGst" className="cursor-pointer">
-                      Include GST (5%)
-                    </Label>
-                  </div>
-                )}
-
-                {/* Invoice Status */}
-                <div className="space-y-3">
-                  <Label className="font-semibold">Invoice Status *</Label>
-                  <div className="flex flex-col space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        id="status-paid"
-                        name="invoiceStatus"
-                        checked={invoiceStatus === "PAID"}
-                        onChange={() => handleStatusChange("PAID")}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <Label htmlFor="status-paid" className="cursor-pointer">
-                        Paid
-                      </Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        id="status-unpaid"
-                        name="invoiceStatus"
-                        checked={invoiceStatus === "UNPAID"}
-                        onChange={() => handleStatusChange("UNPAID")}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <Label htmlFor="status-unpaid" className="cursor-pointer">
-                        Unpaid
-                      </Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        id="status-advance"
-                        name="invoiceStatus"
-                        checked={invoiceStatus === "ADVANCE"}
-                        onChange={() => handleStatusChange("ADVANCE")}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <Label
-                        htmlFor="status-advance"
-                        className="cursor-pointer"
-                      >
-                        Advance
-                      </Label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Advance Payment */}
-                {invoiceStatus === "ADVANCE" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="advance" className="font-semibold">
-                      Advance Payment Amount (₹)
-                    </Label>
-                    <Input
-                      id="advance"
-                      type="number"
-                      min="0"
-                      max={total}
-                      value={advancePayment}
-                      onChange={(e) =>
-                        setAdvancePayment(parseFloat(e.target.value) || 0)
-                      }
-                      placeholder="Enter advance amount"
-                    />
-                  </div>
-                )}
               </CardContent>
             </div>
 
             {/* Invoice Summary */}
+            {/* Invoice Summary - Clean Tabular Format */}
             <div className="border border-black/20 py-5 rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-lg">Invoice Summary</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {company === "RUDRA" && (
-                  <div className="flex justify-between">
+
+              <CardContent>
+                <div className="space-y-2">
+                  {/* Subtotal */}
+                  <div className="flex justify-between py-1">
                     <span className="text-gray-600">Subtotal:</span>
-                    <span className="text-gray-800">
-                      ₹{subtotal.toFixed(2)}
-                    </span>
+                    <span className="font-mono">₹{subtotal.toFixed(0)}</span>
                   </div>
-                )}
 
-                {totalDiscount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Total Discount:</span>
-                    <span>-₹{totalDiscount.toFixed(2)}</span>
-                  </div>
-                )}
-
-                {/* Show GST breakdown ONLY for RUDRA */}
-                {company === "RUDRA" && gstTotal > 0 && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">CGST (2.5%):</span>
-                      <span className="text-gray-800">₹{cgst.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">SGST (2.5%):</span>
-                      <span className="text-gray-800">₹{sgst.toFixed(2)}</span>
-                    </div>
-                  </>
-                )}
-
-                {/* For YADNYASENI, GST is included in the total but not shown as breakdown */}
-
-                {extraCharges > 0 && (
-                  <div className="flex justify-between text-blue-600">
-                    <span>Extra Charges:</span>
-                    <span>+₹{extraCharges.toFixed(2)}</span>
-                  </div>
-                )}
-
-                <div className="flex justify-between font-bold text-lg pt-3 border-t">
-                  <span className="text-gray-900">Total Amount:</span>
-                  <span className="text-gray-900">₹{total.toFixed(0)}</span>
-                </div>
-
-                {invoiceStatus === "ADVANCE" && (
-                  <>
-                    <div className="flex justify-between text-green-600">
-                      <span>Advance Paid:</span>
-                      <span>₹{advancePayment.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold pt-2 border-t">
-                      <span className="text-blue-700">Balance Due:</span>
-                      <span className="text-blue-700">
-                        ₹{balance.toFixed(2)}
+                  {/* Discount */}
+                  {totalDiscount > 0 && (
+                    <div className="flex justify-between py-1 text-green-600">
+                      <span>Discount:</span>
+                      <span className="font-mono">
+                        -₹{totalDiscount.toFixed(2)}
                       </span>
                     </div>
-                  </>
-                )}
+                  )}
 
-                <div className="pt-4 text-sm text-gray-500">
-                  <p>Total in words: {convertToWords(total)} Only</p>
+                  {/* GST Breakdown - Only for RUDRA */}
+                  {company === "RUDRA" && gstTotal > 0 && (
+                    <>
+                      <div className="flex justify-between py-1 text-sm">
+                        <span className="text-gray-600">CGST (2.5%):</span>
+                        <span className="font-mono">₹{cgst.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between py-1 text-sm">
+                        <span className="text-gray-600">SGST (2.5%):</span>
+                        <span className="font-mono">₹{sgst.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Extra Charges */}
+                  {extraCharges > 0 && (
+                    <div className="flex justify-between py-1 text-blue-600">
+                      <span>Extra Charges:</span>
+                      <span className="font-mono">
+                        +₹{extraCharges.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Total */}
+                  <div className="flex justify-between font-bold text-lg pt-3 border-t border-gray-200 mt-2">
+                    <span>Total Amount:</span>
+                    <span className="font-mono">₹{total.toFixed(0)}</span>
+                  </div>
+
+                  {/* Advance Payment and Balance */}
+                  {invoiceStatus === "ADVANCE" && (
+                    <>
+                      <div className="flex justify-between py-1 text-green-600">
+                        <span>Advance Paid:</span>
+                        <span className="font-mono">
+                          -₹{advancePayment.toFixed(0)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between font-bold text-blue-700 pt-2 border-t border-gray-200">
+                        <span>Balance Due:</span>
+                        <span className="font-mono">₹{balance.toFixed(0)}</span>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Amount in Words */}
+                  <div className="pt-4 text-xs text-gray-500 italic border-t border-gray-100 mt-2">
+                    {convertToWords(total)} Only
+                  </div>
                 </div>
               </CardContent>
             </div>
