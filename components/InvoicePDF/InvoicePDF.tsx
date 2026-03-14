@@ -340,13 +340,15 @@ const styles = StyleSheet.create({
 });
 
 // Helper function to format numbers in Indian standard
-const formatIndianCurrency = (amount: number): string => {
+const formatIndianCurrency = (
+  amount: number,
+  showDecimal: boolean = false,
+): string => {
   return new Intl.NumberFormat("en-IN", {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
+    minimumFractionDigits: showDecimal ? 2 : 0,
+    maximumFractionDigits: showDecimal ? 2 : 0,
   }).format(amount);
 };
-
 // Define props interface for the component
 interface InvoicePDFProps {
   invoiceData: InvoiceData;
@@ -383,6 +385,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
 
   console.log(invoiceData, "invoiceData in pdf");
 
+  const showDecimal = companyType === "RUDRA";
   // Company-specific details
   const getCompanyDetails = () => {
     const companies = {
@@ -616,7 +619,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
               {companyType === "RUDRA" ? (
                 <View style={styles.summaryValueCell}>
                   <Text style={styles.summaryValue}>
-                    Rs.{formatIndianCurrency(subtotal)}
+                    Rs.{formatIndianCurrency(subtotal, showDecimal)}
                   </Text>
                 </View>
               ) : (
@@ -639,7 +642,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
                   </View>
                   <View style={styles.summaryValueCell}>
                     <Text style={styles.summaryValue}>
-                      Rs.{formatIndianCurrency(cgst)}
+                      Rs.{formatIndianCurrency(cgst, true)}
                     </Text>
                   </View>
                 </View>
@@ -657,7 +660,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
                   </View>
                   <View style={styles.summaryValueCell}>
                     <Text style={styles.summaryValue}>
-                      Rs.{formatIndianCurrency(sgst)}
+                      Rs.{formatIndianCurrency(sgst, true)}
                     </Text>
                   </View>
                 </View>
