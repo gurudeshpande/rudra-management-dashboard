@@ -92,6 +92,7 @@ model Vendor {
   
   @@index([name])
   @@index([gstin])
+  purchaseBills PurchaseBill[]
 }
 
 // ====================== VENDOR CREDIT NOTE ======================
@@ -134,6 +135,110 @@ model VendorCreditNote {
   @@map("vendor_credit_notes")
 }
 
+enum BillStatus {
+  DRAFT
+  OPEN
+  PAID
+  PARTIAL
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentTermType {
+  DUE_ON_RECEIPT
+  NET_15
+  NET_30
+  NET_45
+  NET_60
+  CUSTOM
+}
+
+model PurchaseBill {
+  id              String         @id @default(cuid())
+  billNumber      String         @unique
+  orderNumber     String?        // Optional order number
+  
+  // Vendor relation
+  vendorId        Int
+  vendor          Vendor         @relation(fields: [vendorId], references: [id])
+  
+  // Bill details
+  billDate        DateTime
+  dueDate         DateTime?
+  paymentTerms    PaymentTermType @default(DUE_ON_RECEIPT)
+  customPaymentTerms String?      // For custom payment terms
+  subject         String?         @db.Text
+  
+  // Financials
+  subtotal        Float          @default(0)
+  discountType    String?         // percentage or fixed
+  discountValue   Float?          @default(0)
+  discountAmount  Float?          @default(0)
+  taxAmount       Float?          @default(0)
+  adjustment      Float?          @default(0)
+  total           Float           @default(0)
+  
+  // Payment tracking
+  amountPaid      Float           @default(0)
+  balanceDue      Float           @default(0)
+  
+  // Status
+  status          BillStatus      @default(DRAFT)
+  notes           String?         @db.Text
+  
+  // Items
+  items           PurchaseBillItem[]
+  
+  // Attachments
+  attachments     String[]        // File URLs
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  @@map("purchase_bills")
+}
+
+// ====================== PURCHASE BILL ITEM ======================
+model PurchaseBillItem {
+  id              String         @id @default(cuid())
+  billId          String
+  bill            PurchaseBill    @relation(fields: [billId], references: [id], onDelete: Cascade)
+  
+  // Product relation
+  productId       Int?
+  product         Product?        @relation(fields: [productId], references: [id])
+  
+  // Item details
+  itemName        String          // Name of the item/product
+  description     String?         @db.Text
+  account         String?         // Account/category
+  
+  // Quantity and pricing
+  quantity        Float           @default(1)
+  rate            Float           @default(0)
+  amount          Float           @default(0)
+  
+  // Tax
+  taxRate         Float?          @default(0)
+  taxAmount       Float?          @default(0)
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  @@map("purchase_bill_items")
+}
+
+// ====================== BILL COUNTER ======================
+model PurchaseBillCounter {
+  id             String   @id @default(cuid())
+  financialYear  String   @unique // Format: "2024-2025"
+  lastNumber     Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@map("purchase_bill_counters")
+}
+
 // ====================== VENDOR PAYMENT ======================
 enum VendorPaymentStatus {
   DUE
@@ -174,16 +279,6 @@ model VendorPayment {
   updatedAt       DateTime @updatedAt
   
   @@map("vendor_payments")
-}
-
-// ====================== BILL (Vendor Invoice) ======================
-enum BillStatus {
-  DRAFT
-  PENDING
-  PARTIAL
-  PAID
-  OVERDUE
-  CANCELLED
 }
 
 model Bill {
@@ -286,6 +381,8 @@ model Product {
   
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
+
+  purchaseBillItems PurchaseBillItem[]
 }
 
 // ====================== INVOICE ======================
