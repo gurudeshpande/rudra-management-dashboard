@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "BillStatus" AS ENUM ('DRAFT', 'OPEN', 'PAID', 'PARTIAL', 'OVERDUE', 'CANCELLED');
+-- CREATE TYPE "BillStatus" AS ENUM ('DRAFT', 'OPEN', 'PAID', 'PARTIAL', 'OVERDUE', 'CANCELLED');
 
 -- CreateEnum
 CREATE TYPE "PaymentTermType" AS ENUM ('DUE_ON_RECEIPT', 'NET_15', 'NET_30', 'NET_45', 'NET_60', 'CUSTOM');
@@ -70,10 +70,10 @@ CREATE UNIQUE INDEX "purchase_bills_billNumber_key" ON "purchase_bills"("billNum
 CREATE UNIQUE INDEX "purchase_bill_counters_financialYear_key" ON "purchase_bill_counters"("financialYear");
 
 -- AddForeignKey
-ALTER TABLE "purchase_bills" ADD CONSTRAINT "purchase_bills_vendorId_fkey" FOREIGN KEY ("vendorId") REFERENCES "vendors"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "purchase_bills" ADD CONSTRAINT "purchase_bills_vendorId_fkey" FOREIGN KEY ("vendorId") REFERENCES "Vendor"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "purchase_bill_items" ADD CONSTRAINT "purchase_bill_items_billId_fkey" FOREIGN KEY ("billId") REFERENCES "purchase_bills"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "purchase_bill_items" ADD CONSTRAINT "purchase_bill_items_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "purchase_bill_items" ADD CONSTRAINT "purchase_bill_items_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE SET NULL ON UPDATE CASCADE;

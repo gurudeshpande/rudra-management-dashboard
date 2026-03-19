@@ -17,13 +17,13 @@ import {
   Trash2,
   Save,
   IndianRupee,
-  ReceiptIndianRupee,
   ChevronDown,
   Search,
   Upload,
   X,
   Minus,
   UserPlus,
+  Phone,
 } from "lucide-react";
 import {
   Dialog,
@@ -33,7 +33,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import InvoicePDF from "@/components/InvoicePDF/InvoicePDF";
@@ -84,8 +83,6 @@ interface InvoiceItem {
   price: number;
   originalPrice: number;
   total: number;
-  discount: DiscountType;
-  discountedPrice: number;
   hsn?: string;
   unit?: string;
   searchQuery: string;
@@ -161,8 +158,6 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
       price: 0,
       originalPrice: 0,
       total: 0,
-      discount: { type: "percentage", value: 0 },
-      discountedPrice: 0,
       searchQuery: "",
       showDropdown: false,
       gstIncluded: false,
@@ -399,46 +394,7 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
 
   const handleCustomerTypeChange = (type: CustomerType) => {
     setCustomerType(type);
-
-    // Apply automatic discounts to all items based on customer type
-    const updatedItems = items.map((item) => {
-      if (item.originalPrice > 0) {
-        let discountValue = 0;
-        switch (type) {
-          case "RESELLER":
-            discountValue = 30;
-            break;
-          case "FRANCHISE":
-            discountValue = 40;
-            break;
-          case "CUSTOMER":
-          default:
-            discountValue = 0;
-            break;
-        }
-
-        const finalTotal = calculateItemTotal(
-          item.originalPrice,
-          item.quantity,
-          { type: "percentage" as const, value: discountValue },
-          overallDiscount,
-          item.applyGST,
-          company,
-        );
-
-        return {
-          ...item,
-          discount: { type: "percentage" as const, value: discountValue },
-          total: finalTotal,
-          discountedPrice: item.originalPrice * item.quantity - finalTotal,
-          price: item.originalPrice,
-          gstIncluded: company === "YADNYASENI",
-        };
-      }
-      return item;
-    });
-
-    setItems(updatedItems);
+    // No automatic discount application - discounts are only applied at overall level
   };
 
   // Filter customers based on search
@@ -559,46 +515,22 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
     setShowCustomerDropdown(false);
   };
 
-  // Calculate item total with discounts
+  // Calculate item total with discounts (simplified - no item discount)
   const calculateItemTotal = (
     originalPrice: number,
     quantity: number,
-    itemDiscount: DiscountType,
-    overallDiscount: DiscountType,
     applyGST: boolean,
     company: "RUDRA" | "YADNYASENI",
   ) => {
     // Start with base price * quantity
     let baseTotal = originalPrice * quantity;
-    let discountedTotal = baseTotal;
-
-    // Apply item discount
-    if (itemDiscount.value > 0) {
-      if (itemDiscount.type === "percentage") {
-        discountedTotal = baseTotal - (baseTotal * itemDiscount.value) / 100;
-      } else {
-        // Amount discount
-        discountedTotal = Math.max(0, baseTotal - itemDiscount.value);
-      }
-    }
-
-    // Apply overall discount on the already discounted amount
-    if (overallDiscount.value > 0) {
-      if (overallDiscount.type === "percentage") {
-        discountedTotal =
-          discountedTotal - (discountedTotal * overallDiscount.value) / 100;
-      } else {
-        // Amount discount
-        discountedTotal = Math.max(0, discountedTotal - overallDiscount.value);
-      }
-    }
 
     // Add GST if applicable
     if (applyGST) {
-      discountedTotal = discountedTotal * 1.05;
+      baseTotal = baseTotal * 1.05; // 5% GST
     }
 
-    return discountedTotal;
+    return baseTotal;
   };
 
   // Calculate GST breakdown (used internally for both companies but only shown for RUDRA)
@@ -610,125 +542,52 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
     return { cgst, sgst, total: subtotal + gstAmount };
   };
 
-  // Apply overall discount to all items
-  const applyOverallDiscountToItems = (discount: DiscountType) => {
-    const updatedItems: InvoiceItem[] = items.map((item) => {
-      if (item.originalPrice > 0) {
-        const finalTotal = calculateItemTotal(
-          item.originalPrice,
-          item.quantity,
-          item.discount,
-          discount,
-          item.applyGST,
-          company,
-        );
-
-        let discountAmount = 0;
-        if (item.discount.type === "percentage") {
-          discountAmount =
-            (item.originalPrice * item.quantity * item.discount.value) / 100;
-        } else {
-          discountAmount = item.discount.value;
-        }
-
-        return {
-          ...item,
-          total: finalTotal,
-          discountedPrice: discountAmount,
-          price: item.originalPrice,
-          discount: {
-            type: item.discount.type,
-            value: item.discount.value,
-          },
-        };
-      }
-      return item;
-    });
-
-    setItems(updatedItems);
-  };
-
   const roundTo2 = (num: number) =>
     Math.round((num + Number.EPSILON) * 100) / 100;
 
-  // Apply overall discount when percentage changes
-  useEffect(() => {
-    if (overallDiscount.value > 0) {
-      applyOverallDiscountToItems(overallDiscount);
-    } else {
-      // Remove overall discount but keep individual discounts
-      const updatedItems = items.map((item) => {
-        if (item.originalPrice > 0) {
-          const finalTotal = calculateItemTotal(
-            item.originalPrice,
-            item.quantity,
-            item.discount,
-            { type: "percentage", value: 0 },
-            item.applyGST,
-            company,
-          );
-
-          return {
-            ...item,
-            total: finalTotal,
-            discountedPrice: item.originalPrice * item.quantity - finalTotal,
-          };
-        }
-        return item;
-      });
-      setItems(updatedItems);
-    }
-  }, [overallDiscount.value, overallDiscount.type]);
-
   const calculateTotals = () => {
-    let subtotal = 0;
-    let totalDiscount = 0;
-    let totalGST = 0;
+    let subtotalBeforeDiscount = 0;
 
+    // Calculate subtotal from items (these already include GST if applicable)
     items.forEach((item) => {
-      if (item.name && item.price > 0) {
-        // Get the base price (GST-exclusive)
-        let itemBasePrice = item.originalPrice;
-
-        // Calculate base amount before any discounts
-        let baseAmount = itemBasePrice * item.quantity;
-
-        // Apply item-specific discount
-        if (item.discount.value > 0) {
-          if (item.discount.type === "percentage") {
-            baseAmount = baseAmount - (baseAmount * item.discount.value) / 100;
-          } else {
-            baseAmount = Math.max(0, baseAmount - item.discount.value);
-          }
-        }
-
-        // Apply overall discount if enabled
-        if (overallDiscount.value > 0) {
-          if (overallDiscount.type === "percentage") {
-            baseAmount =
-              baseAmount - (baseAmount * overallDiscount.value) / 100;
-          } else {
-            baseAmount = Math.max(0, baseAmount - overallDiscount.value);
-          }
-        }
-
-        // Calculate GST if item has GST applied
-        if (item.applyGST) {
-          const gstAmount = baseAmount * 0.05;
-          totalGST += gstAmount;
-          subtotal += baseAmount;
-        } else {
-          subtotal += baseAmount;
-        }
-
-        // Calculate total discount
-        const originalTotal = item.originalPrice * item.quantity;
-        totalDiscount += originalTotal - baseAmount;
+      if (item.name && item.originalPrice > 0) {
+        subtotalBeforeDiscount += item.total;
       }
     });
 
-    // Calculate total with GST (always add GST on top, regardless of company)
-    let total = subtotal + totalGST;
+    // Apply overall discount to subtotal
+    let discountAmount = 0;
+    if (overallDiscount.value > 0) {
+      if (overallDiscount.type === "percentage") {
+        discountAmount = (subtotalBeforeDiscount * overallDiscount.value) / 100;
+      } else {
+        discountAmount = Math.min(
+          overallDiscount.value,
+          subtotalBeforeDiscount,
+        );
+      }
+    }
+
+    // Amount after discount
+    const afterDiscount = subtotalBeforeDiscount - discountAmount;
+
+    // Calculate GST for RUDRA (for YADNYASENI, GST is already in the item totals)
+    let gstAmount = 0;
+    let cgst = 0;
+    let sgst = 0;
+
+    if (company === "RUDRA") {
+      // For RUDRA, calculate GST on the discounted amount
+      gstAmount = afterDiscount * 0.05;
+      cgst = gstAmount / 2;
+      sgst = gstAmount / 2;
+    }
+
+    // Calculate total
+    let total = afterDiscount;
+    if (company === "RUDRA") {
+      total = afterDiscount + gstAmount;
+    }
 
     // Add extra charges
     if (applyExtraCharges) {
@@ -737,13 +596,19 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
 
     const balance = total - advancePayment;
 
+    // For YADNYASENI: subtotal should include GST (which it already does)
+    // For RUDRA: subtotal should be before GST
+    const subtotal =
+      company === "YADNYASENI"
+        ? subtotalBeforeDiscount
+        : subtotalBeforeDiscount;
+
     return {
       subtotal: roundTo2(subtotal),
-      totalDiscount: roundTo2(totalDiscount),
-      // Keep these for internal calculations but don't display them for Yadnyaseni
-      cgst: roundTo2(totalGST / 2),
-      sgst: roundTo2(totalGST / 2),
-      gstTotal: roundTo2(totalGST),
+      totalDiscount: roundTo2(discountAmount),
+      cgst: roundTo2(cgst),
+      sgst: roundTo2(sgst),
+      gstTotal: roundTo2(gstAmount),
       extraCharges: applyExtraCharges ? roundTo2(extraChargesAmount) : 0,
       total: roundTo2(total),
       balance: roundTo2(balance),
@@ -805,8 +670,6 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
           price: item.price,
           originalPrice: item.originalPrice,
           total: item.total,
-          discount: item.discount,
-          discountedPrice: item.discountedPrice,
         })),
         subtotal,
         extraCharges,
@@ -818,6 +681,7 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
         totalInWords: `${convertToWords(total)} Only`,
         status,
         description: productDescription,
+        overallDiscount: overallDiscount.value > 0 ? overallDiscount : null,
       };
 
       let url = "/api/invoices";
@@ -979,10 +843,6 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
         unit: item.unit || "pcs",
         rate: item.price,
         originalPrice: item.originalPrice,
-        discount: item.discount.value || 0,
-        discountType: item.discount.type,
-        cgst: 2.5,
-        sgst: 2.5,
         amount: item.total,
         description: "",
         gstIncluded: item.gstIncluded || false,
@@ -997,6 +857,7 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
         customerInfo: {
           name: customerInfo.name || "",
           address: customerInfo.billingAddress || "",
+          phone: customerInfo.phone || "",
           city: customerInfo.city || "",
           pincode: customerInfo.pincode || "",
           gstin: customerInfo.gst || "",
@@ -1022,31 +883,7 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
         advancePaid: advancePayment,
         notes: "",
         previousDue: 0,
-        discountDetails: {
-          hasDiscount: validItems.some(
-            (item) => item.discount.value && item.discount.value > 0,
-          ),
-          totalDiscount: validItems.reduce(
-            (sum, item) => sum + (item.discountedPrice || 0),
-            0,
-          ),
-          itemsWithDiscount: validItems
-            .filter((item) => item.discount.value && item.discount.value > 0)
-            .map((item) => ({
-              name: item.name,
-              hsn: item.hsn || "970300",
-              quantity: item.quantity,
-              unit: item.unit || "pcs",
-              rate: item.price,
-              originalPrice: item.originalPrice,
-              discount: item.discount.value || 0,
-              discountType: item.discount.type,
-              cgst: 2.5,
-              sgst: 2.5,
-              amount: item.total,
-              gstIncluded: item.gstIncluded || false,
-            })),
-        },
+        overallDiscount: overallDiscount.value > 0 ? overallDiscount : null,
         gstCalculationType:
           company === "YADNYASENI" ? "INCLUDED_IN_PRICE" : "ADDED_ON_TOP",
       };
@@ -1061,18 +898,6 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
         { duration: 6000 },
       );
     }
-  };
-
-  // Helper function to calculate GST for display
-  const calculateGSTForDisplay = (amount: number, includeGST: boolean) => {
-    if (!includeGST) return amount;
-
-    // For YADNYASENI: Amount is GST-inclusive, convert to GST-exclusive for calculations
-    if (company === "YADNYASENI") {
-      return amount / 1.05;
-    }
-    // For RUDRA: Amount is GST-exclusive
-    return amount;
   };
 
   // Handle status change
@@ -1091,12 +916,10 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
         price: 0,
         originalPrice: 0,
         total: 0,
-        discount: { type: "percentage", value: 0 },
-        discountedPrice: 0,
         searchQuery: "",
         showDropdown: false,
         gstIncluded: company === "YADNYASENI",
-        applyGST: company === "RUDRA",
+        applyGST: true,
       },
     ]);
   };
@@ -1122,23 +945,17 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
         // Recalculate total when relevant fields change
         if (
           field === "quantity" ||
-          field === "discount" ||
           field === "originalPrice" ||
           field === "applyGST"
         ) {
           const finalTotal = calculateItemTotal(
             updatedItem.originalPrice,
             updatedItem.quantity,
-            updatedItem.discount,
-            overallDiscount,
             updatedItem.applyGST,
             company,
           );
 
           updatedItem.total = finalTotal;
-          updatedItem.discountedPrice =
-            updatedItem.originalPrice * updatedItem.quantity -
-            finalTotal / (updatedItem.applyGST ? 1.05 : 1);
 
           // Update displayed price based on company and GST
           if (updatedItem.applyGST && company === "YADNYASENI") {
@@ -1160,20 +977,6 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
   };
 
   const handleProductSelect = (index: number, product: Product) => {
-    let discountValue = 0;
-    switch (customerType) {
-      case "RESELLER":
-        discountValue = 30;
-        break;
-      case "FRANCHISE":
-        discountValue = 40;
-        break;
-      case "CUSTOMER":
-      default:
-        discountValue = 0;
-        break;
-    }
-
     const updatedItems: InvoiceItem[] = items.map((item, i) => {
       if (i === index) {
         // Store base price (this is GST-exclusive price from database)
@@ -1182,8 +985,6 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
         const finalTotal = calculateItemTotal(
           basePrice,
           item.quantity,
-          { type: "percentage" as const, value: discountValue },
-          overallDiscount,
           item.applyGST,
           company,
         );
@@ -1207,51 +1008,10 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
           price: displayedRate,
           originalPrice: basePrice,
           total: finalTotal,
-          discount: { type: "percentage" as const, value: discountValue },
-          discountedPrice:
-            basePrice * item.quantity - finalTotal / (item.applyGST ? 1.05 : 1),
           searchQuery: `${product.name} ${product.size}`,
           showDropdown: false,
           gstIncluded: company === "YADNYASENI" && item.applyGST,
           applyGST: item.applyGST,
-        };
-      }
-      return item;
-    });
-
-    setItems(updatedItems);
-  };
-
-  // Handle individual item discount change
-  const handleItemDiscountChange = (index: number, discount: DiscountType) => {
-    let validValue = discount.value;
-    if (discount.type === "percentage") {
-      validValue = Math.max(0, Math.min(100, discount.value));
-    } else {
-      validValue = Math.max(0, discount.value);
-    }
-
-    const updatedItems: InvoiceItem[] = items.map((item, i) => {
-      if (i === index) {
-        const finalTotal = calculateItemTotal(
-          item.originalPrice,
-          item.quantity,
-          { type: discount.type as "percentage" | "amount", value: validValue },
-          overallDiscount,
-          item.applyGST,
-          company,
-        );
-
-        return {
-          ...item,
-          discount: {
-            type: discount.type as "percentage" | "amount",
-            value: validValue,
-          },
-          total: finalTotal,
-          discountedPrice: item.originalPrice * item.quantity - finalTotal,
-          price: finalTotal / item.quantity,
-          gstIncluded: company === "YADNYASENI" && item.applyGST,
         };
       }
       return item;
@@ -1287,27 +1047,11 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
       return;
     }
 
-    let discountValue = 0;
-    switch (customerType) {
-      case "RESELLER":
-        discountValue = 40;
-        break;
-      case "FRANCHISE":
-        discountValue = 30;
-        break;
-      case "CUSTOMER":
-      default:
-        discountValue = 0;
-        break;
-    }
-
     const newItems = selectedProducts.map((bp) => {
       const finalTotal = calculateItemTotal(
         bp.product.price,
         bp.quantity,
-        { type: "percentage" as const, value: discountValue },
-        overallDiscount,
-        company === "RUDRA",
+        true, // applyGST
         company,
       );
 
@@ -1318,12 +1062,10 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
         price: bp.product.price,
         originalPrice: bp.product.price,
         total: finalTotal,
-        discount: { type: "percentage" as const, value: discountValue },
-        discountedPrice: bp.product.price * bp.quantity - finalTotal,
         searchQuery: `${bp.product.name} ${bp.product.size}`,
         showDropdown: false,
         gstIncluded: company === "YADNYASENI",
-        applyGST: company === "RUDRA",
+        applyGST: true,
       } as InvoiceItem;
     });
 
@@ -1348,8 +1090,6 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
         const finalTotal = calculateItemTotal(
           item.originalPrice,
           item.quantity,
-          item.discount,
-          overallDiscount,
           item.applyGST,
           company,
         );
@@ -1363,14 +1103,15 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
         return {
           ...item,
           total: finalTotal,
-          discountedPrice: item.originalPrice * item.quantity - finalTotal,
           price: displayedPrice,
           gstIncluded: company === "YADNYASENI" && item.applyGST,
+          applyGST: true,
         };
       }
       return {
         ...item,
         gstIncluded: company === "YADNYASENI" && item.applyGST,
+        applyGST: true,
       };
     });
 
@@ -1401,6 +1142,7 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
 
   const currentCompany = companyDetails[company];
 
+  // Handle final invoice generation
   // Handle final invoice generation
   const handleGenerateInvoice = async () => {
     try {
@@ -1433,7 +1175,7 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
       // Proceed with invoice generation
       const result = await saveInvoice(invoiceStatus);
 
-      // Map items to the expected format
+      // Map items to the expected format for InvoicePDF
       const mappedItems = validItems.map((item) => ({
         name: item.name,
         hsn: item.hsn || "970300",
@@ -1441,14 +1183,16 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
         unit: item.unit || "pcs",
         rate: item.price,
         originalPrice: item.originalPrice,
-        discount: item.discount.value || 0,
-        discountType: item.discount.type,
-        cgst: 2.5,
-        sgst: 2.5,
+        discount: 0, // No item-level discount anymore
+        discountType: "percentage" as const,
+        cgst: 2.5, // Default CGST rate
+        sgst: 2.5, // Default SGST rate
         amount: item.total,
+        description: "",
         gstIncluded: item.gstIncluded || false,
       }));
 
+      // Generate PDF
       // Generate PDF
       const blob = await pdf(
         <InvoicePDF
@@ -1465,6 +1209,7 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
             description: productDescription,
             customerInfo: {
               name: customerInfo.name || "",
+              phone: customerInfo.phone || "",
               address: customerInfo.billingAddress || "",
               city: customerInfo.city || "",
               pincode: customerInfo.pincode || "",
@@ -1493,31 +1238,9 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
             notes: "",
             previousDue: 0,
             discountDetails: {
-              hasDiscount: validItems.some(
-                (item) => item.discount.value && item.discount.value > 0,
-              ),
-              totalDiscount: validItems.reduce(
-                (sum, item) => sum + (item.discountedPrice || 0),
-                0,
-              ),
-              itemsWithDiscount: validItems
-                .filter(
-                  (item) => item.discount.value && item.discount.value > 0,
-                )
-                .map((item) => ({
-                  name: item.name,
-                  hsn: item.hsn || "970300",
-                  quantity: item.quantity,
-                  unit: item.unit || "pcs",
-                  rate: item.price,
-                  originalPrice: item.originalPrice,
-                  discount: item.discount.value || 0,
-                  discountType: item.discount.type,
-                  cgst: 2.5,
-                  sgst: 2.5,
-                  amount: item.total,
-                  gstIncluded: item.gstIncluded || false,
-                })),
+              hasDiscount: totalDiscount > 0,
+              totalDiscount: totalDiscount,
+              itemsWithDiscount: [], // No item-level discounts anymore
             },
             gstCalculationType:
               company === "YADNYASENI" ? "INCLUDED_IN_PRICE" : "ADDED_ON_TOP",
@@ -1563,12 +1286,10 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
           price: 0,
           originalPrice: 0,
           total: 0,
-          discount: { type: "percentage", value: 0 },
-          discountedPrice: 0,
           searchQuery: "",
           showDropdown: false,
           gstIncluded: company === "YADNYASENI",
-          applyGST: company === "RUDRA",
+          applyGST: true,
         },
       ]);
       setAdvancePayment(0);
@@ -1969,7 +1690,7 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                     Add products and services to the invoice
                   </CardDescription>
 
-                  {/* Customer Type Radio Buttons */}
+                  {/* Customer Type Radio Buttons - For reference only, no discount applied */}
                   <div className="flex items-center space-x-4 mt-3">
                     <Label className="font-medium text-sm">
                       Customer Type:
@@ -2022,24 +1743,20 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
               {/* Table Container */}
               <div className="space-y-4" style={{ overflow: "visible" }}>
                 {/* TABLE HEADER */}
-                <div className="grid grid-cols-12 gap-2 text-xs font-medium text-gray-600 pb-2 border-b">
+                <div className="grid grid-cols-11 gap-2 text-xs font-medium text-gray-600 pb-2 border-b">
                   <div className="col-span-5">Product</div>
                   <div className="col-span-1 text-right">Qty</div>
                   <div className="col-span-2 text-right">Rate (₹)</div>
-                  {customerType !== "CUSTOMER" && (
-                    <div className="col-span-2 text-right">Discount</div>
-                  )}
                   <div className="col-span-1 text-right">GST</div>
                   <div className="col-span-1 text-right">Amount (₹)</div>
-                  <div className="col-span-1 text-center">Action</div>{" "}
-                  {/* New column */}
+                  <div className="col-span-1 text-center">Action</div>
                 </div>
 
                 {/* LINE ITEMS */}
                 {items.map((item, index) => (
                   <div
                     key={index}
-                    className="grid grid-cols-12 gap-2 items-start py-2 border-b border-gray-100 last:border-b-0"
+                    className="grid grid-cols-11 gap-2 items-start py-2 border-b border-gray-100 last:border-b-0"
                     style={{ overflow: "visible" }}
                   >
                     {/* PRODUCT */}
@@ -2215,37 +1932,6 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                       />
                     </div>
 
-                    {/* DISCOUNT */}
-                    {customerType !== "CUSTOMER" && (
-                      <div className="col-span-2 flex justify-end gap-1">
-                        <select
-                          value={item.discount.type}
-                          onChange={(e) =>
-                            handleItemDiscountChange(index, {
-                              type: e.target.value as any,
-                              value: 0,
-                            })
-                          }
-                          className="border border-gray-300 rounded-md px-1 py-1 text-xs w-14"
-                        >
-                          <option value="percentage">%</option>
-                          <option value="amount">₹</option>
-                        </select>
-
-                        <Input
-                          type="number"
-                          value={item.discount.value}
-                          onChange={(e) =>
-                            handleItemDiscountChange(index, {
-                              type: item.discount.type,
-                              value: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                          className="text-right h-8 w-16 text-xs"
-                        />
-                      </div>
-                    )}
-
                     {/* GST */}
                     <div className="col-span-1 flex justify-end">
                       <Checkbox
@@ -2354,32 +2040,15 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                         checked={overallDiscount.value > 0}
                         onCheckedChange={(checked) => {
                           if (checked) {
-                            const newDiscount = {
-                              type: "percentage" as const,
+                            setOverallDiscount({
+                              type: "percentage",
                               value: 5,
-                            };
-                            setOverallDiscount(newDiscount);
-                            applyOverallDiscountToItems(newDiscount);
+                            });
                           } else {
                             setOverallDiscount({
                               type: "percentage",
                               value: 0,
                             });
-                            const updatedItems = items.map((item) => {
-                              if (item.originalPrice > 0) {
-                                const finalTotal = calculateItemTotal(
-                                  item.originalPrice,
-                                  item.quantity,
-                                  item.discount,
-                                  { type: "percentage", value: 0 },
-                                  item.applyGST,
-                                  company,
-                                );
-                                return { ...item, total: finalTotal };
-                              }
-                              return item;
-                            });
-                            setItems(updatedItems);
                           }
                         }}
                       />
@@ -2403,10 +2072,6 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                               ...prev,
                               type: newType,
                             }));
-                            applyOverallDiscountToItems({
-                              type: newType,
-                              value: overallDiscount.value,
-                            });
                           }}
                           className="border border-gray-300 rounded px-2 py-1 text-sm w-16"
                         >
@@ -2424,12 +2089,10 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                           value={overallDiscount.value}
                           onChange={(e) => {
                             const newValue = parseFloat(e.target.value) || 0;
-                            const newDiscount = {
-                              ...overallDiscount,
+                            setOverallDiscount((prev) => ({
+                              ...prev,
                               value: newValue,
-                            };
-                            setOverallDiscount(newDiscount);
-                            applyOverallDiscountToItems(newDiscount);
+                            }));
                           }}
                           className="w-20 text-right"
                           placeholder="0"
@@ -2541,7 +2204,6 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
             </div>
 
             {/* Invoice Summary */}
-            {/* Invoice Summary - Clean Tabular Format */}
             <div className="border border-black/20 py-5 rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-lg">Invoice Summary</CardTitle>
@@ -2577,6 +2239,14 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                         <span className="font-mono">₹{sgst.toFixed(2)}</span>
                       </div>
                     </>
+                  )}
+
+                  {/* For YADNYASENI, show note that prices include GST */}
+                  {company === "YADNYASENI" && gstTotal > 0 && (
+                    <div className="flex justify-between py-1 text-xs text-gray-500 italic">
+                      <span>GST (5%):</span>
+                      <span>Included in prices</span>
+                    </div>
                   )}
 
                   {/* Extra Charges */}

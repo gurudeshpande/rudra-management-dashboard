@@ -9,11 +9,15 @@ export interface CompanyDetails {
 }
 
 export interface CustomerInfo {
+  id?: number;
   name: string;
-  address: string;
-  city: string;
-  pincode: string;
-  gstin: string;
+  phone?: string;
+  address?: string;
+  email?: string;
+  city?: string;
+  pincode?: string;
+  gstin?: string;
+  pan?: string;
 }
 
 export interface InvoiceItem {
