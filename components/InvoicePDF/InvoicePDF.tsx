@@ -9,6 +9,7 @@ import {
   Image,
 } from "@react-pdf/renderer";
 import { InvoiceData } from "@/types/invoice";
+import { init } from "next/dist/compiled/webpack/webpack";
 
 // Create enhanced styles
 const styles = StyleSheet.create({
@@ -625,11 +626,30 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({
               ) : (
                 <View style={styles.summaryValueCell}>
                   <Text style={styles.summaryValue}>
-                    Rs.{formatIndianCurrency(total)}
+                    Rs.{formatIndianCurrency(subtotal)}
                   </Text>
                 </View>
               )}
             </View>
+
+            {invoiceData.discountDetails.hasDiscount && (
+              <View style={styles.summaryRow}>
+                <View
+                  style={[styles.summaryLabelCell, styles.summaryBorderRight]}
+                >
+                  <Text style={styles.summaryLabel}>Discount:</Text>
+                </View>
+                <View style={styles.summaryValueCell}>
+                  <Text style={styles.summaryValue}>
+                    Rs.
+                    {formatIndianCurrency(
+                      invoiceData.discountDetails.totalDiscount,
+                      showDecimal,
+                    )}
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {/* CGST */}
             {companyType === "RUDRA" && (

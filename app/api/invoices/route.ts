@@ -73,19 +73,35 @@ export async function POST(req: Request) {
     // Generate invoice number
     const invoiceNumber = await generateInvoiceNumber();
 
-    // ✅ Upsert Customer
-    const customer = await prisma.customer.upsert({
+    // --- FIXED CUSTOMER HANDLING (replaces upsert) ---
+    // Since the 'number' field may not have a unique constraint in the database,
+    // we use findFirst + conditional create/update instead of upsert.
+    let customer = await prisma.customer.findFirst({
       where: { number: customerInfo.phone },
-      update: {
-        name: customerInfo.name,
-        address: customerInfo.address,
-      },
-      create: {
-        name: customerInfo.name,
-        number: customerInfo.phone,
-        address: customerInfo.address,
-      },
     });
+
+    if (!customer) {
+      // Create new customer
+      customer = await prisma.customer.create({
+        data: {
+          name: customerInfo.name,
+          number: customerInfo.phone,
+          address: customerInfo.billingAddress || customerInfo.address, // handle both possible field names
+          email: customerInfo.email || undefined,
+        },
+      });
+    } else {
+      // Update existing customer
+      customer = await prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          name: customerInfo.name,
+          address: customerInfo.billingAddress || customerInfo.address,
+          email: customerInfo.email || undefined,
+        },
+      });
+    }
+    // --- END FIX ---
 
     // Create Shipping Info (if provided)
     let shipping = null;
@@ -102,7 +118,7 @@ export async function POST(req: Request) {
     // Update product quantities
     await updateProductQuantities(items);
 
-    // Create Invoice with items including description
+    // Create Invoice with items
     const invoice = await prisma.invoice.create({
       data: {
         invoiceNumber,
