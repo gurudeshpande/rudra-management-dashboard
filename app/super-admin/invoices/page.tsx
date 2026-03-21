@@ -548,10 +548,16 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
   const calculateTotals = () => {
     let subtotalBeforeDiscount = 0;
 
-    // Calculate subtotal from items (these already include GST if applicable)
+    // Calculate subtotal from items
     items.forEach((item) => {
       if (item.name && item.originalPrice > 0) {
-        subtotalBeforeDiscount += item.total;
+        if (company === "RUDRA") {
+          // For RUDRA: subtotal should be sum of (originalPrice * quantity) without GST
+          subtotalBeforeDiscount += item.originalPrice * item.quantity;
+        } else {
+          // For YADNYASENI: subtotal already includes GST (item.total includes GST)
+          subtotalBeforeDiscount += item.total;
+        }
       }
     });
 
@@ -598,10 +604,7 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
 
     // For YADNYASENI: subtotal should include GST (which it already does)
     // For RUDRA: subtotal should be before GST
-    const subtotal =
-      company === "YADNYASENI"
-        ? subtotalBeforeDiscount
-        : subtotalBeforeDiscount;
+    const subtotal = subtotalBeforeDiscount;
 
     return {
       subtotal: roundTo2(subtotal),
