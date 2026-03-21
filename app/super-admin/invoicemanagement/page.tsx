@@ -314,6 +314,12 @@ const InvoiceManagement = () => {
             ADVANCE
           </Badge>
         );
+      case "DRAFT":
+        return (
+          <Badge className="bg-gray-500 text-white hover:bg-gray-600">
+            DRAFT
+          </Badge>
+        );
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -563,8 +569,11 @@ const InvoiceManagement = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredInvoices.map((invoice) => {
-                    const remainingAmount =
-                      invoice.subtotal - invoice.advancePaid;
+                    const remainingAmount = invoice.total - invoice.advancePaid;
+
+                    console.log(remainingAmount, "RA", invoice.invoiceNumber);
+                    const hasAdvanceOrPartial =
+                      invoice.advancePaid > 0 || invoice.status === "ADVANCE";
 
                     return (
                       <TableRow key={invoice.id}>
@@ -582,23 +591,29 @@ const InvoiceManagement = () => {
                         <TableCell>{formatDate(invoice.invoiceDate)}</TableCell>
                         <TableCell>{formatDate(invoice.dueDate)}</TableCell>
                         <TableCell>
-                          <div className="font-medium">
-                            {formatCurrency(invoice.total)}
+                          {/* Main Total Amount */}
+                          <div className="font-semibold text-gray-900">
+                            {formatCurrency(Math.ceil(invoice.total))}
                           </div>
-                          {invoice.advancePaid > 0 && (
-                            <div className="text-xs space-y-1">
-                              {invoice.status === "ADVANCE" ? (
-                                <div className="text-amber-600">
+
+                          {/* Show advance and remaining only if there's an advance payment */}
+                          {invoice.status !== "PAID" &&
+                            hasAdvanceOrPartial &&
+                            remainingAmount > 0 && (
+                              <div className="mt-1 space-y-0.5 text-xs">
+                                <div className="text-green-600">
                                   Advance: {formatCurrency(invoice.advancePaid)}
                                 </div>
-                              ) : (
-                                <div className="text-green-600">
-                                  Paid: {formatCurrency(invoice.advancePaid)}
+                                <div className="text-orange-600">
+                                  Remaining: {formatCurrency(remainingAmount)}
                                 </div>
-                              )}
-                              <div className="text-blue-600 font-medium">
-                                Remaining: {formatCurrency(remainingAmount)}
                               </div>
+                            )}
+
+                          {/* If fully paid, show paid badge */}
+                          {invoice.status === "PAID" && (
+                            <div className="mt-1 text-xs text-green-600 font-medium">
+                              Fully Paid
                             </div>
                           )}
                         </TableCell>
