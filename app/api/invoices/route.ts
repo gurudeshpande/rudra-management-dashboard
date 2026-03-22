@@ -66,6 +66,7 @@ export async function POST(req: Request) {
       deliveryDate,
       status,
       companyType = "RUDRA",
+      overallDiscount,
     } = data;
 
     console.log("Received data:", data);
@@ -138,6 +139,8 @@ export async function POST(req: Request) {
         status,
         description: data.description || "",
         companyType,
+        discount: overallDiscount?.value || 0,
+        discountType: overallDiscount?.type || "amount",
         items: {
           create: items.map((item: any) => ({
             productId: item.productId,
@@ -267,6 +270,7 @@ export async function PUT(req: Request) {
       companyType,
       extraCharges,
       items, // Add items to update if needed
+      overallDiscount,
     } = body;
 
     // Get the current invoice to check status changes
@@ -289,6 +293,8 @@ export async function PUT(req: Request) {
       balanceDue: remaining,
       status,
       extraCharges,
+      discount: overallDiscount?.value || 0,
+      discountType: overallDiscount?.type || "amount",
     };
 
     // Add companyType if provided
