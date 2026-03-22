@@ -225,6 +225,10 @@ const EditInvoicePage = () => {
         setProductDescription(data.description || "");
         setExtraChargesAmount(data.extraCharges || 0);
         setApplyExtraCharges((data.extraCharges || 0) > 0);
+        setOverallDiscount({
+          type: data.discountType === "percentage" ? "percentage" : "amount",
+          value: data.discount || 0,
+        });
 
         // Set customer info
         setCustomerInfo({
