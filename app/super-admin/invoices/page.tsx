@@ -1467,10 +1467,10 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-900">Create Invoice</h1>
           {/* Company Selection */}
-          <div className="space-y-3">
+          {/*<div className="space-y-3">
             <Label className="font-semibold">Company *</Label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Rudra */}
+              
               <label
                 htmlFor="company-rudra"
                 className={`flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer transition
@@ -1495,8 +1495,6 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                   </div>
                 </div>
               </label>
-
-              {/* Yadnyaseni */}
               <label
                 htmlFor="company-yadnyaseni"
                 className={`flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer transition
@@ -1522,7 +1520,7 @@ const Invoices = ({ initialData, isEditMode = false }: InvoicesProps) => {
                 </div>
               </label>
             </div>
-          </div>
+          </div>*/}
         </div>
 
         {/* All sections in vertical flow */}

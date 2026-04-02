@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     console.error("Error fetching transfers:", error);
     return NextResponse.json(
       { error: "Failed to fetch transfers" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     if (!userId || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
         { error: "User ID and at least one transfer item are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
       ) {
         return NextResponse.json(
           { error: "Each item must have a valid raw material ID and quantity" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -68,18 +68,18 @@ export async function POST(req: Request) {
 
         if (!rawMaterial) {
           throw new Error(
-            `Raw material with ID ${item.rawMaterialId} not found`
+            `Raw material with ID ${item.rawMaterialId} not found`,
           );
         }
 
         if (rawMaterial.quantity < item.quantityIssued) {
           throw new Error(
-            `Insufficient stock for ${rawMaterial.name}. Available: ${rawMaterial.quantity}, Requested: ${item.quantityIssued}`
+            `Insufficient stock for ${rawMaterial.name}. Available: ${rawMaterial.quantity}, Requested: ${item.quantityIssued}`,
           );
         }
 
         return rawMaterial;
-      })
+      }),
     );
 
     // Start transaction for all transfers
@@ -139,7 +139,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
       { error: "Failed to create transfers" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
