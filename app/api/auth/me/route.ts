@@ -1,9 +1,8 @@
 // app/api/auth/me/route.ts
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import jwt from "jsonwebtoken";
 
-const prisma = new PrismaClient();
 
 if (!process.env.JWT_SECRET) {
   throw new Error("Missing required environment variable: JWT_SECRET");

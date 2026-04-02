@@ -1,9 +1,9 @@
 // app/api/invoices/[id]/send-whatsapp/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { WhatsAppService } from "@/lib/whatsapp-service";
 
-const prisma = new PrismaClient();
+
 const whatsappService = new WhatsAppService();
 
 export async function POST(

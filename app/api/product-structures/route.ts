@@ -1,8 +1,6 @@
 // app/api/product-structures/route.ts
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 // GET product structures with enhanced data
 export async function GET() {

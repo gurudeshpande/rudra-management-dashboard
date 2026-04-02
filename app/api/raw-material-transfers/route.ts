@@ -1,8 +1,7 @@
 // app/api/transfers/route.ts
 import { NextResponse } from "next/server";
-import { PrismaClient, TransferStatus } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { TransferStatus } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 // GET all transfers
 export async function GET(request: Request) {

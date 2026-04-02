@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import slugify from "slugify";
 
-const prisma = new PrismaClient();
 
 /* =========================
    GET all categories

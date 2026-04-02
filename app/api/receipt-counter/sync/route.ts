@@ -1,8 +1,6 @@
 // app/api/receipt-counter/sync/route.ts
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 // Helper function to get current financial year
 function getCurrentFinancialYear(): string {

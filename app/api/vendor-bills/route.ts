@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { PrismaClient, BillStatus } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { BillStatus } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 // GET all vendor bills
 export async function GET(request: Request) {

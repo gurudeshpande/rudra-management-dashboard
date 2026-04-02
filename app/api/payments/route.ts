@@ -1,8 +1,7 @@
 // app/api/payments/route.ts
 import { NextResponse } from "next/server";
-import { PrismaClient, PaymentStatus, PaymentMethod } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { PaymentStatus, PaymentMethod } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 // GET all payments
 export async function GET(request: Request) {

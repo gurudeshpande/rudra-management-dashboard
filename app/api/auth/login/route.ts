@@ -1,10 +1,8 @@
 // app/api/auth/login/route.ts
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
-
-const prisma = new PrismaClient();
 
 const LoginSchema = z.object({
   email: z.string().email("Invalid email format"),
@@ -29,7 +27,7 @@ export async function POST(req: Request) {
           message: "Validation error",
           errors: validatedInput.error.issues,
         }),
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -60,7 +58,7 @@ export async function POST(req: Request) {
     const token = jwt.sign(
       { userId: user.id, role: user.role, email: user.email },
       process.env.JWT_SECRET!,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     const { password: _, ...userWithoutPassword } = user;
@@ -74,7 +72,7 @@ export async function POST(req: Request) {
         message: "Internal server error",
         error: error instanceof Error ? error.message : "Unknown error",
       }),
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

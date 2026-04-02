@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { PrismaClient, VendorCreditNoteStatus } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { VendorCreditNoteStatus } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 // GET all vendor credit notes
 export async function GET(request: Request) {

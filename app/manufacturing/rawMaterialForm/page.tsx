@@ -1,8 +1,6 @@
 // app/manufacturing/rawmaterialform/page.tsx
 import { RawMaterialForm } from "@/components/manufacturing/RawMaterialForm";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 async function getMaterialData(id: string) {
   try {

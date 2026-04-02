@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
-import {
-  PrismaClient,
-  VendorPaymentStatus,
-  VendorPaymentMethod,
-} from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { VendorPaymentStatus,
+  VendorPaymentMethod, } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 // GET all vendor payments
 export async function GET(request: Request) {

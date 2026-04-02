@@ -1,8 +1,6 @@
 // app/api/raw-materials/[id]/route.ts
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 // PUT /api/raw-materials/[id] → update raw material
 export async function PUT(

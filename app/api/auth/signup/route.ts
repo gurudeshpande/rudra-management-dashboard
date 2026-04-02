@@ -1,9 +1,9 @@
-import { PrismaClient, UserRole } from "@prisma/client";
+import { UserRole } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 
-const prisma = new PrismaClient();
 
 // Input validation schema
 const SignupSchema = z.object({
