@@ -1,8 +1,7 @@
 // lib/auth.ts
 import jwt from "jsonwebtoken";
-import { PrismaClient, UserRole } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { UserRole } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 export interface AuthUser {
   id: string;

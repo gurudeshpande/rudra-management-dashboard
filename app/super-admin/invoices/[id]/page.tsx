@@ -1,10 +1,9 @@
 // app/invoice/[id]/page.tsx
 import { notFound, redirect } from "next/navigation";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import InvoiceView from "@/components/invoice/InvoiceView";
 import { cookies } from "next/headers";
 
-const prisma = new PrismaClient();
 
 interface PageProps {
   params: Promise<{

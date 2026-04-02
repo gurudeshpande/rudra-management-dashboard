@@ -1,8 +1,6 @@
 // app/manufacturing/productStructureBuilder/page.tsx
 import { ProductStructureBuilder } from "@/components/manufacturing/ProductStructureBuilder";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 async function getData() {
   try {

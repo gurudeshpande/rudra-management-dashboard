@@ -1,9 +1,7 @@
 // app/super-admin/payment/payment-receipt/page.tsx
 
 import PaymentReceiptPDF from "@/components/payment/PaymentReceiptPDF";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;

@@ -1,9 +1,8 @@
 import { notFound, redirect } from "next/navigation";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import InvoiceView from "@/components/invoice/InvoiceView";
 
-const prisma = new PrismaClient();
 
 interface PageProps {
   params: Promise<{

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { generateInvoiceNumber } from "@/utils/invoiceNumberGenerator";
 
-const prisma = new PrismaClient();
 
 // Function to update product quantities
 const updateProductQuantities = async (items: any[]) => {

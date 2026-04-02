@@ -1,10 +1,9 @@
 // app/api/auth/login/route.ts
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 
-const prisma = new PrismaClient();
 
 const LoginSchema = z.object({
   email: z.string().email("Invalid email format"),

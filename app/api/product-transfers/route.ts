@@ -1,8 +1,6 @@
 // app/api/product-transfers/route.ts
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 // POST create product transfer and deduct ONLY raw materials
 export async function POST(request: Request) {
