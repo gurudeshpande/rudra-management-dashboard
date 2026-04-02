@@ -100,7 +100,7 @@ interface SummaryData {
 
 const InvoiceAnalytics: React.FC = () => {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(
-    null
+    null,
   );
   const [loading, setLoading] = useState(true);
   const [timeFilter, setTimeFilter] = useState<string>("current_year");
@@ -159,7 +159,7 @@ const InvoiceAnalytics: React.FC = () => {
       });
 
       const response = await fetch(
-        `/api/analytics/invoices?${queryParams.toString()}`
+        `/api/analytics/invoices?${queryParams.toString()}`,
       );
 
       if (!response.ok) {
@@ -523,7 +523,7 @@ const InvoiceAnalytics: React.FC = () => {
                     labelLine={false}
                     label={({ payload }): string =>
                       `${payload?.product}: ${formatCurrency(
-                        Number(payload?.revenue)
+                        Number(payload?.revenue),
                       )}`
                     }
                     outerRadius={80}
@@ -697,7 +697,7 @@ const InvoiceAnalytics: React.FC = () => {
                         <p className="text-sm text-muted-foreground">
                           Avg:{" "}
                           {formatCurrency(
-                            customer.totalSpent / customer.invoiceCount
+                            customer.totalSpent / customer.invoiceCount,
                           )}
                         </p>
                       </div>
@@ -745,14 +745,14 @@ const InvoiceAnalytics: React.FC = () => {
                         {formatCurrency(
                           filteredCustomers.reduce(
                             (sum, customer) => sum + customer.totalSpent,
-                            0
-                          )
+                            0,
+                          ),
                         )}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {filteredCustomers.reduce(
                           (sum, customer) => sum + customer.invoiceCount,
-                          0
+                          0,
                         )}{" "}
                         total invoices
                       </p>
